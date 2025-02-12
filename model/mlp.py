@@ -85,7 +85,7 @@ class MLP(nn.Module):
 
 
 @struct.dataclass
-class SpatialMlpConfig:
+class MixerConfig:
     """Global hyperparamters"""
     n_layers: int = 2
     n_hidden: int = 128
@@ -96,12 +96,12 @@ class SpatialMlpConfig:
     layer_norm: bool = False
 
     def to_model(self):
-        return SpatialMLP(self)
+        return Mixer(self)
 
 
-class SpatialMLP(nn.Module):
+class Mixer(nn.Module):
 
-    config: SpatialMlpConfig
+    config: MixerConfig
 
     @nn.compact
     def __call__(self, x):

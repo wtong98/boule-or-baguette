@@ -227,8 +227,8 @@ class Transformer(nn.Module):
         if config.use_last_index_output:
             return y[:,-1,-1]
 
-        # logits = nn.Dense(config.n_out, use_bias=False)(y)
-        logits = y
+        logits = nn.Dense(config.n_out, use_bias=True)(y)
+        # logits = y
         if config.return_final_logits_only:
             logits = logits[:,-1,:]
 

@@ -89,10 +89,6 @@ def train_step(state, batch, loss='bce'):
     def loss_fn(params):
         logits = state.apply_fn({'params': params}, x)
 
-        # if gamma is not None:
-        #     logits_init = state.apply_fn({'params': state.init_params}, x)
-        #     logits = (1 / gamma) * (logits - logits_init)
-
         train_loss = loss_func(logits, labels)
 
         if loss == 'bce' and len(labels.shape) > 1:
