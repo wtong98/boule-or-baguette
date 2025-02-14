@@ -44,7 +44,7 @@ class TransformerConfig:
     as_rf_model: bool = False
     use_simple_att: bool = False
     freeze_emb: bool = False
-    gamma: float = 1
+    use_bias: bool = True
 
     def to_model(self):
         return Transformer(self)
@@ -162,7 +162,8 @@ class TransformerBlock(nn.Module):
             x = SimpleSelfAttention(config=self.config)(inputs)
         else:
             x = nn.MultiHeadDotProductAttention(num_heads=self.config.n_heads, 
-                                                qkv_features=self.config.n_hidden)(inputs_q=inputs, inputs_kv=inputs, mask=decoder_mask)
+                                                qkv_features=self.config.n_hidden,
+                                                use_bias=self.config.use_bias)(inputs_q=inputs, inputs_kv=inputs, mask=decoder_mask)
 
         if self.config.residual_connections:
             x = x + inputs
@@ -174,10 +175,10 @@ class TransformerBlock(nn.Module):
             pre_mlp_x = x
             for i in range(self.config.n_mlp_layers):
                 if i == 0:
-                    x = nn.Dense(features=self.config.n_hidden)(pre_mlp_x)
+                    x = nn.Dense(features=self.config.n_hidden, use_bias=self.config.use_bias)(pre_mlp_x)
                 else:
                     x = nn.gelu(x)
-                    x = nn.Dense(features=self.config.n_hidden)(x)
+                    x = nn.Dense(features=self.config.n_hidden, use_bias=self.config.use_bias)(x)
             
             if self.config.residual_connections:
                 x = x + pre_mlp_x
@@ -224,15 +225,14 @@ class Transformer(nn.Module):
         if config.use_last_index_output:
             return y[:,-1,-1]
 
-        logits = nn.Dense(config.n_out, use_bias=True)(y)
-        # logits = y
+        logits = nn.Dense(config.n_out, use_bias=self.config.use_bias)(y)
         if config.return_final_logits_only:
             logits = logits[:,-1,:]
 
             if config.n_out == 1:
                 logits = logits.flatten()
 
-        return logits / self.config.gamma
+        return logits
 
 
 @struct.dataclass

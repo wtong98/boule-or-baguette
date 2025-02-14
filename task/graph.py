@@ -163,6 +163,14 @@ class GraphTiTask:
 
 class BinaryTreeTiTask:
     def __init__(self, depth, order=None, samp_dist=1, on_branch=True, fill_gaps=True, shuffle_idx=True, batch_size=128) -> None:
+        if not on_branch:
+            if isinstance(samp_dist, Iterable):
+                dist = samp_dist[1]
+            else:
+                dist = samp_dist
+
+            assert depth - dist > 1, 'impossible to generate off-branch examples'
+
         self.depth = depth
         self.order = order
         self.samp_dist = samp_dist
@@ -215,7 +223,7 @@ class BinaryTreeTiTask:
 
 
 class Chain:
-    def __init__(self, tasks, weights=None) -> None:
+    def __init__(self, *tasks, weights=None) -> None:
         self.tasks = tasks
         self.batch_size = self.tasks[0].batch_size
         self.weights = weights
@@ -244,7 +252,7 @@ class Chain:
         return self
 
 
-# task = BinaryTreeTiTask(order='split', depth=5, samp_dist=(1,2), batch_size=10, on_branch=False)
+# task = BinaryTreeTiTask(order='split', depth=5, samp_dist=4, batch_size=10, on_branch=False)
 # xs, ys = next(task)
 
 # print(xs)

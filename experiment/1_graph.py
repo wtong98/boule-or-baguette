@@ -56,7 +56,7 @@ train_task = Chain([
 ])
 
 test_task = Chain([
-    BinaryTreeTiTask(order='split', depth=depth, samp_dist=7, on_branch=False),
+    BinaryTreeTiTask(order='split', depth=depth, samp_dist=7, on_branch=True),
 ])
 
 

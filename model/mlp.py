@@ -99,6 +99,8 @@ class MixerConfig:
     act_fn: str = 'relu'
     last_token_only: bool = True
     layer_norm: bool = False
+    use_bias: bool = True
+    freeze_emb: bool = False
 
     def to_model(self):
         return Mixer(self)
@@ -122,10 +124,10 @@ class Mixer(nn.Module):
         assert len(x.shape) == 3
 
         for _ in range(self.config.n_layers):
-            x = nn.Dense(self.config.n_hidden)(x)
+            x = nn.Dense(self.config.n_hidden, use_bias=self.config.use_bias)(x)
             x = jnp.transpose(x, (0, 2, 1))
 
-            x = nn.Dense(self.config.n_channels)(x)
+            x = nn.Dense(self.config.n_channels, use_bias=self.config.use_bias)(x)
             x = jnp.transpose(x, (0, 2, 1))
 
             if self.config.layer_norm:
@@ -138,7 +140,7 @@ class Mixer(nn.Module):
         else:
             x = x.reshape(x.shape[0], -1)
 
-        out = nn.Dense(self.config.n_out)(x)
+        out = nn.Dense(self.config.n_out, use_bias=self.config.use_bias)(x)
 
         if self.config.n_out == 1:
             out = out.flatten()
