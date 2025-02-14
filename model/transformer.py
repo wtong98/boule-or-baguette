@@ -27,9 +27,8 @@ import numpy as np
 
 @struct.dataclass
 class TransformerConfig:
-    vocab_size: int | None = None
+    n_vocab: int | None = None
     n_layers: int = 2
-    n_emb: int | None = None
     n_hidden: int = 128
     n_heads: int = 1
     n_out: int = 1
@@ -163,7 +162,7 @@ class TransformerBlock(nn.Module):
             x = SimpleSelfAttention(config=self.config)(inputs)
         else:
             x = nn.MultiHeadDotProductAttention(num_heads=self.config.n_heads, 
-                                                qkv_features=self.config.n_hidden)(inputs_q=inputs, inputs_kv=inputs, mask=decoder_mask, sow_weights=True)
+                                                qkv_features=self.config.n_hidden)(inputs_q=inputs, inputs_kv=inputs, mask=decoder_mask)
 
         if self.config.residual_connections:
             x = x + inputs
@@ -200,16 +199,14 @@ class Transformer(nn.Module):
         y = inputs
 
         # Target Embedding
-        if config.n_emb is not None:
+        if config.n_vocab is not None:
             assert inputs.ndim == 2  # (batch, len)
 
+            name = 'Embed_freeze' if (self.config.freeze_emb or self.config.as_rf_model) else None
             y = nn.Embed(
-                    num_embeddings=config.vocab_size,
-                    features=config.n_emb)(y)
-        else:
-            name = 'input_mlp_freeze' if (self.config.as_rf_model or self.config.freeze_emb) else None
-            y = nn.Dense(features=config.n_hidden, name=name, use_bias=False)(y)  # project to correct hidden dim
-            y = nn.relu(y)
+                num_embeddings=self.config.n_vocab,
+                features=self.config.n_hidden,
+                name=name)(y)
 
         if config.pos_emb:
             y = AddPositionEmbs(config=config)(y)

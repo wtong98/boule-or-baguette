@@ -1,7 +1,9 @@
 """Graph connectedness algorithms"""
 
 # <codecell>
+from collections.abc import Iterable
 import functools
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -21,38 +23,37 @@ def _bin_path(a):
     c = (c > 0).astype(int)
     return c
 
-def samp_children(key, nodes, samp_dist):
-    n_min = nodes * 2**samp_dist
-    n_max = nodes * 2**samp_dist + 2**samp_dist
-    children = jax.random.randint(key, minval=n_min, maxval=n_max, shape=len(n_min))
-    return children
 
-
-@functools.partial(jax.jit, static_argnums=(3,))
+@functools.partial(jax.jit, static_argnums=(2, 3))
 def samp_nodes_on_branch(key, depth, samp_dist, batch_size):
     source = key
+
+    key, source = jax.random.split(source)
+    samp_dist = _split_samp_dist(key, samp_dist, batch_size)
 
     key, source = jax.random.split(source)
     upr = 2**(depth - samp_dist)
     nodes = jax.random.randint(key, minval=1, maxval=upr, shape=batch_size)
 
     key, source = jax.random.split(source)
-    children = samp_children(key, nodes, samp_dist)
+    children = _samp_children(key, nodes, samp_dist)
 
     xs = jnp.stack((nodes, children), axis=1)
     ys = jnp.ones(batch_size)
     return xs, ys
 
 
-@functools.partial(jax.jit, static_argnums=(1, 2, 3,))
+@functools.partial(jax.jit, static_argnums=(2, 3))
 def samp_nodes_off_branch(key, depth, samp_dist, batch_size):
     source = key
 
     key, source = jax.random.split(source)
-    l = depth - samp_dist
-    probs = 2**jnp.arange(l)
-    probs = probs / np.sum(probs)
-    layers = jax.random.choice(key, l, p=probs, shape=(batch_size,))
+    samp_dist = _split_samp_dist(key, samp_dist, batch_size)
+
+    key, source = jax.random.split(source)
+    upr = 2**(depth - samp_dist)
+    nodes = jax.random.randint(key, minval=1, maxval=upr, shape=batch_size)
+    layers = jnp.log2(nodes).astype(int)
 
     key, source = jax.random.split(source)
     l_low = 2**layers
@@ -62,10 +63,25 @@ def samp_nodes_off_branch(key, depth, samp_dist, batch_size):
     ys = (true == shadow).astype(int)
 
     key, source = jax.random.split(source)
-    children = samp_children(key, shadow, samp_dist)
+    children = _samp_children(key, shadow, samp_dist)
     xs = jnp.stack((true, children), axis=1)
     
     return xs, ys
+
+
+def _split_samp_dist(key, samp_dist, batch_size):
+    if isinstance(samp_dist, Iterable):
+        s_low, s_high = samp_dist
+        samp_dist = jax.random.randint(key, minval=s_low, maxval=s_high+1, shape=batch_size)
+
+    return samp_dist
+
+
+def _samp_children(key, nodes, samp_dist):
+    n_min = nodes * 2**samp_dist
+    n_max = nodes * 2**samp_dist + 2**samp_dist
+    children = jax.random.randint(key, minval=n_min, maxval=n_max, shape=len(n_min))
+    return children
 
 
 class GraphTiTask:
@@ -146,13 +162,14 @@ class GraphTiTask:
 
 
 class BinaryTreeTiTask:
-    def __init__(self, rev, depth, samp_dist=1, on_branch=True, fill_gaps=True, batch_size=128) -> None:
-        self.rev = rev
+    def __init__(self, depth, order=None, samp_dist=1, on_branch=True, fill_gaps=True, shuffle_idx=True, batch_size=128) -> None:
         self.depth = depth
+        self.order = order
         self.samp_dist = samp_dist
         self.on_branch = on_branch
         self.fill_gaps = fill_gaps
         self.batch_size = batch_size
+        self.shuffle_idx = shuffle_idx
 
         self.seed = new_seed()
         self.source = jax.random.key(self.seed)
@@ -168,18 +185,27 @@ class BinaryTreeTiTask:
 
             if self.fill_gaps:
                 while np.sum(ys == 0) < self.batch_size:
-                    print('warn: insufficient examples, resampling')
+                    # print('warn: insufficient examples, resampling')
                     xs_add, ys_add = samp_nodes_off_branch(key, self.depth, self.samp_dist, self.batch_size)
-                    xs = np.concatenate((xs, xs_add))
-                    ys = np.concatenate((ys, ys_add))
+                    xs = jnp.concatenate((xs, xs_add))
+                    ys = jnp.concatenate((ys, ys_add))
                 
                 idxs = np.argsort(ys)
                 xs = xs[idxs[:self.batch_size]]
                 ys = ys[idxs[:self.batch_size]]
 
-        if self.rev:
+        if self.order == 'rev':
             xs = xs[:,::-1]
             ys = np.zeros(ys.shape)
+        elif self.order == 'split':
+            split = self.batch_size // 2
+            xs = xs.at[:split].set(xs[:split,::-1])
+            ys = ys.at[:split].set(0)
+        
+        if self.shuffle_idx:
+            idx = np.random.choice(self.batch_size, size=self.batch_size, replace=False)
+            xs = xs[idx]
+            ys = ys[idx]
         
         return xs, ys
 
@@ -189,9 +215,18 @@ class BinaryTreeTiTask:
 
 
 class Chain:
-    def __init__(self, tasks) -> None:
+    def __init__(self, tasks, weights=None) -> None:
         self.tasks = tasks
         self.batch_size = self.tasks[0].batch_size
+        self.weights = weights
+
+        if self.weights is None:
+            self.weights = np.ones(len(self.tasks))
+
+        self.probs = self.weights / np.sum(self.weights)
+
+        for task, p in zip(self.tasks, self.probs):
+            task.batch_size = int(task.batch_size * p)
     
 
     def __next__(self):
@@ -202,9 +237,6 @@ class Chain:
         ys = np.concatenate(ys)
 
         idx = np.random.choice(len(xs), size=len(xs), replace=False)
-        print(idx)
-        idx = idx[:self.batch_size]
-
         return xs[idx], ys[idx]
 
     
@@ -212,11 +244,7 @@ class Chain:
         return self
 
 
-# task = Chain([
-#     BinaryTreeTiTask(rev=True, depth=5, samp_dist=1, batch_size=10, on_branch=True),
-#     BinaryTreeTiTask(rev=False, depth=5, samp_dist=1, batch_size=10, on_branch=True)
-# ])
-
+# task = BinaryTreeTiTask(order='split', depth=5, samp_dist=(1,2), batch_size=10, on_branch=False)
 # xs, ys = next(task)
 
 # print(xs)

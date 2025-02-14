@@ -20,11 +20,11 @@ from common import *
 from train import *
 from model.mlp import MlpConfig, MixerConfig
 from model.transformer import TransformerConfig, SimpleTransformerConfig
-from task.graph import GraphTiTask 
+from task.graph import * 
 
-# <codecell>
-n_nodes = 2**8 - 1
-n_dims = 128
+
+depth = 10
+n_vocab = 2**depth
 n_hidden = 512
 
 gamma0 = 1
@@ -34,41 +34,66 @@ lr = gamma0**2 * base_lr
 
 seed = new_seed()
 
-train_task = GraphTiTask(n_nodes, seed=seed, n_dims=n_dims, samp_adj=True)
-test_task =  GraphTiTask(n_nodes, seed=seed, n_dims=n_dims, samp_adj=False)
+# train_task = GraphTiTask(n_nodes=10)
+# test_task = GraphTiTask(n_nodes=10)
 
-# config = MlpConfig(mup_scale=True,
-#                    n_out=1, 
-#                    vocab_size=None, 
-#                    n_layers=1, 
-#                    n_hidden=n_hidden, 
-#                    use_bias=False,
-#                    act_fn='relu')
+# train_task = Chain([
+#     BinaryTreeTiTask(order=None, depth=depth, samp_dist=1, on_branch=True),
+#     BinaryTreeTiTask(order='rev', depth=depth, samp_dist=1, on_branch=True),
+#     BinaryTreeTiTask(order=None, depth=depth, samp_dist=1, on_branch=False, fill_gaps=False),
+#     BinaryTreeTiTask(order='rev', depth=depth, samp_dist=1, on_branch=False, fill_gaps=False),
+
+# ], weights=None)
+
+# test_task = Chain([
+#     BinaryTreeTiTask(order=None, depth=depth, samp_dist=3, on_branch=True),
+#     BinaryTreeTiTask(order='rev', depth=depth, samp_dist=3, on_branch=True),
+# ])
+
+train_task = Chain([
+    BinaryTreeTiTask(order='split', depth=depth, samp_dist=(1, 2), on_branch=True),
+    BinaryTreeTiTask(order='split', depth=depth, samp_dist=(1, 2), on_branch=False, fill_gaps=False),
+])
+
+test_task = Chain([
+    BinaryTreeTiTask(order='split', depth=depth, samp_dist=7, on_branch=False),
+])
 
 
-# config = MixerConfig(n_layers=2, layer_norm=True, act_fn='linear')
+config = MlpConfig(mup_scale=False,
+                   n_out=1, 
+                   n_vocab=n_vocab, 
+                   n_layers=1, 
+                   n_hidden=n_hidden, 
+                   use_bias=True,
+                   freeze_emb=True,
+                   act_fn='relu')
 
-config = TransformerConfig(n_layers=8,
-                           n_hidden=128,
-                           pos_emb=False,
-                           n_mlp_layers=2,
-                           n_heads=2,
-                           layer_norm=True,
-                           as_rf_model=False,
-                           residual_connections=True,
-                           use_simple_att=False,
-                           freeze_emb=False)
+
+# config = MixerConfig(n_layers=2, n_vocab=n_vocab, layer_norm=True)
+
+# config = TransformerConfig(n_layers=3,
+#                            n_vocab=n_vocab,
+#                            n_hidden=128,
+#                            pos_emb=False,
+#                            n_mlp_layers=2,
+#                            n_heads=2,
+#                            layer_norm=True,
+#                            as_rf_model=False,
+#                            residual_connections=True,
+#                            use_simple_att=False,
+#                            freeze_emb=False)
 
 state, hist = train(config,
                     data_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     loss='bce',
                     test_every=1000,
-                    train_iters=20_000, 
+                    train_iters=50_000, 
                     # gamma=gamma,
                     # optim=optax.sgd,
                     # lr=lr,
-                    seed=None)
+                    )
 
 # <codecell>
 xs, ys = next(test_task)
