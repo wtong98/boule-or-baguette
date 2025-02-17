@@ -162,7 +162,19 @@ class GraphTiTask:
 
 
 class BinaryTreeTiTask:
-    def __init__(self, depth, order=None, samp_dist=1, on_branch=True, fill_gaps=True, shuffle_idx=True, batch_size=128) -> None:
+    pad_idx = 0
+    no_idx = 1
+    yes_idx = 2
+    sep_idx = 3
+    offset = 3
+
+    def __init__(self, depth, order=None, samp_dist=1, 
+                 on_branch=True, fill_gaps=True, 
+                 shuffle=True, 
+                 cot=False, unwrap=False, use_sep=True,
+                 apply_offset=True,
+                 batch_size=128) -> None:
+
         if not on_branch:
             if isinstance(samp_dist, Iterable):
                 dist = samp_dist[1]
@@ -177,7 +189,11 @@ class BinaryTreeTiTask:
         self.on_branch = on_branch
         self.fill_gaps = fill_gaps
         self.batch_size = batch_size
-        self.shuffle_idx = shuffle_idx
+        self.shuffle = shuffle
+        self.cot = cot
+        self.unwrap = unwrap
+        self.use_sep = use_sep
+        self.apply_offset = apply_offset
 
         self.seed = new_seed()
         self.source = jax.random.key(self.seed)
@@ -210,16 +226,82 @@ class BinaryTreeTiTask:
             xs = xs.at[:split].set(xs[:split,::-1])
             ys = ys.at[:split].set(0)
         
-        if self.shuffle_idx:
-            idx = np.random.choice(self.batch_size, size=self.batch_size, replace=False)
+        
+        if self.cot:
+            if self.apply_offset:
+                xs = xs + BinaryTreeTiTask.offset
+            
+            xs = _add_chain(xs, self.depth, self.batch_size, self.use_sep)
+
+            if self.unwrap:
+                xs, ys = _unwrap(xs, self.depth, self.use_sep)
+                keep_idx = ys != 0
+                xs = xs[keep_idx]
+                ys = ys[keep_idx]
+
+        if self.shuffle:
+            idx = np.random.choice(xs.shape[0], size=xs.shape[0], replace=False)
             xs = xs[idx]
             ys = ys[idx]
-        
+
         return xs, ys
 
 
     def __iter__(self):
         return self
+
+
+@functools.partial(jax.jit, static_argnums=(1,2,3))
+def _add_chain(xs, depth, batch_size, add_sep):
+    nodes = xs - BinaryTreeTiTask.offset
+
+    facs = 2**np.arange(depth + 1)
+
+    first, last = nodes.T
+
+    chain = (last[:,None] // facs).astype(int)
+
+    target_idx = jnp.sum(first[:,None] < chain, axis=1)
+    target_val = chain[jnp.arange(batch_size),target_idx]
+
+    resp = jnp.where(first == target_val, BinaryTreeTiTask.yes_idx, BinaryTreeTiTask.no_idx)
+
+    stop_mask = first[:,None] > chain
+    stop_mask = stop_mask.at[jnp.arange(batch_size), target_idx].set(False)
+
+    chain = chain + BinaryTreeTiTask.offset
+    chain = chain * (~stop_mask)
+    chain = chain.at[jnp.arange(batch_size), target_idx + 1].set(resp)
+
+    xs = jnp.concatenate((
+        xs, 
+        BinaryTreeTiTask.sep_idx * jnp.ones((batch_size, 1 if add_sep else 0)),
+        chain
+    ), axis=-1)
+
+    return xs
+
+
+@functools.partial(jax.jit, static_argnums=(1, 2))
+def _unwrap(xs, depth, add_sep):
+    seq_len = depth + 3 + 1 * add_sep
+
+    mask = jnp.tril(jnp.ones((seq_len, seq_len)))
+    res_mask = jnp.tril(jnp.ones((seq_len, seq_len)), k=1) - mask
+
+    # keep prompt
+    mask = mask[2:]
+    res_mask = res_mask[2:]
+
+    out = xs[:,None,:] * mask
+    res = (xs[:,None,:] * res_mask).sum(axis=-1)
+
+    final_mask = res.astype(bool)
+
+    out = jnp.concatenate(out * final_mask[...,None])
+    res = jnp.concatenate(res)
+
+    return out, res
 
 
 class Chain:
@@ -252,10 +334,12 @@ class Chain:
         return self
 
 
-# task = BinaryTreeTiTask(order='split', depth=5, samp_dist=4, batch_size=10, on_branch=False)
+# TODO: test, may need to add space perturbation <-- STOPPED HERE
+# or maybe not, in the mixer
+# task = BinaryTreeTiTask(depth=5, samp_dist=2, batch_size=10, on_branch=False, cot=True, unwrap=True, shuffle=True)
 # xs, ys = next(task)
 
-# print(xs)
-# print(ys)
+# print(xs - BinaryTreeTiTask.offset)
+# print(ys - BinaryTreeTiTask.offset)
 
 # %%

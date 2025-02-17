@@ -22,10 +22,74 @@ from model.mlp import MlpConfig, MixerConfig
 from model.transformer import TransformerConfig, SimpleTransformerConfig
 from task.graph import * 
 
+# <codecell>
+df = collate_dfs('remote/1_graph/zero_shot', show_progress=True)
+df
 
+# <codecell>
+idx = ['name', 'use_bias', 'freeze_emb', 'd_on', 'd_off', 'acc']
+
+def extract_plot_vals(row):
+    t1, t2 = row['train_task'].tasks
+    d1 = t1.samp_dist[1] if isinstance(t1.samp_dist, Iterable) else t1.samp_dist
+    d2 = t2.samp_dist[1] if isinstance(t2.samp_dist, Iterable) else t2.samp_dist
+
+    return pd.Series([
+        row['name'],
+        row['config']['use_bias'],
+        row['config']['freeze_emb'],
+        d1,
+        d2,
+        row['info']
+    ], index=idx)
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['acc'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='acc')
+
+plot_df = plot_df.drop('acc', axis='columns').join(adf)
+
+ldf = plot_df['level_1'].str.split('_', expand=True) \
+                        .drop(0, axis='columns') \
+                        .rename(columns={
+                            1: 'test_len',
+                            2: 'order',
+                            3: 'branch'
+                        })
+
+plot_df = pd.concat((plot_df, ldf), axis='columns').drop('level_1', axis='columns')
+plot_df['acc'] = plot_df['acc'].astype('float')
+
+plot_df
+# <codecell>
+orders = ['fwd', 'rev']
+branches = ['on', 'off']
+
+for order, branch in itertools.product(orders, branches):
+    mdf = plot_df.copy()
+    mdf = mdf[(mdf['use_bias'] == False) 
+            & (mdf['freeze_emb'] == True)
+            & (mdf['order'] == order)
+            & (mdf['branch'] == branch)]
+
+    gs = sns.relplot(mdf, x='test_len', y='acc', hue='name', col='d_on', row='d_off', kind='line', marker='o', height=1.5, aspect=1.2)
+    fig = gs.figure
+    fig.suptitle(f'order={order}, branch={branch}', size=14)
+    fig.subplots_adjust(top=0.9)
+
+    plt.savefig(f'fig/acc_reduce_{order}_{branch}.png')
+    plt.show()
+
+# <codecell>
+df.iloc[165]['info']
+
+# <codecell>
 depth = 10
 n_vocab = 2**depth
-n_hidden = 512
+n_hidden = 256
 
 gamma0 = 1
 gamma = gamma0 * np.sqrt(n_hidden)
@@ -34,30 +98,19 @@ lr = gamma0**2 * base_lr
 
 seed = new_seed()
 
-# train_task = GraphTiTask(n_nodes=10)
-# test_task = GraphTiTask(n_nodes=10)
+train_task = Chain(
+    BinaryTreeTiTask(order='fwd', depth=depth, samp_dist=1, on_branch=True),
+    BinaryTreeTiTask(order='rev', depth=depth, samp_dist=1, on_branch=True),
+    # BinaryTreeTiTask(order='split', depth=depth, samp_dist=1, on_branch=True),
+    BinaryTreeTiTask(order='split', depth=depth, samp_dist=1, on_branch=False, fill_gaps=False), weights=[3, 1, 2])
 
-# train_task = Chain([
-#     BinaryTreeTiTask(order=None, depth=depth, samp_dist=1, on_branch=True),
-#     BinaryTreeTiTask(order='rev', depth=depth, samp_dist=1, on_branch=True),
-#     BinaryTreeTiTask(order=None, depth=depth, samp_dist=1, on_branch=False, fill_gaps=False),
-#     BinaryTreeTiTask(order='rev', depth=depth, samp_dist=1, on_branch=False, fill_gaps=False),
+xs, ys = next(train_task)
+np.mean(ys)
+# <codecell>
 
-# ], weights=None)
-
-# test_task = Chain([
-#     BinaryTreeTiTask(order=None, depth=depth, samp_dist=3, on_branch=True),
-#     BinaryTreeTiTask(order='rev', depth=depth, samp_dist=3, on_branch=True),
-# ])
-
-train_task = Chain([
-    BinaryTreeTiTask(order='split', depth=depth, samp_dist=(1, 2), on_branch=True),
-    BinaryTreeTiTask(order='split', depth=depth, samp_dist=(1, 2), on_branch=False, fill_gaps=False),
-])
-
-test_task = Chain([
-    BinaryTreeTiTask(order='split', depth=depth, samp_dist=7, on_branch=True),
-])
+test_task = Chain(
+    BinaryTreeTiTask(order='split', depth=depth, samp_dist=8, on_branch=True),
+)
 
 
 config = MlpConfig(mup_scale=False,
@@ -65,7 +118,7 @@ config = MlpConfig(mup_scale=False,
                    n_vocab=n_vocab, 
                    n_layers=1, 
                    n_hidden=n_hidden, 
-                   use_bias=True,
+                   use_bias=False,
                    freeze_emb=True,
                    act_fn='relu')
 
@@ -89,7 +142,7 @@ state, hist = train(config,
                     test_iter=iter(test_task), 
                     loss='bce',
                     test_every=1000,
-                    train_iters=50_000, 
+                    train_iters=20_000, 
                     # gamma=gamma,
                     # optim=optax.sgd,
                     # lr=lr,

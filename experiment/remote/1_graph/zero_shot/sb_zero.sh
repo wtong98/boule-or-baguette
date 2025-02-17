@@ -12,6 +12,6 @@
 #SBATCH --account=kempner_pehlevan_lab
 #SBATCH --exclude=holygpu8a19604
 
-source ../../../../../venv_haystack/bin/activate
+source ../../../../../venv_imply/bin/activate
 python run.py ${SLURM_ARRAY_TASK_ID}
 
