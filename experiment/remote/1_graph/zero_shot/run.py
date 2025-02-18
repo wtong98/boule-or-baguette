@@ -32,18 +32,18 @@ test_lens = [1, 2, 3, 4, 5, 6, 7, 8]
 
 
 ### START TEST CONFIGS
-run_split = 1
+# run_split = 1
 
-train_iters = 100
+# train_iters = 100
 
-depth = 5
-n_vocab = 2**depth
-n_hidden = 256
+# depth = 5
+# n_vocab = 2**depth
+# n_hidden = 256
 
-use_biases = [False, True]
-freeze_embs = [False, True]
-train_lens = [1]
-test_lens = [1]
+# use_biases = [False, True]
+# freeze_embs = [False, True]
+# train_lens = [1]
+# test_lens = [1]
 ### END TEST CONFIGS
 
 all_cases = []

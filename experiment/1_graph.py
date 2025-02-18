@@ -30,7 +30,7 @@ df
 idx = ['name', 'use_bias', 'freeze_emb', 'd_on', 'd_off', 'acc']
 
 def extract_plot_vals(row):
-    t1, t2 = row['train_task'].tasks
+    t1, _, t2 = row['train_task'].tasks
     d1 = t1.samp_dist[1] if isinstance(t1.samp_dist, Iterable) else t1.samp_dist
     d2 = t2.samp_dist[1] if isinstance(t2.samp_dist, Iterable) else t2.samp_dist
 
@@ -80,7 +80,7 @@ for order, branch in itertools.product(orders, branches):
     fig.suptitle(f'order={order}, branch={branch}', size=14)
     fig.subplots_adjust(top=0.9)
 
-    plt.savefig(f'fig/acc_reduce_{order}_{branch}.png')
+    # plt.savefig(f'fig/acc_reduce_{order}_{branch}.png')
     plt.show()
 
 # <codecell>
