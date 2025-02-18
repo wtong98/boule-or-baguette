@@ -238,6 +238,9 @@ class BinaryTreeTiTask:
                 keep_idx = ys != 0
                 xs = xs[keep_idx]
                 ys = ys[keep_idx]
+            else:
+                ys = xs[:,1:]
+                xs = xs[:,:-1]
 
         if self.shuffle:
             idx = np.random.choice(xs.shape[0], size=xs.shape[0], replace=False)
@@ -277,7 +280,7 @@ def _add_chain(xs, depth, batch_size, add_sep):
         xs, 
         BinaryTreeTiTask.sep_idx * jnp.ones((batch_size, 1 if add_sep else 0)),
         chain
-    ), axis=-1)
+    ), axis=-1).astype(int)
 
     return xs
 
@@ -301,12 +304,13 @@ def _unwrap(xs, depth, add_sep):
     out = jnp.concatenate(out * final_mask[...,None])
     res = jnp.concatenate(res)
 
-    return out, res
+    return out.astype(int), res.astype(int)
 
 
 class Chain:
-    def __init__(self, *tasks, weights=None) -> None:
+    def __init__(self, *tasks, sub_samp=True, weights=None) -> None:
         self.tasks = tasks
+        self.sub_samp = sub_samp
         self.batch_size = self.tasks[0].batch_size
         self.weights = weights
 
@@ -323,23 +327,42 @@ class Chain:
         exs = [next(task) for task in self.tasks]
         xs, ys = zip(*exs)
 
-        xs = np.concatenate(xs)
-        ys = np.concatenate(ys)
+        xs = jnp.concatenate(xs)
+        ys = jnp.concatenate(ys)
 
-        idx = np.random.choice(len(xs), size=len(xs), replace=False)
-        return xs[idx], ys[idx]
+        if self.sub_samp:
+            idx = np.random.choice(len(xs), size=len(xs), replace=False)
+            xs = xs[idx]
+            ys = ys[idx]
+
+        return xs, ys
 
     
     def __iter__(self):
         return self
 
 
-# TODO: test, may need to add space perturbation <-- STOPPED HERE
-# or maybe not, in the mixer
-# task = BinaryTreeTiTask(depth=5, samp_dist=2, batch_size=10, on_branch=False, cot=True, unwrap=True, shuffle=True)
-# xs, ys = next(task)
+task = BinaryTreeTiTask(depth=5, samp_dist=2, batch_size=10, on_branch=True, cot=True, unwrap=False, shuffle=False)
+xs, ys = next(task)
 
-# print(xs - BinaryTreeTiTask.offset)
-# print(ys - BinaryTreeTiTask.offset)
+print(xs - BinaryTreeTiTask.offset)
+print(ys - BinaryTreeTiTask.offset)
 
 # %%
+from optax import softmax_cross_entropy_with_integer_labels
+
+logits = np.random.randn(10, 8, 35)
+out = softmax_cross_entropy_with_integer_labels(logits, ys)
+
+out * (ys != 0).astype(int)
+
+# TODO: move masked loss to train, test Transformer <-- STOPPED HERE
+def ce_mask(logits, labels):
+    out = softmax_cross_entropy_with_integer_labels(logits, labels)
+    mask = (labels != 0).astype(int)
+
+    res = jnp.sum(out * mask)
+    total = jnp.sum(mask)
+    return res / total
+    
+ce_mask(logits, ys)
