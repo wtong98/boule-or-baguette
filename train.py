@@ -68,12 +68,26 @@ def create_train_state(rng, model, dummy_input, gamma=None, lr=1e-4, optim=optax
         # init_params=params
     )
 
+
+def ce_mask(logits, labels):
+    assert logits.shape[:2] == labels.shape, f'logit shape {logits.shape} not compatible with label shape {labels.shape}'
+
+    out = optax.softmax_cross_entropy_with_integer_labels(logits, labels)
+    mask = (labels != 0).astype(int)
+
+    res = jnp.sum(out * mask)
+    total = jnp.sum(mask)
+    return res / total
+
+
 def parse_loss_name(loss):
     loss_func = None
     if loss == 'bce':
         loss_func = optax.sigmoid_binary_cross_entropy
     elif loss == 'ce':
         loss_func = optax.softmax_cross_entropy_with_integer_labels
+    elif loss == 'ce_mask':
+        loss_func = ce_mask
     elif loss == 'mse':
         loss_func = optax.squared_error
     else:
@@ -95,7 +109,6 @@ def train_step(state, batch, loss='bce'):
             assert logits.shape == train_loss.shape
             train_loss = train_loss.mean(axis=-1)
 
-        assert len(train_loss.shape) == 1
         return train_loss.mean()
     
     grads = jax.grad(loss_fn)(state.params)
@@ -107,18 +120,23 @@ def train_step(state, batch, loss='bce'):
 def compute_metrics(state, batch, loss='bce'):
     x, labels = batch
     logits = state.apply_fn({'params': state.params}, x)
-    loss_func=parse_loss_name(loss)
+    loss_func = parse_loss_name(loss)
     loss = loss_func(logits, labels).mean()
 
     if len(logits.shape) == 1:
         preds = logits > 0
     else:
-        preds = logits.argmax(axis=1)
+        preds = logits.argmax(axis=-1)
     
-    if len(labels.shape) > 1:
-        labels = labels.argmax(axis=1)
-    
-    acc = jnp.mean(preds == labels)
+    # TODO: test
+    if len(labels.shape) == 2:
+        # autoregressive branch
+        mask = labels != 0
+        res = jnp.sum((preds == labels) & mask)
+        total = jnp.sum(mask)
+        acc = res / total
+    else:
+        acc = jnp.mean(preds == labels)
 
     metrics = Metrics(accuracy=acc, loss=loss)
     metrics = state.metrics.merge(metrics)
@@ -132,7 +150,7 @@ def train(config, data_iter,
           train_iters=10_000, test_iters=100, test_every=1_000, save_params=False,
           early_stop_n=None, early_stop_key='loss', early_stop_decision='min' ,
           optim=optax.adamw,
-          seed=None, 
+          seed=None, use_tqdm=False,
           **opt_kwargs):
 
     if seed is None:
@@ -153,7 +171,11 @@ def train(config, data_iter,
         'params': []
     }
 
-    for step, batch in zip(range(train_iters), data_iter):
+    it = zip(range(train_iters), data_iter)
+    if use_tqdm:
+        it = tqdm(it, total=train_iters)
+
+    for step, batch in it:
         state = train_step(state, batch, loss=loss)
         state = compute_metrics(state, batch, loss=loss)
 
@@ -206,16 +228,24 @@ class Case:
         return get_flops(train_step, self.state, next(self.train_task), loss=loss)
     
     def eval(self, task, key_name='eval_acc'):
-        xs, ys = next(task)
+        xs, labels = next(task)
         logits = self.state.apply_fn({'params': self.state.params}, xs)
 
-        if len(logits.shape) > 1:
-            preds = logits.argmax(-1)
+        if len(logits.shape) == 1:
+            preds = logits > 0
         else:
-            preds = (logits > 0).astype(float)
+            preds = logits.argmax(axis=-1)
+        
+        if len(labels.shape) == 2:
+            # autoregressive branch
+            mask = labels != 0
+            res = jnp.sum((preds == labels) & mask)
+            total = jnp.sum(mask)
+            acc = res / total
+        else:
+            acc = jnp.mean(preds == labels)
 
-        eval_acc = np.mean(ys == preds)
-        self.info[key_name] = eval_acc
+        self.info[key_name] = acc
     
     def eval_mse(self, task, key_name='eval_mse'):
         xs, ys = next(task)

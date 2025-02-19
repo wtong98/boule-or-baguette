@@ -170,7 +170,7 @@ class BinaryTreeTiTask:
 
     def __init__(self, depth, order=None, samp_dist=1, 
                  on_branch=True, fill_gaps=True, 
-                 shuffle=True, 
+                 shuffle=False, 
                  cot=False, unwrap=False, use_sep=True,
                  apply_offset=True,
                  batch_size=128) -> None:
@@ -240,6 +240,7 @@ class BinaryTreeTiTask:
                 ys = ys[keep_idx]
             else:
                 ys = xs[:,1:]
+                ys = ys.at[:,:2].set(0)   # mask prompt
                 xs = xs[:,:-1]
 
         if self.shuffle:
@@ -308,7 +309,7 @@ def _unwrap(xs, depth, add_sep):
 
 
 class Chain:
-    def __init__(self, *tasks, sub_samp=True, weights=None) -> None:
+    def __init__(self, *tasks, sub_samp=False, weights=None) -> None:
         self.tasks = tasks
         self.sub_samp = sub_samp
         self.batch_size = self.tasks[0].batch_size
@@ -342,27 +343,8 @@ class Chain:
         return self
 
 
-task = BinaryTreeTiTask(depth=5, samp_dist=2, batch_size=10, on_branch=True, cot=True, unwrap=False, shuffle=False)
-xs, ys = next(task)
+# task = BinaryTreeTiTask(depth=5, samp_dist=2, batch_size=10, on_branch=True, cot=True, unwrap=False, shuffle=False)
+# xs, ys = next(task)
 
-print(xs - BinaryTreeTiTask.offset)
-print(ys - BinaryTreeTiTask.offset)
-
-# %%
-from optax import softmax_cross_entropy_with_integer_labels
-
-logits = np.random.randn(10, 8, 35)
-out = softmax_cross_entropy_with_integer_labels(logits, ys)
-
-out * (ys != 0).astype(int)
-
-# TODO: move masked loss to train, test Transformer <-- STOPPED HERE
-def ce_mask(logits, labels):
-    out = softmax_cross_entropy_with_integer_labels(logits, labels)
-    mask = (labels != 0).astype(int)
-
-    res = jnp.sum(out * mask)
-    total = jnp.sum(mask)
-    return res / total
-    
-ce_mask(logits, ys)
+# print(xs - BinaryTreeTiTask.offset)
+# print(ys - BinaryTreeTiTask.offset)

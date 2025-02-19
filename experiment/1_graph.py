@@ -80,7 +80,7 @@ for order, branch in itertools.product(orders, branches):
     fig.suptitle(f'order={order}, branch={branch}', size=14)
     fig.subplots_adjust(top=0.9)
 
-    # plt.savefig(f'fig/acc_reduce_{order}_{branch}.png')
+    plt.savefig(f'fig/acc_reduce_bal_{order}_{branch}.png')
     plt.show()
 
 # <codecell>
