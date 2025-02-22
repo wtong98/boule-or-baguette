@@ -171,7 +171,9 @@ class BinaryTreeTiTask:
     def __init__(self, depth, order=None, samp_dist=1, 
                  on_branch=True, fill_gaps=True, 
                  shuffle=False, 
-                 cot=False, unwrap=False, use_sep=True,
+                 cot=False, unwrap=False, 
+                 rl_prompt=False, n_thought=None,
+                 use_sep=True,
                  apply_offset=True,
                  batch_size=128) -> None:
 
@@ -191,12 +193,17 @@ class BinaryTreeTiTask:
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.cot = cot
+        self.rl_prompt = False
+        self.n_thought = n_thought
         self.unwrap = unwrap
         self.use_sep = use_sep
         self.apply_offset = apply_offset
 
         self.seed = new_seed()
         self.source = jax.random.key(self.seed)
+
+        if self.n_thought is None:
+            self.n_thought = 2 * depth
 
     
     def __next__(self):
@@ -242,6 +249,12 @@ class BinaryTreeTiTask:
                 ys = xs[:,1:]
                 ys = ys.at[:,:2].set(0)   # mask prompt
                 xs = xs[:,:-1]
+        
+        elif self.rl_prompt:
+            if self.apply_offset:
+                xs = xs + BinaryTreeTiTask.offset
+            
+            # TODO: pad with zeros and return <-- STOPPED HERE
 
         if self.shuffle:
             idx = np.random.choice(xs.shape[0], size=xs.shape[0], replace=False)

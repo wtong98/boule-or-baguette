@@ -65,19 +65,19 @@ for use_bias, freeze_emb, train_len in itertools.product(use_biases, freeze_embs
             'train_iters': train_iters
         }
 
-    task_args = {
-        'depth': depth,
-        'samp_dist': (1, train_len),
-        'cot': True
-    }
 
     def make_chain(unwrap=False):
+        task_args = {
+            'depth': depth,
+            'samp_dist': (1, train_len),
+            'cot': True
+        }
+
         return Chain(
-            BinaryTreeTiTask(order='fwd', on_branch=True, unwrap=unwrap, **task_args),
-            BinaryTreeTiTask(order='rev', on_branch=True, unwrap=unwrap, **task_args),
-            BinaryTreeTiTask(order='split', on_branch=False, fill_gaps=False, unwrap=unwrap, **task_args), 
-            weights=[3, 1, 2])
+            BinaryTreeTiTask(on_branch=True, unwrap=unwrap, **task_args),
+            BinaryTreeTiTask(on_branch=False, fill_gaps=False, unwrap=unwrap, **task_args))
     
+
     def make_test(unwrap=False):
         return BinaryTreeTiTask(depth=depth, samp_dist=test_lens[-1], on_branch=False, cot=True, unwrap=unwrap)
 

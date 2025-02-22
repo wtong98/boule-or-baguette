@@ -23,6 +23,69 @@ from model.transformer import TransformerConfig, SimpleTransformerConfig
 from task.graph import *
 
 
+# <codecell>
+df = collate_dfs('remote/2_cot/generalize', show_progress=True)
+df
+
+# <codecell>
+idx = ['name', 'use_bias', 'freeze_emb', 'd_on', 'd_off', 'acc']
+
+def extract_plot_vals(row):
+    t1, _, t2 = row['train_task'].tasks
+    d1 = t1.samp_dist[1] if isinstance(t1.samp_dist, Iterable) else t1.samp_dist
+    d2 = t2.samp_dist[1] if isinstance(t2.samp_dist, Iterable) else t2.samp_dist
+
+    return pd.Series([
+        row['name'],
+        row['config']['use_bias'],
+        row['config']['freeze_emb'],
+        d1,
+        d2,
+        row['info']
+    ], index=idx)
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['acc'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='acc')
+
+plot_df = plot_df.drop('acc', axis='columns').join(adf)
+
+ldf = plot_df['level_1'].str.split('_', expand=True) \
+                        .drop(0, axis='columns') \
+                        .rename(columns={
+                            1: 'test_len',
+                            2: 'order',
+                            3: 'branch'
+                        })
+
+plot_df = pd.concat((plot_df, ldf), axis='columns').drop('level_1', axis='columns')
+plot_df['acc'] = plot_df['acc'].astype('float')
+
+plot_df
+# <codecell>
+orders = ['fwd', 'rev']
+branches = ['on', 'off']
+
+for order, branch in itertools.product(orders, branches):
+    mdf = plot_df.copy()
+    mdf = mdf[(mdf['use_bias'] == False) 
+            & (mdf['freeze_emb'] == True)
+            & (mdf['order'] == order)
+            & (mdf['branch'] == branch)]
+
+    gs = sns.relplot(mdf, x='test_len', y='acc', hue='name', col='d_on', row='d_off', kind='line', marker='o', height=1.5, aspect=1.2)
+    fig = gs.figure
+    fig.suptitle(f'order={order}, branch={branch}', size=14)
+    fig.subplots_adjust(top=0.9)
+
+    # plt.savefig(f'fig/acc_reduce_bal_{order}_{branch}.png')
+    plt.show()
+
+# <codecell>
+
 depth = 10
 n_vocab = 2**depth + BinaryTreeTiTask.offset
 n_hidden = 128
@@ -84,6 +147,14 @@ state, hist = train(config,
                     # lr=lr,
                     use_tqdm=True
                     )
+
+
+# <codecell>
+### RL experimentation
+
+# TODO: define mechanism to sample iteratively on Transformer
+
+
 
 # <codecell>
 xs = np.array([[10, 126, 0, 126, 63, 31, 15, 7, -3, -3, -3, -3, -3, -3]]) + 3
