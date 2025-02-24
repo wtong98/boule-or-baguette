@@ -24,6 +24,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+import sys
+sys.path.append('../')
+from common import new_seed
+
 
 @struct.dataclass
 class TransformerConfig:
@@ -212,10 +216,6 @@ class Transformer(nn.Module):
         if config.pos_emb:
             y = AddPositionEmbs(config=config)(y)
         
-        # decoder_mask = nn.make_attention_mask(inputs > 0, inputs > 0)
-        # decoder_mask = nn.combine_masks(
-        #     decoder_mask,
-        #     nn.make_causal_mask(inputs))
         decoder_mask = nn.make_causal_mask(jnp.zeros(inputs.shape[:2]))
         
         for i in range(config.n_layers):
@@ -235,30 +235,23 @@ class Transformer(nn.Module):
         return logits
 
 
-@struct.dataclass
-class SimpleTransformerConfig:
+def generate(state, xs, idx=2, beta=1, seed=None):
+    if seed is None:
+        seed = new_seed()
 
-    n_hidden: int = 128
-    gamma: float = 1
+    source = jax.random.key(seed)
+    while idx < xs.shape[1] - 1:
+        key, source = jax.random.split(source)
+        xs = _gen_pass(key, state, xs, idx, beta)
+        idx += 1
+    
+    return xs
 
-    def to_model(self):
-        return SimpleTransformer(self)
 
+@jax.jit
+def _gen_pass(key, state, xs, idx, beta):
+    logits = state.apply_fn({'params': state.params}, xs)
+    preds = jax.random.categorical(key, beta * logits)
+    xs = xs.at[:,idx+1].set(preds[:,idx])
+    return xs
 
-class SimpleTransformer(nn.Module):
-
-    config: SimpleTransformerConfig
-
-    @nn.compact
-    def __call__(self, inputs):
-        assert inputs.ndim == 3  # batch x len x features
-
-        x = nn.Dense(self.config.n_hidden, use_bias=False)(inputs)
-        x = nn.relu(x)  # batch x len x hidden
-
-        att = jnp.einsum('bih,bjh->bij', x, x)
-        final_att = att[...,-1]  # batch x len
-        x = jnp.einsum('bl,blh->blh', final_att, x)
-
-        x = nn.DenseGeneral(1, axis=(-2, -1), use_bias=False)(x)
-        return x.flatten() / self.config.gamma

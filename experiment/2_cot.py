@@ -19,7 +19,7 @@ sys.path.append('../')
 from common import *
 from train import *
 from model.mlp import MlpConfig, MixerConfig
-from model.transformer import TransformerConfig, SimpleTransformerConfig
+from model.transformer import TransformerConfig, generate
 from task.graph import *
 
 
@@ -31,7 +31,7 @@ df
 idx = ['name', 'use_bias', 'freeze_emb', 'd_on', 'd_off', 'acc']
 
 def extract_plot_vals(row):
-    t1, _, t2 = row['train_task'].tasks
+    t1, t2 = row['train_task'].tasks
     d1 = t1.samp_dist[1] if isinstance(t1.samp_dist, Iterable) else t1.samp_dist
     d2 = t2.samp_dist[1] if isinstance(t2.samp_dist, Iterable) else t2.samp_dist
 
@@ -76,12 +76,12 @@ for order, branch in itertools.product(orders, branches):
             & (mdf['order'] == order)
             & (mdf['branch'] == branch)]
 
-    gs = sns.relplot(mdf, x='test_len', y='acc', hue='name', col='d_on', row='d_off', kind='line', marker='o', height=1.5, aspect=1.2)
+    gs = sns.relplot(mdf, x='test_len', y='acc', hue='name', col='d_on', kind='line', marker='o', height=1.5, aspect=1.2)
     fig = gs.figure
     fig.suptitle(f'order={order}, branch={branch}', size=14)
-    fig.subplots_adjust(top=0.9)
+    # fig.subplots_adjust(top=0.9)
 
-    # plt.savefig(f'fig/acc_reduce_bal_{order}_{branch}.png')
+    plt.savefig(f'fig/acc_reduce_bal_{order}_{branch}.png')
     plt.show()
 
 # <codecell>
@@ -140,19 +140,19 @@ state, hist = train(config,
                     test_iter=iter(test_task), 
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=25_000,
+                    train_iters=3_000,
                     lr=1e-3,
                     # gamma=gamma,
                     # optim=optax.sgd,
                     # lr=lr,
-                    use_tqdm=True
+                    use_tqdm=False
                     )
 
 
 # <codecell>
 ### RL experimentation
+xs, ys = next(test_task)
 
-# TODO: define mechanism to sample iteratively on Transformer
 
 
 

@@ -193,7 +193,7 @@ class BinaryTreeTiTask:
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.cot = cot
-        self.rl_prompt = False
+        self.rl_prompt = rl_prompt
         self.n_thought = n_thought
         self.unwrap = unwrap
         self.use_sep = use_sep
@@ -254,7 +254,12 @@ class BinaryTreeTiTask:
             if self.apply_offset:
                 xs = xs + BinaryTreeTiTask.offset
             
-            # TODO: pad with zeros and return <-- STOPPED HERE
+            thought_toks = np.zeros((self.batch_size, self.n_thought))
+            xs = np.concatenate((
+                xs,
+                BinaryTreeTiTask.sep_idx * np.ones((self.batch_size, 1 if self.use_sep else 0)),
+                thought_toks
+            ), axis=1)
 
         if self.shuffle:
             idx = np.random.choice(xs.shape[0], size=xs.shape[0], replace=False)
@@ -356,7 +361,32 @@ class Chain:
         return self
 
 
-# task = BinaryTreeTiTask(depth=5, samp_dist=2, batch_size=10, on_branch=True, cot=True, unwrap=False, shuffle=False)
+def bt_rl_loss(params, state, traj, rew):
+    logits = state.apply_fn({'params': params}, traj)
+
+    traj = traj[:,3:]
+    logits = logits[:,2:-1]
+
+    sel = jnp.take_along_axis(logits, traj[...,None], axis=-1).squeeze()
+    norm = jax.scipy.special.logsumexp(logits, axis=-1)
+    log_p = sel - norm
+
+    J = rew[:,None] * log_p
+    exp_J = jnp.mean(J)
+    return -exp_J
+
+
+def bt_rew_fn(traj, ys):
+    ys = ys[:,2:]
+    ans_idx = jnp.sum(ys != 0, axis=-1) - 1
+    ans = ys[jnp.arange(len(ys)), ans_idx]
+
+    pred = traj[:,-1]
+    reward = (pred == ans).astype(float)
+    return reward
+
+
+# task = BinaryTreeTiTask(depth=5, samp_dist=2, batch_size=10, on_branch=False, rl_prompt=True)
 # xs, ys = next(task)
 
 # print(xs - BinaryTreeTiTask.offset)

@@ -41,8 +41,10 @@ class TrainState(train_state.TrainState):
     init_params: Any = None
 
 
-def create_train_state(rng, model, dummy_input, gamma=None, lr=1e-4, optim=optax.adamw, **opt_kwargs):
-    params = model.init(rng, dummy_input)['params']
+def create_train_state(rng=None, model=None, dummy_input=None, params=None, gamma=None, lr=1e-4, optim=optax.adamw, **opt_kwargs):
+    if params is None:
+        params = model.init(rng, dummy_input)['params']
+
     tx = optim(learning_rate=lr, **opt_kwargs)
 
     tx_with_freeze = optax.multi_transform(
@@ -206,6 +208,70 @@ def train(config, data_iter,
             
 def _print_status(step, hist):
     print(f'ITER {step}:  train_loss={hist["train"][-1].loss:.4f}   train_acc={hist["train"][-1].accuracy:.4f}   test_acc={hist["test"][-1].accuracy:.4f}')
+
+
+def reinforce(state, data_iter, 
+              action_fn, reward_fn, rl_loss,
+              train_iters=10_000, 
+              test_iter=None, test_iters=10, test_every=1000, eval_loss='ce_mask',
+              save_params=False,
+              use_tqdm=False):
+
+    if test_iter is None:
+        test_iter = data_iter
+    
+    action_fn = jax.tree_util.Partial(action_fn)
+    reward_fn = jax.tree_util.Partial(reward_fn)
+    rl_loss = jax.tree_util.Partial(rl_loss)
+
+    it = zip(range(train_iters), data_iter)
+    if use_tqdm:
+        it = tqdm(it, total=train_iters)
+
+    hist = {
+        'rew': [],
+        'test': [],
+        'params': []
+    }
+    
+    for step, batch in it:
+        state = rl_step(state, batch, action_fn, reward_fn, rl_loss)
+
+        if ((step + 1) % test_every == 0) or ((step + 1) == train_iters):
+            state = state.replace(metrics=Metrics.empty())
+            test_state = state
+            avg_rew = 0
+
+            for _, test_batch in zip(range(test_iters), test_iter):
+                test_state = compute_metrics(test_state, test_batch, loss=eval_loss)
+                xs, ys = test_batch
+                traj = action_fn(state, xs)
+                rew = reward_fn(traj, ys)
+                avg_rew += np.mean(rew) / test_iters
+            
+            hist['rew'].append(avg_rew)
+            hist['test'].append(test_state.metrics)
+
+            _print_rl_status(step+1, hist)
+
+            if save_params:
+                hist['params'].append(state.params)
+    
+    return state, hist
+
+
+def _print_rl_status(step, hist):
+    print(f'ITER {step}:  test_rew={hist["rew"][-1]:.4f} test_acc={hist["test"][-1].accuracy:.4f}')
+
+
+def rl_step(state, batch, act_fn, rew_fn, rl_loss):
+    xs, ys = batch
+    traj = act_fn(state, xs)
+    rew = rew_fn(traj, ys)
+    loss_fn = lambda params: rl_loss(params, state ,traj, rew)
+    grads = jax.grad(loss_fn)(state.params)
+    state = state.apply_gradients(grads=grads)
+    return state
 
 
 @dataclass
