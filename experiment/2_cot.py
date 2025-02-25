@@ -71,8 +71,8 @@ branches = ['on', 'off']
 
 for order, branch in itertools.product(orders, branches):
     mdf = plot_df.copy()
-    mdf = mdf[(mdf['use_bias'] == False) 
-            & (mdf['freeze_emb'] == True)
+    mdf = mdf[(mdf['use_bias'] == True) 
+            & (mdf['freeze_emb'] == False)
             & (mdf['order'] == order)
             & (mdf['branch'] == branch)]
 
@@ -81,7 +81,7 @@ for order, branch in itertools.product(orders, branches):
     fig.suptitle(f'order={order}, branch={branch}', size=14)
     # fig.subplots_adjust(top=0.9)
 
-    plt.savefig(f'fig/acc_reduce_bal_{order}_{branch}.png')
+    # plt.savefig(f'fig/acc_reduce_bal_{order}_{branch}.png')
     plt.show()
 
 # <codecell>
@@ -136,7 +136,7 @@ config = TransformerConfig(n_layers=3,
                            )
 
 state, hist = train(config,
-                    data_iter=iter(train_task), 
+                    train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     loss='ce_mask',
                     test_every=1000,

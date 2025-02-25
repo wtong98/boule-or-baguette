@@ -138,7 +138,7 @@ config = MlpConfig(mup_scale=False,
 #                            freeze_emb=False)
 
 state, hist = train(config,
-                    data_iter=iter(train_task), 
+                    train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     loss='bce',
                     test_every=1000,

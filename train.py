@@ -16,29 +16,7 @@ import numpy as np
 import optax
 from tqdm import tqdm
 
-from common import new_seed
-
-
-@struct.dataclass
-class Metrics:
-    accuracy: float
-    loss: float
-    count: int = 0
-
-    @staticmethod
-    def empty():
-        return Metrics(accuracy=-1, loss=-1)
-    
-    def merge(self, other):
-        total = self.count + 1
-        acc = (self.count / total) * self.accuracy + (1 / total) * other.accuracy
-        loss = (self.count / total) * self.loss + (1 / total) * other.loss
-        return Metrics(acc, loss, count=total)
-
-
-class TrainState(train_state.TrainState):
-    metrics: Metrics
-    init_params: Any = None
+from common import new_seed, merge_dicts, generate
 
 
 def create_train_state(rng=None, model=None, dummy_input=None, params=None, gamma=None, lr=1e-4, optim=optax.adamw, **opt_kwargs):
@@ -62,12 +40,10 @@ def create_train_state(rng=None, model=None, dummy_input=None, params=None, gamm
 
         return logits
 
-    return TrainState.create(
+    return train_state.TrainState.create(
         apply_fn=apply_fn,
         params=params,
         tx=tx_with_freeze,
-        metrics=Metrics.empty()
-        # init_params=params
     )
 
 
@@ -83,6 +59,9 @@ def ce_mask(logits, labels):
 
 
 def parse_loss_name(loss):
+    if callable(loss):
+        return loss
+
     loss_func = None
     if loss == 'bce':
         loss_func = optax.sigmoid_binary_cross_entropy
@@ -119,7 +98,7 @@ def train_step(state, batch, loss='bce'):
 
 
 @partial(jax.jit, static_argnames=('loss',))
-def compute_metrics(state, batch, loss='bce'):
+def loss_and_acc(state, batch, loss='bce'):
     x, labels = batch
     logits = state.apply_fn({'params': state.params}, x)
     loss_func = parse_loss_name(loss)
@@ -130,26 +109,42 @@ def compute_metrics(state, batch, loss='bce'):
     else:
         preds = logits.argmax(axis=-1)
     
-    # TODO: test
     if len(labels.shape) == 2:
         # autoregressive branch
         mask = labels != 0
         res = jnp.sum((preds == labels) & mask)
         total = jnp.sum(mask)
         acc = res / total
+    elif len(preds.shape) == 2:  # TODO: temp hot-fix for RL finetune case
+        acc = jnp.mean(preds[:,-1] == labels)
     else:
         acc = jnp.mean(preds == labels)
 
-    metrics = Metrics(accuracy=acc, loss=loss)
-    metrics = state.metrics.merge(metrics)
-    state = state.replace(metrics=metrics)
-    return state
+    return {'loss': loss, 'acc': acc}
 
 
-def train(config, data_iter, 
+@partial(jax.jit, static_argnames=('loss'))
+def gen_acc_cot(state, batch, loss=None):
+    xs, ys = batch
+    ys = ys[:,2:]
+    ans_idx = jnp.sum(ys != 0, axis=-1) - 1
+    ans = ys[jnp.arange(len(ys)), ans_idx]
+
+    traj = generate(state, xs)
+    preds = traj[jnp.arange(len(ys)), ans_idx + 3]
+
+    return {'gen_acc': jnp.mean(ans == preds)}
+
+
+def print_gen(step, hist):
+    print(f'ITER {step}:  train_loss={hist["train"][-1]["loss"]:.4f}   train_acc={hist["train"][-1]["gen_acc"]:.4f}   test_loss={hist["test"][-1]["loss"]:.4f}   test_acc={hist["test"][-1]["gen_acc"]:.4f}')
+
+
+def train(config, train_iter, 
           test_iter=None, 
           loss='ce', gamma=None,
-          train_iters=10_000, test_iters=100, test_every=1_000, save_params=False,
+          eval_fns: Iterable=None, print_fn=None,
+          train_iters=10_000, test_iters=10, test_every=1_000, save_params=False,
           early_stop_n=None, early_stop_key='loss', early_stop_decision='min' ,
           optim=optax.adamw,
           seed=None, use_tqdm=False,
@@ -159,12 +154,18 @@ def train(config, data_iter,
         seed = new_seed()
     
     if test_iter is None:
-        test_iter = data_iter
+        test_iter = train_iter
+    
+    if eval_fns is None:
+        eval_fns = [loss_and_acc]
+    
+    if print_fn is None:
+        print_fn = _print_status
     
     init_rng = jax.random.key(seed)
     model = config.to_model()
 
-    samp_x, _ = next(data_iter)
+    samp_x, _ = next(train_iter)
     state = create_train_state(init_rng, model, samp_x, gamma=gamma, optim=optim, **opt_kwargs)
 
     hist = {
@@ -173,25 +174,28 @@ def train(config, data_iter,
         'params': []
     }
 
-    it = zip(range(train_iters), data_iter)
+    it = zip(range(train_iters), train_iter)
     if use_tqdm:
         it = tqdm(it, total=train_iters)
 
     for step, batch in it:
         state = train_step(state, batch, loss=loss)
-        state = compute_metrics(state, batch, loss=loss)
 
         if ((step + 1) % test_every == 0) or ((step + 1) == train_iters):
-            hist['train'].append(state.metrics)
+            all_train = []
+            all_test = []
 
-            state = state.replace(metrics=Metrics.empty())
-            test_state = state
-            for _, test_batch in zip(range(test_iters), test_iter):
-                test_state = compute_metrics(test_state, test_batch, loss=loss)
+            for _, train_batch, test_batch in zip(range(test_iters), train_iter, test_iter):
+                all_train.append(merge_dicts([fn(state, train_batch, loss=loss) for fn in eval_fns]))
+                all_test.append(merge_dicts([fn(state, test_batch, loss=loss) for fn in eval_fns]))
             
-            hist['test'].append(test_state.metrics)
+            all_train = jax.tree.map(lambda *xs: np.mean(xs), *all_train)
+            all_test = jax.tree.map(lambda *xs: np.mean(xs), *all_test)
 
-            _print_status(step+1, hist)
+            hist['train'].append(all_train)
+            hist['test'].append(all_test)
+
+            print_fn(step+1, hist)
 
             if save_params:
                 hist['params'].append(state.params)
@@ -207,24 +211,31 @@ def train(config, data_iter,
 
             
 def _print_status(step, hist):
-    print(f'ITER {step}:  train_loss={hist["train"][-1].loss:.4f}   train_acc={hist["train"][-1].accuracy:.4f}   test_acc={hist["test"][-1].accuracy:.4f}')
+    print(f'ITER {step}:  train_loss={hist["train"][-1]["loss"]:.4f}   train_acc={hist["train"][-1]["acc"]:.4f}   test_loss={hist["test"][-1]["loss"]:.4f}   test_acc={hist["test"][-1]["acc"]:.4f}')
 
 
-def reinforce(state, data_iter, 
+def reinforce(state, train_iter, 
               action_fn, reward_fn, rl_loss,
               train_iters=10_000, 
-              test_iter=None, test_iters=10, test_every=1000, eval_loss='ce_mask',
+              test_iter=None, test_iters=10, test_every=1000, loss='ce_mask',
+              eval_fns=None, print_fn=None,
               save_params=False,
               use_tqdm=False):
 
     if test_iter is None:
-        test_iter = data_iter
+        test_iter = train_iter
+
+    if eval_fns is None:
+        eval_fns = [loss_and_acc]
+    
+    if print_fn is None:
+        print_fn = _print_rl_status
     
     action_fn = jax.tree_util.Partial(action_fn)
     reward_fn = jax.tree_util.Partial(reward_fn)
     rl_loss = jax.tree_util.Partial(rl_loss)
 
-    it = zip(range(train_iters), data_iter)
+    it = zip(range(train_iters), train_iter)
     if use_tqdm:
         it = tqdm(it, total=train_iters)
 
@@ -238,19 +249,17 @@ def reinforce(state, data_iter,
         state = rl_step(state, batch, action_fn, reward_fn, rl_loss)
 
         if ((step + 1) % test_every == 0) or ((step + 1) == train_iters):
-            state = state.replace(metrics=Metrics.empty())
-            test_state = state
             avg_rew = 0
+            all_test = []
 
             for _, test_batch in zip(range(test_iters), test_iter):
-                test_state = compute_metrics(test_state, test_batch, loss=eval_loss)
-                xs, ys = test_batch
-                traj = action_fn(state, xs)
-                rew = reward_fn(traj, ys)
+                all_test.append(merge_dicts([fn(state, test_batch, loss=loss) for fn in eval_fns]))
+                rew = compute_reward(state, batch, action_fn, reward_fn)
                 avg_rew += np.mean(rew) / test_iters
             
+            all_test = jax.tree.map(lambda *xs: np.mean(xs), *all_test)
+            hist['test'].append(all_test)
             hist['rew'].append(avg_rew)
-            hist['test'].append(test_state.metrics)
 
             _print_rl_status(step+1, hist)
 
@@ -261,17 +270,25 @@ def reinforce(state, data_iter,
 
 
 def _print_rl_status(step, hist):
-    print(f'ITER {step}:  test_rew={hist["rew"][-1]:.4f} test_acc={hist["test"][-1].accuracy:.4f}')
+    print(f'ITER {step}:  test_rew={hist["rew"][-1]:.4f}   test_acc={hist["test"][-1]["acc"]:.4f}')
 
 
+@jax.jit
 def rl_step(state, batch, act_fn, rew_fn, rl_loss):
     xs, ys = batch
     traj = act_fn(state, xs)
     rew = rew_fn(traj, ys)
-    loss_fn = lambda params: rl_loss(params, state ,traj, rew)
+    loss_fn = lambda params: rl_loss(params, state, traj, rew)
     grads = jax.grad(loss_fn)(state.params)
     state = state.apply_gradients(grads=grads)
     return state
+
+@jax.jit
+def compute_reward(state, batch, act_fn, rew_fn):
+    xs, ys = batch
+    traj = act_fn(state, xs)
+    rew = rew_fn(traj, ys)
+    return rew
 
 
 @dataclass
@@ -286,58 +303,26 @@ class Case:
     info: dict = field(default_factory=dict)
 
     def run(self):
-        self.state, self.hist = train(self.config, data_iter=self.train_task, test_iter=self.test_task, **self.train_args)
+        self.state, self.hist = train(self.config, train_iter=self.train_task, test_iter=self.test_task, **self.train_args)
     
     def get_flops(self):
         train_args = self.train_args
         loss = train_args.get('loss', None)
         return get_flops(train_step, self.state, next(self.train_task), loss=loss)
     
-    def eval(self, task, key_name='eval_acc'):
-        xs, labels = next(task)
-        logits = self.state.apply_fn({'params': self.state.params}, xs)
+    def eval(self, task, eval_fns, n_iters=10, prefix=None):
+        all_res = []
+        loss = self.train_args.get('loss', None)
 
-        if len(logits.shape) == 1:
-            preds = logits > 0
-        else:
-            preds = logits.argmax(axis=-1)
-        
-        if len(labels.shape) == 2:
-            # autoregressive branch
-            mask = labels != 0
-            res = jnp.sum((preds == labels) & mask)
-            total = jnp.sum(mask)
-            acc = res / total
-        else:
-            acc = jnp.mean(preds == labels)
+        for _ in range(n_iters):
+            batch = next(task)
+            all_res.append(merge_dicts([fn(self.state, batch, loss=loss) for fn in eval_fns]))
 
-        self.info[key_name] = acc
-    
-    def eval_mse(self, task, key_name='eval_mse'):
-        xs, ys = next(task)
-        ys_pred = self.state.apply_fn({'params': self.state.params}, xs)
-        mse = np.mean((ys - ys_pred)**2)
+        all_res = jax.tree.map(lambda *xs: np.mean(xs), *all_res)
+        if prefix is not None:
+            all_res = {prefix: all_res}
 
-        self.info[key_name] = mse
-
-
-def eval_cases(all_cases, eval_task, key_name='eval_acc', use_mse=False, ignore_err=False):
-    try:
-        len(eval_task)
-    except TypeError:
-        eval_task = itertools.repeat(eval_task)
-
-    for c, task in tqdm(zip(all_cases, eval_task), total=len(all_cases)):
-        try:
-            if use_mse:
-                c.eval_mse(task, key_name)
-            else:
-                c.eval(task, key_name)
-        except Exception as e:
-            if ignore_err:
-                continue
-            else:
-                raise e
+        self.info = self.info | all_res
 
 
 # TODO: fix cost_analysis for FLOPs

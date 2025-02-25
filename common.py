@@ -94,3 +94,30 @@ def collate_dfs(df_dir, show_progress=False, concat=True):
 
     return dfs
 
+
+def merge_dicts(dicts):
+    all_dicts = dicts[0]
+    for d in dicts[1:]:
+        all_dicts = all_dicts | d
+    
+    return all_dicts
+
+
+def generate(state, xs, idx=2, beta=1, seed=None):
+    if seed is None:
+        seed = new_seed()
+
+    source = jax.random.key(seed)
+    while idx < xs.shape[1] - 1:
+        key, source = jax.random.split(source)
+        xs = _gen_pass(key, state, xs, idx, beta)
+        idx += 1
+    
+    return xs
+
+
+def _gen_pass(key, state, xs, idx, beta):
+    logits = state.apply_fn({'params': state.params}, xs)
+    preds = jax.random.categorical(key, beta * logits)
+    xs = xs.at[:,idx+1].set(preds[:,idx])
+    return xs

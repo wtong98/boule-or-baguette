@@ -260,13 +260,14 @@ class BinaryTreeTiTask:
                 BinaryTreeTiTask.sep_idx * np.ones((self.batch_size, 1 if self.use_sep else 0)),
                 thought_toks
             ), axis=1)
+            ys = jnp.where(ys == 1, BinaryTreeTiTask.yes_idx, BinaryTreeTiTask.no_idx)
 
         if self.shuffle:
             idx = np.random.choice(xs.shape[0], size=xs.shape[0], replace=False)
             xs = xs[idx]
             ys = ys[idx]
 
-        return xs, ys
+        return xs.astype(int), ys.astype(int)
 
 
     def __iter__(self):
@@ -299,7 +300,7 @@ def _add_chain(xs, depth, batch_size, add_sep):
         xs, 
         BinaryTreeTiTask.sep_idx * jnp.ones((batch_size, 1 if add_sep else 0)),
         chain
-    ), axis=-1).astype(int)
+    ), axis=-1)
 
     return xs
 
@@ -323,7 +324,7 @@ def _unwrap(xs, depth, add_sep):
     out = jnp.concatenate(out * final_mask[...,None])
     res = jnp.concatenate(res)
 
-    return out.astype(int), res.astype(int)
+    return out, res
 
 
 class Chain:
@@ -377,12 +378,12 @@ def bt_rl_loss(params, state, traj, rew):
 
 
 def bt_rew_fn(traj, ys):
-    ys = ys[:,2:]
-    ans_idx = jnp.sum(ys != 0, axis=-1) - 1
-    ans = ys[jnp.arange(len(ys)), ans_idx]
+    # ys = ys[:,2:]
+    # ans_idx = jnp.sum(ys != 0, axis=-1) - 1
+    # ans = ys[jnp.arange(len(ys)), ans_idx]
 
     pred = traj[:,-1]
-    reward = (pred == ans).astype(float)
+    reward = (pred == ys).astype(float)
     return reward
 
 
@@ -390,4 +391,4 @@ def bt_rew_fn(traj, ys):
 # xs, ys = next(task)
 
 # print(xs - BinaryTreeTiTask.offset)
-# print(ys - BinaryTreeTiTask.offset)
+# print(ys)

@@ -49,6 +49,8 @@ test_lens = [1, 2, 3, 4, 5, 6, 7, 8]
 all_cases = []
 test_tasks = []
 
+eval_fns = [loss_and_acc, gen_acc_cot]
+
 for use_bias, freeze_emb, train_len in itertools.product(use_biases, freeze_embs, train_lens):
     model_args = {
         'n_vocab': n_vocab,
@@ -62,7 +64,9 @@ for use_bias, freeze_emb, train_len in itertools.product(use_biases, freeze_embs
         return {
             'loss': loss,
             'test_every': 1000,
-            'train_iters': train_iters
+            'train_iters': train_iters,
+            'eval_fns': eval_fns,
+            'print_fn': print_gen
         }
 
 
@@ -83,19 +87,19 @@ for use_bias, freeze_emb, train_len in itertools.product(use_biases, freeze_embs
 
 
     all_cases.extend([
-        Case('MLP',
-                MlpConfig(n_layers=1, **model_args),
-                train_args=make_train_args('ce'),
-                train_task=make_chain(unwrap=True),
-                test_task=make_test(unwrap=True)
-        ),
+        # Case('MLP',
+        #         MlpConfig(n_layers=1, **model_args),
+        #         train_args=make_train_args('ce'),
+        #         train_task=make_chain(unwrap=True),
+        #         test_task=make_test(unwrap=True)
+        # ),
         
-        Case('Mixer',
-                MixerConfig(n_layers=2, n_channels=32, **model_args),
-                train_args=make_train_args('ce'),
-                train_task=make_chain(unwrap=True),
-                test_task=make_test(unwrap=True)
-        ),
+        # Case('Mixer',
+        #         MixerConfig(n_layers=2, n_channels=32, **model_args),
+        #         train_args=make_train_args('ce'),
+        #         train_task=make_chain(unwrap=True),
+        #         test_task=make_test(unwrap=True)
+        # ),
         
         Case('Transformer',
                 TransformerConfig(n_layers=3, n_heads=2, pos_emb=False, return_final_logits_only=False, **model_args),
@@ -113,22 +117,38 @@ for case in tqdm(all_cases):
     print('RUNNING', case.name)
     case.run()
 
-for test_len in test_lens:
-    task = [BinaryTreeTiTask(depth=depth, order=None, samp_dist=test_len, on_branch=True, cot=True, unwrap=c.test_task.unwrap) for c in all_cases]
-    eval_cases(all_cases, eval_task=task, key_name=f'acc_{test_len}_fwd_on')
+    for test_len in test_lens:
+        case.eval(
+            BinaryTreeTiTask(depth=depth, samp_dist=test_len, on_branch=True, cot=True),
+            eval_fns=eval_fns,
+            prefix=f'on_{test_len}'
+        )
 
-    task = [BinaryTreeTiTask(depth=depth, order='rev', samp_dist=test_len, on_branch=True, cot=True, unwrap=c.test_task.unwrap) for c in all_cases]
-    eval_cases(all_cases, eval_task=task, key_name=f'acc_{test_len}_rev_on')
-
-    task = [BinaryTreeTiTask(depth=depth, order=None, samp_dist=test_len, on_branch=False, cot=True, unwrap=c.test_task.unwrap) for c in all_cases]
-    eval_cases(all_cases, eval_task=task, key_name=f'acc_{test_len}_fwd_off')
-
-    task = [BinaryTreeTiTask(depth=depth, order='rev', samp_dist=test_len, on_branch=False, cot=True, unwrap=c.test_task.unwrap) for c in all_cases]
-    eval_cases(all_cases, eval_task=task, key_name=f'acc_{test_len}_rev_off')
-
-
-for case in all_cases:
+        case.eval(
+            BinaryTreeTiTask(depth=depth, samp_dist=test_len, on_branch=False, cot=True),
+            eval_fns=eval_fns,
+            prefix=f'off_{test_len}'
+        )
+    
     case.state = None
+    case.train_args['eval_fns'] = None
+
+
+# for test_len in test_lens:
+#     task = [BinaryTreeTiTask(depth=depth, order=None, samp_dist=test_len, on_branch=True, cot=True, unwrap=c.test_task.unwrap) for c in all_cases]
+#     eval_cases(all_cases, eval_task=task, key_name=f'acc_{test_len}_fwd_on')
+
+#     task = [BinaryTreeTiTask(depth=depth, order='rev', samp_dist=test_len, on_branch=True, cot=True, unwrap=c.test_task.unwrap) for c in all_cases]
+#     eval_cases(all_cases, eval_task=task, key_name=f'acc_{test_len}_rev_on')
+
+#     task = [BinaryTreeTiTask(depth=depth, order=None, samp_dist=test_len, on_branch=False, cot=True, unwrap=c.test_task.unwrap) for c in all_cases]
+#     eval_cases(all_cases, eval_task=task, key_name=f'acc_{test_len}_fwd_off')
+
+#     task = [BinaryTreeTiTask(depth=depth, order='rev', samp_dist=test_len, on_branch=False, cot=True, unwrap=c.test_task.unwrap) for c in all_cases]
+#     eval_cases(all_cases, eval_task=task, key_name=f'acc_{test_len}_rev_off')
+
+# for case in all_cases:
+#     case.state = None
 
 
 df = pd.DataFrame(all_cases)

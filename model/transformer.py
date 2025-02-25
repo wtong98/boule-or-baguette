@@ -234,24 +234,3 @@ class Transformer(nn.Module):
 
         return logits
 
-
-def generate(state, xs, idx=2, beta=1, seed=None):
-    if seed is None:
-        seed = new_seed()
-
-    source = jax.random.key(seed)
-    while idx < xs.shape[1] - 1:
-        key, source = jax.random.split(source)
-        xs = _gen_pass(key, state, xs, idx, beta)
-        idx += 1
-    
-    return xs
-
-
-@jax.jit
-def _gen_pass(key, state, xs, idx, beta):
-    logits = state.apply_fn({'params': state.params}, xs)
-    preds = jax.random.categorical(key, beta * logits)
-    xs = xs.at[:,idx+1].set(preds[:,idx])
-    return xs
-
