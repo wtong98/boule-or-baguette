@@ -131,9 +131,31 @@ def gen_acc_cot(state, batch, loss=None):
     ans = ys[jnp.arange(len(ys)), ans_idx]
 
     traj = generate(state, xs)
-    preds = traj[jnp.arange(len(ys)), ans_idx + 3]
+    preds = extract_pred(traj)
 
-    return {'gen_acc': jnp.mean(ans == preds)}
+    return {'gen_acc': jnp.mean(preds == ans)}
+
+
+@partial(jax.jit, static_argnames=('loss'))
+def gen_acc_rl(state, batch, loss=None):
+    xs, ys = batch
+
+    traj = generate(state, xs)
+    preds = extract_pred(traj)
+
+    return {'gen_acc': jnp.mean(preds == ys)}
+
+
+def extract_pred(traj):
+    # assumes no/yes classification offset by 1 for padding
+    no_occ = jnp.argmax(traj == 1, axis=1)
+    no_occ = jnp.where(no_occ == 0, jnp.inf, no_occ)
+    yes_occ = jnp.argmax(traj == 2, axis=1)
+    yes_occ = jnp.where(yes_occ == 0, jnp.inf, yes_occ)
+
+    preds = jnp.argmin(jnp.stack((no_occ, yes_occ), axis=1), axis=1) + 1
+    preds = jnp.where(no_occ != yes_occ, preds, jnp.inf)
+    return preds
 
 
 def print_gen(step, hist):
@@ -217,7 +239,7 @@ def _print_status(step, hist):
 def reinforce(state, train_iter, 
               action_fn, reward_fn, rl_loss,
               train_iters=10_000, 
-              test_iter=None, test_iters=10, test_every=1000, loss='ce_mask',
+              test_iter=None, test_iters=10, test_every=1000, loss=None,
               eval_fns=None, print_fn=None,
               save_params=False,
               use_tqdm=False):
@@ -261,7 +283,7 @@ def reinforce(state, train_iter,
             hist['test'].append(all_test)
             hist['rew'].append(avg_rew)
 
-            _print_rl_status(step+1, hist)
+            print_fn(step+1, hist)
 
             if save_params:
                 hist['params'].append(state.params)
@@ -270,7 +292,7 @@ def reinforce(state, train_iter,
 
 
 def _print_rl_status(step, hist):
-    print(f'ITER {step}:  test_rew={hist["rew"][-1]:.4f}   test_acc={hist["test"][-1]["acc"]:.4f}')
+    print(f'ITER {step}:  test_rew={hist["rew"][-1]:.4f}   test_acc={hist["test"][-1]["gen_acc"]:.4f}')
 
 
 @jax.jit

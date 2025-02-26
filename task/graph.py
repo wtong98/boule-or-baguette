@@ -11,6 +11,7 @@ import numpy as np
 import sys
 sys.path.append('../')
 from common import new_seed
+from train import extract_pred
 
 def fast_binary_pow(a, n):
     for _ in range(n):
@@ -377,12 +378,30 @@ def bt_rl_loss(params, state, traj, rew):
     return -exp_J
 
 
+def bt_rl_adv_loss(params, state, traj, rew):
+    logits = state.apply_fn({'params': params}, traj)
+
+    traj = traj[:,3:]
+    logits = logits[:,2:-1]
+
+    sel = jnp.take_along_axis(logits, traj[...,None], axis=-1).squeeze()
+    norm = jax.scipy.special.logsumexp(logits, axis=-1)
+    log_p = sel - norm
+
+    rew = (rew - jnp.mean(rew)) / jnp.std(rew)
+
+    J = rew[:,None] * log_p
+    exp_J = jnp.mean(J)
+    return -exp_J
+
+
 def bt_rew_fn(traj, ys):
     # ys = ys[:,2:]
     # ans_idx = jnp.sum(ys != 0, axis=-1) - 1
     # ans = ys[jnp.arange(len(ys)), ans_idx]
 
-    pred = traj[:,-1]
+    # pred = traj[:,-1]
+    pred = extract_pred(traj)
     reward = (pred == ys).astype(float)
     return reward
 

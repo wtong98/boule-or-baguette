@@ -19,7 +19,7 @@ sys.path.append('../')
 from common import *
 from train import *
 from model.mlp import MlpConfig, MixerConfig
-from model.transformer import TransformerConfig, generate
+from model.transformer import TransformerConfig 
 from task.graph import *
 
 
@@ -47,42 +47,48 @@ def extract_plot_vals(row):
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
 
+plot_df.iloc[0]['acc']
+
 adf = pd.DataFrame(plot_df['acc'].tolist()) \
         .stack() \
         .reset_index(level=1, name='acc')
 
+
 plot_df = plot_df.drop('acc', axis='columns').join(adf)
 
 ldf = plot_df['level_1'].str.split('_', expand=True) \
-                        .drop(0, axis='columns') \
                         .rename(columns={
+                            0: 'branch',
                             1: 'test_len',
-                            2: 'order',
-                            3: 'branch'
                         })
 
 plot_df = pd.concat((plot_df, ldf), axis='columns').drop('level_1', axis='columns')
-plot_df['acc'] = plot_df['acc'].astype('float')
-
+adf = pd.DataFrame(plot_df['acc'].to_list())
+plot_df = pd.concat((plot_df.drop('acc', axis=1).reset_index(), adf), axis=1)
 plot_df
+
 # <codecell>
-orders = ['fwd', 'rev']
 branches = ['on', 'off']
 
-for order, branch in itertools.product(orders, branches):
+for branch in branches:
     mdf = plot_df.copy()
     mdf = mdf[(mdf['use_bias'] == True) 
             & (mdf['freeze_emb'] == False)
-            & (mdf['order'] == order)
             & (mdf['branch'] == branch)]
 
-    gs = sns.relplot(mdf, x='test_len', y='acc', hue='name', col='d_on', kind='line', marker='o', height=1.5, aspect=1.2)
+    gs = sns.relplot(mdf, x='test_len', y='gen_acc', hue='name', col='d_on', kind='line', marker='o', height=1.5, aspect=1.2)
     fig = gs.figure
-    fig.suptitle(f'order={order}, branch={branch}', size=14)
+    fig.suptitle(f'branch={branch}')
     # fig.subplots_adjust(top=0.9)
 
-    # plt.savefig(f'fig/acc_reduce_bal_{order}_{branch}.png')
+    plt.savefig(f'fig/acc_full_cot_{branch}.png')
     plt.show()
+
+# <codecell>
+mdf = plot_df.copy()
+mdf = mdf[(mdf['use_bias'] == True) & (mdf['freeze_emb'] == False) & (mdf['branch'] == 'off')]
+
+mdf
 
 # <codecell>
 
