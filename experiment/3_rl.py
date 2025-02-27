@@ -119,11 +119,11 @@ train_task = Chain(
 ### RL finetune
 state, hist = reinforce(state, train_task, 
                         action_fn=generate, 
-                        reward_fn=bt_rew_fn, 
+                        reward_fn=bt_rew_fn_with_punish, 
                         rl_loss=bt_rl_loss,
-                        train_iters=1_000,
-                        test_every=50,
-                        test_iters=3,
+                        train_iters=20_000,
+                        test_every=1000,
+                        test_iters=10,
                         use_tqdm=True,
                         eval_fns=[gen_acc_rl]
                         )

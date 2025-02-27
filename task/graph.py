@@ -396,14 +396,17 @@ def bt_rl_adv_loss(params, state, traj, rew):
 
 
 def bt_rew_fn(traj, ys):
-    # ys = ys[:,2:]
-    # ans_idx = jnp.sum(ys != 0, axis=-1) - 1
-    # ans = ys[jnp.arange(len(ys)), ans_idx]
-
-    # pred = traj[:,-1]
     pred = extract_pred(traj)
     reward = (pred == ys).astype(float)
     return reward
+
+
+def bt_rew_fn_with_punish(traj, ys):
+    pred = extract_pred(traj)
+    reward = (pred == ys).astype(float)
+    reward = jnp.where(reward == 0, -0.01, reward)
+    return reward
+
 
 
 # task = BinaryTreeTiTask(depth=5, samp_dist=2, batch_size=10, on_branch=False, rl_prompt=True)
