@@ -167,7 +167,7 @@ class TransformerBlock(nn.Module):
         else:
             x = nn.MultiHeadDotProductAttention(num_heads=self.config.n_heads, 
                                                 qkv_features=self.config.n_hidden,
-                                                use_bias=self.config.use_bias)(inputs_q=inputs, inputs_kv=inputs, mask=decoder_mask)
+                                                use_bias=self.config.use_bias)(inputs_q=inputs, inputs_kv=inputs, mask=decoder_mask, sow_weights=True)
 
         if self.config.residual_connections:
             x = x + inputs

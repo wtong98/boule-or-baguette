@@ -150,6 +150,19 @@ for case in tqdm(all_cases):
                                     )
     
     case.info['etc']['rl_hist'] = rl_hist
+
+    for test_len in test_lens:
+        case.eval(
+            BinaryTreeTiTask(depth=depth, samp_dist=test_len, on_branch=True, rl_prompt=True),
+            eval_fns=[gen_acc_rl],
+            prefix=f'on_rl_{test_len}'
+        )
+
+        case.eval(
+            BinaryTreeTiTask(depth=depth, samp_dist=test_len, on_branch=False, rl_prompt=True),
+            eval_fns=[gen_acc_rl],
+            prefix=f'off_rl_{test_len}'
+        )
     
     case.state = None
     case.train_args['eval_fns'] = None

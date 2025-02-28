@@ -1,4 +1,4 @@
-"""Experimenting with RL finetuning"""
+"""Reverse engineering the Transformer's solution"""
 
 
 # <codecell>
@@ -22,119 +22,106 @@ from model.transformer import TransformerConfig
 from task.graph import *
 
 
-# <codecell>
-df = collate_dfs('remote/3_rl/generalize', show_progress=True)
-df
-
-# <codecell>
-idx = ['name', 'use_bias', 'freeze_emb', 'dist', 'info']
-
-def extract_plot_vals(row):
-    t1, _ = row['train_task'].tasks
-    d1 = t1.samp_dist[1] if isinstance(t1.samp_dist, Iterable) else t1.samp_dist
-
-    return pd.Series([
-        row['name'],
-        row['config']['use_bias'],
-        row['config']['freeze_emb'],
-        d1,
-        row['info']
-    ], index=idx)
-
-plot_df = df.apply(extract_plot_vals, axis=1) \
-            .reset_index(drop=True) \
-
-adf = pd.DataFrame(plot_df['info'].tolist()) \
-        .stack() \
-        .reset_index(level=1, name='info')
-
-adf = adf[adf['level_1'] != 'etc']
-
-plot_df = plot_df.drop('info', axis='columns').join(adf)
-
-plot_df
-# <codecell>
-
-ldf = plot_df['level_1'].str.split('_', expand=True) \
-                        .rename(columns={
-                            0: 'branch',
-                            1: 'test_len',
-                        })
-
-plot_df = pd.concat((plot_df, ldf), axis='columns').drop('level_1', axis='columns')
-adf = pd.DataFrame(plot_df['acc'].to_list())
-plot_df = pd.concat((plot_df.drop('acc', axis=1).reset_index(), adf), axis=1)
-plot_df
-
-# <codecell>
-branches = ['on', 'off']
-
-for branch in branches:
-    mdf = plot_df.copy()
-    mdf = mdf[(mdf['use_bias'] == True) 
-            & (mdf['freeze_emb'] == False)
-            & (mdf['branch'] == branch)]
-
-    gs = sns.relplot(mdf, x='test_len', y='gen_acc', hue='name', col='d_on', kind='line', marker='o', height=1.5, aspect=1.2)
-    fig = gs.figure
-    fig.suptitle(f'branch={branch}')
-    # fig.subplots_adjust(top=0.9)
-
-    plt.savefig(f'fig/acc_full_cot_{branch}.png')
-    plt.show()
-
-
-
-
-# <codecell>
-
-
-
 depth = 10
 n_vocab = 2**depth + BinaryTreeTiTask.offset
 n_hidden = 128
-batch_size = 32
+batch_size = 64
 unwrap = False
+
+n_layers = 1
 
 seed = new_seed()
 
 
 train_task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=False, fill_gaps=False, cot=True, unwrap=unwrap, batch_size=batch_size))
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,8), on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size),
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,8), on_branch=False, fill_gaps=False, cot=True, unwrap=unwrap, batch_size=batch_size))
 
 test_task = BinaryTreeTiTask(depth=depth, samp_dist=8, on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size)
 
-config = TransformerConfig(n_layers=3,
+config = TransformerConfig(n_layers=n_layers,
                            n_vocab=n_vocab,
                            n_out=n_vocab,
                            n_hidden=n_hidden,
                            pos_emb=False,
-                           n_mlp_layers=2,
-                           n_heads=2,
+                           n_mlp_layers=0,
+                           n_heads=1,
                            layer_norm=True,
                            as_rf_model=False,
-                           residual_connections=True,
+                           residual_connections=False,
                            use_simple_att=False,
-                           freeze_emb=False,
-                           use_bias=True,
+                           freeze_emb=True,
+                           use_bias=False,
                            return_final_logits_only=False,
                            )
 
 
-# <codecell>
 state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=10_000,
+                    train_iters=100_000,
                     # lr=1e-3,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
                     print_fn=print_gen
                     )
 
+
+# <codecell>
+jax.tree.map(np.shape, state.params)
+
+xs, ys = next(train_task)
+logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+
+atts = [intm['intermediates'][f'TransformerBlock_{i}']['MultiHeadDotProductAttention_0']['attention_weights'][0].squeeze() for i in range(n_layers)]
+
+idx = -1
+fig, axs = plt.subplots(1, len(atts), figsize=(4 * len(atts), 4))
+
+if n_layers == 1:
+    axs = np.array([axs])
+
+for ax, att in zip(axs.ravel(), atts):
+    im = ax.imshow(att[idx])
+    labs = list(xs[idx])
+    ax.set_xticks(np.arange(len(labs)))
+    ax.set_xticklabels(labs)
+    ax.set_yticks(np.arange(len(labs)))
+    ax.set_yticklabels(labs)
+    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    print('')
+
+fig.tight_layout()
+
+preds = logits.argmax(-1)
+print('preds', preds[idx])
+# <codecell>
+readout = state.params['Dense_0']['kernel']
+dot = readout.T @ readout
+normd = readout / np.linalg.norm(readout, axis=0, keepdims=True)
+n_dot = normd.T @ normd
+
+# plt.imshow(dot, vmin=-30, vmax=30, cmap='BrBG')
+plt.imshow(n_dot, vmin=-1, vmax=1, cmap='BrBG')
+plt.colorbar()
+
+boundaries = 2**np.arange(depth) + 2.5
+boundaries[0] = 0
+
+# for b in boundaries:
+#     plt.axhline(y=b, color='red', alpha=0.3)
+#     plt.axvline(x=b, color='red', alpha=0.3)
+
+# nodes = np.arange(3, n_vocab // 2 + 1)
+# plt.plot(nodes + 1, 2 * nodes, color='magenta', alpha=0.4)
+
+# nodes = np.arange(5, n_vocab)
+# plt.plot(nodes, 0.5 * nodes + 1, color='magenta', alpha=0.4)
+
+
+# plt.savefig('fig/readout_sim.png')
 
 # <codecell>
 with open('state.pkl', 'wb') as fp:
