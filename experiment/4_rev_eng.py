@@ -22,22 +22,22 @@ from model.transformer import TransformerConfig
 from task.graph import *
 
 
-depth = 10
+depth = 5
 n_vocab = 2**depth + BinaryTreeTiTask.offset
 n_hidden = 128
-batch_size = 64
+batch_size = 128
 unwrap = False
 
-n_layers = 1
+n_layers = 2
 
 seed = new_seed()
 
 
 train_task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,8), on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,8), on_branch=False, fill_gaps=False, cot=True, unwrap=unwrap, batch_size=batch_size))
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,3), on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size),
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,3), on_branch=False, fill_gaps=False, cot=True, unwrap=unwrap, batch_size=batch_size))
 
-test_task = BinaryTreeTiTask(depth=depth, samp_dist=8, on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size)
+test_task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size)
 
 config = TransformerConfig(n_layers=n_layers,
                            n_vocab=n_vocab,
@@ -46,7 +46,7 @@ config = TransformerConfig(n_layers=n_layers,
                            pos_emb=False,
                            n_mlp_layers=0,
                            n_heads=1,
-                           layer_norm=True,
+                           layer_norm=False,
                            as_rf_model=False,
                            residual_connections=False,
                            use_simple_att=False,
@@ -61,7 +61,7 @@ state, hist = train(config,
                     test_iter=iter(test_task), 
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=100_000,
+                    train_iters=50_000,
                     # lr=1e-3,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
@@ -72,6 +72,36 @@ state, hist = train(config,
 # <codecell>
 jax.tree.map(np.shape, state.params)
 
+# <codecell>
+W = state.params['Dense_0']['kernel']
+V0 = state.params['TransformerBlock_0']['MultiHeadDotProductAttention_0']['value']['kernel'].squeeze()
+O0 = state.params['TransformerBlock_0']['MultiHeadDotProductAttention_0']['out']['kernel'].squeeze()
+V1 = state.params['TransformerBlock_1']['MultiHeadDotProductAttention_0']['value']['kernel'].squeeze()
+O1 = state.params['TransformerBlock_1']['MultiHeadDotProductAttention_0']['out']['kernel'].squeeze()
+
+R = V0 @ O0 @ V1 @ O1 @ W
+
+xs = np.array(state.params['Embed_freeze']['embedding'])
+
+logits = xs @ R
+
+out = (xs[[25]] + 0.1 * xs[[3]]) @ R
+
+R.shape
+
+est = np.linalg.pinv(xs @ xs.T) @ xs @ R
+R_est = xs.T @ est
+
+plt.imshow(logits, vmin=-500, vmax=500, cmap='BrBG')
+plt.colorbar()
+
+plt.xlabel('Class (output)')
+plt.ylabel('Token (input)')
+
+# plt.savefig('fig/logits.png')
+
+
+# <codecell>
 xs, ys = next(train_task)
 logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 

@@ -136,7 +136,7 @@ for case in tqdm(all_cases):
     rl_state = create_train_state(
         model=case.config.to_model(),
         params=case.state.params,
-        lr=1e-6,
+        lr=1e-3,
         optim=optax.sgd
     )
 

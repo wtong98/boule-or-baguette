@@ -184,11 +184,14 @@ def train(config, train_iter,
     if print_fn is None:
         print_fn = _print_status
     
-    init_rng = jax.random.key(seed)
-    model = config.to_model()
+    if isinstance(config, train_state.TrainState):
+        state = config
+    else:
+        init_rng = jax.random.key(seed)
+        model = config.to_model()
 
-    samp_x, _ = next(train_iter)
-    state = create_train_state(init_rng, model, samp_x, gamma=gamma, optim=optim, **opt_kwargs)
+        samp_x, _ = next(train_iter)
+        state = create_train_state(init_rng, model, samp_x, gamma=gamma, optim=optim, **opt_kwargs)
 
     hist = {
         'train': [],
