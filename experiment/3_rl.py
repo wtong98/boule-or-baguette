@@ -74,12 +74,12 @@ for branch in branches:
               & (mdf['n_hidden'] == 128)
               & (mdf['n_layer'] == 2)]
 
-    gs = sns.relplot(mdf, x='test_len', y='gen_acc', hue='mode', col='dist_pr', row='dist_rl', kind='line', marker='o', height=1.5, aspect=1.2)
+    gs = sns.relplot(mdf, x='test_len', y='gen_acc', hue='mode', col='dist_pr', row='dist_rl', marker='o', height=1.5, aspect=1.2, alpha=0.7)
     fig = gs.figure
     fig.suptitle(f'branch={branch}')
     fig.subplots_adjust(top=0.88)
 
-    # plt.savefig(f'fig/acc_full_cot_{branch}.png')
+    plt.savefig(f'fig/acc_rl_{branch}.png')
     plt.show()
 
 
@@ -90,11 +90,11 @@ mdf[(mdf['dist_pr'] == 1)
     & (mdf['dist_rl'] == 3)
     & (mdf['n_hidden'] == 128)
     & (mdf['n_layer'] == 2)
-    & (mdf['branch'] == 'on')
+    & (mdf['branch'] == 'off')
     ]
 
 # <codecell>
-df.iloc[111]['info']
+df.iloc[55]['info']
 
 
 # <codecell>
@@ -156,11 +156,11 @@ state = create_train_state(
     model=config.to_model(), 
     params=params,
     optim=optax.sgd,
-    lr=1e-3
+    lr=5e-4
     )
 
 # <codecell>
-batch_size = 128
+batch_size = 1024
 
 train_task = Chain(
     BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=True, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=None),
@@ -174,7 +174,7 @@ state, hist = reinforce(state, train_task,
                         action_fn=generate, 
                         reward_fn=bt_rew_fn, 
                         rl_loss=bt_rl_loss,
-                        train_iters=50_000,
+                        train_iters=100_000,
                         test_every=1000,
                         test_iters=10,
                         use_tqdm=True,

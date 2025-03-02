@@ -126,7 +126,8 @@ for case in tqdm(all_cases):
     task_args = {
         'depth': depth,
         'samp_dist': (1, case.info['etc']['train_len_rl']),
-        'rl_prompt': True
+        'rl_prompt': True,
+        'batch_size': 1024
     }
 
     train_task = Chain(
@@ -136,7 +137,7 @@ for case in tqdm(all_cases):
     rl_state = create_train_state(
         model=case.config.to_model(),
         params=case.state.params,
-        lr=1e-3,
+        lr=5e-4,
         optim=optax.sgd
     )
 
