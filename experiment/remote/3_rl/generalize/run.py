@@ -22,7 +22,7 @@ train_iters = 50_000
 
 depth = 10
 n_vocab = 2**depth + BinaryTreeTiTask.offset
-n_hiddens = [128]
+n_hiddens = [128, 512, 2048]
 n_layers = [2]
 
 use_biases = [False]
@@ -63,6 +63,7 @@ for use_bias, freeze_emb, train_len_pr, train_len_rl, n_hidden, n_layer \
         'n_layers': n_layer,
         'use_bias': use_bias,
         'freeze_emb': freeze_emb,
+        'mup_scale': True
     }
 
     def make_train_args(loss='ce_mask'):
@@ -137,7 +138,7 @@ for case in tqdm(all_cases):
     rl_state = create_train_state(
         model=case.config.to_model(),
         params=case.state.params,
-        lr=5e-4,
+        lr=1e-3,
         optim=optax.sgd
     )
 
@@ -145,7 +146,7 @@ for case in tqdm(all_cases):
                                     action_fn=generate, 
                                     reward_fn=bt_rew_fn, 
                                     rl_loss=bt_rl_loss,
-                                    train_iters=train_iters,
+                                    train_iters=4 * train_iters,
                                     test_every=1000,
                                     eval_fns=[gen_acc_rl]
                                     )

@@ -49,6 +49,7 @@ class TransformerConfig:
     use_simple_att: bool = False
     freeze_emb: bool = False
     use_bias: bool = True
+    mup_scale: bool = False
 
     def to_model(self):
         return Transformer(self)
@@ -126,6 +127,7 @@ class AddPositionEmbs(nn.Module):
 
 class SimpleSelfAttention(nn.Module):
     config: TransformerConfig
+    # NOTE: muP scale implemented only for single head case
 
     @nn.compact
     def __call__(self, inputs):
@@ -140,9 +142,9 @@ class SimpleSelfAttention(nn.Module):
         query = nn.DenseGeneral(features=(n_heads, head_dim), name='query', use_bias=False)(inputs)
         key = nn.DenseGeneral(features=(n_heads, head_dim), name='key', use_bias=False)(inputs)
 
-        query = query / jnp.sqrt(head_dim)
+        query = query / head_dim
         attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key)
-        # attn_weights = jax.nn.softmax(attn_weights, axis=-1)
+        attn_weights = jax.nn.softmax(attn_weights, axis=-1)
 
         self.sow('intermediates', 'attention_weights', attn_weights)
 
@@ -162,7 +164,7 @@ class TransformerBlock(nn.Module):
 
         assert inputs.ndim == 3
 
-        if self.config.use_simple_att:
+        if self.config.use_simple_att or self.config.mup_scale:
             x = SimpleSelfAttention(config=self.config)(inputs)
         else:
             x = nn.MultiHeadDotProductAttention(num_heads=self.config.n_heads, 
@@ -176,6 +178,7 @@ class TransformerBlock(nn.Module):
             x = nn.LayerNorm()(x)
         
         if self.config.n_mlp_layers > 0:
+            # NOTE: muP scale not implemented for MLP layers
             pre_mlp_x = x
             for i in range(self.config.n_mlp_layers):
                 if i == 0:
@@ -233,4 +236,81 @@ class Transformer(nn.Module):
                 logits = logits.flatten()
 
         return logits
+
+
+### COORDINATE CHECKING
+# import matplotlib.pyplot as plt
+
+# import sys
+# sys.path.append('../')
+# from task.graph import *
+# from common import *
+# from train import *
+
+
+# base_lr = 0.1
+# depth = 5
+# n_vocab = 2**depth + 4
+
+# train_task = Chain(
+#     BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=True, cot=True),
+#     BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=False, fill_gaps=False, cot=True))
+
+# xs_init, _ = next(train_task)
+
+# all_norms = []
+# for n_steps in tqdm([1,2,3,4]):
+#     curr_norms = []
+#     for n_hidden in [32, 64, 128, 256, 512, 1024, 2048]:
+#         gamma0 = 1
+#         gamma = gamma0 * np.sqrt(n_hidden)
+#         lr = gamma0**2 * base_lr
+
+
+#         config = TransformerConfig(n_vocab=n_vocab,
+#                                 n_layers=2,
+#                                 n_hidden=n_hidden,
+#                                 n_heads=1,
+#                                 n_out=n_vocab,
+#                                 pos_emb=False,
+#                                 layer_norm=False,
+#                                 residual_connections=False,
+#                                 n_mlp_layers=0,
+#                                 return_final_logits_only=False,
+#                                 use_bias=False,
+#                                 freeze_emb=True,
+#                                 mup_scale=True)
+
+
+#         state = create_train_state(jax.random.key(new_seed()),
+#                                 model=config.to_model(),
+#                                 dummy_input=xs_init,
+#                                 optim=optax.sgd,
+#                                 # gamma=gamma,
+#                                 lr=lr)
+
+#         logits_init = state.apply_fn({'params': state.params}, xs_init)
+        
+
+#         state, hist = train(state,
+#                             train_iter=iter(train_task), 
+#                             loss='ce_mask',
+#                             # gamma=gamma,
+#                             test_every=1000,
+#                             train_iters=n_steps, 
+#                             optim=optax.sgd,
+#                             lr=lr,
+#                             seed=None)
+
+#         logits = state.apply_fn({'params': state.params}, xs_init)
+#         # norm = np.mean(np.linalg.norm(logits, axis=(-1, -2)))
+#         norm = np.std(logits - logits_init).item()
+#         curr_norms.append(norm)
+#         del state
+    
+#     all_norms.append(curr_norms)
+
+# # <codecell>
+# for norms in all_norms:
+#     plt.plot(norms, 'o--')
 

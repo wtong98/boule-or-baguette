@@ -22,7 +22,7 @@ from model.transformer import TransformerConfig
 from task.graph import *
 
 
-depth = 5
+depth = 10
 n_vocab = 2**depth + BinaryTreeTiTask.offset
 n_hidden = 128
 batch_size = 128
@@ -34,10 +34,10 @@ seed = new_seed()
 
 
 train_task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,3), on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,3), on_branch=False, fill_gaps=False, cot=True, unwrap=unwrap, batch_size=batch_size))
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,6), on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size),
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,6), on_branch=False, fill_gaps=False, cot=True, unwrap=unwrap, batch_size=batch_size))
 
-test_task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size)
+test_task = BinaryTreeTiTask(depth=depth, samp_dist=6, on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size)
 
 config = TransformerConfig(n_layers=n_layers,
                            n_vocab=n_vocab,
@@ -53,6 +53,7 @@ config = TransformerConfig(n_layers=n_layers,
                            freeze_emb=True,
                            use_bias=False,
                            return_final_logits_only=False,
+                           mup_scale=True
                            )
 
 
@@ -61,8 +62,9 @@ state, hist = train(config,
                     test_iter=iter(test_task), 
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=50_000,
-                    # lr=1e-3,
+                    train_iters=20_000,
+                    lr=1e-3,
+                    optim=optax.sgd,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
                     print_fn=print_gen

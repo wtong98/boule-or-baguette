@@ -79,7 +79,7 @@ for branch in branches:
     fig.suptitle(f'branch={branch}')
     fig.subplots_adjust(top=0.88)
 
-    plt.savefig(f'fig/acc_rl_{branch}.png')
+    # plt.savefig(f'fig/acc_rl_stable_{branch}.png')
     plt.show()
 
 
@@ -90,11 +90,11 @@ mdf[(mdf['dist_pr'] == 1)
     & (mdf['dist_rl'] == 3)
     & (mdf['n_hidden'] == 128)
     & (mdf['n_layer'] == 2)
-    & (mdf['branch'] == 'off')
+    & (mdf['branch'] == 'on')
     ]
 
 # <codecell>
-df.iloc[55]['info']
+plt.plot(df.iloc[4]['info']['etc']['rl_hist']['rew'], '--o')
 
 
 # <codecell>
