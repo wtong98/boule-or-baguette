@@ -16,14 +16,14 @@ from task.graph import Chain, BinaryTreeTiTask, bt_rew_fn, bt_rl_loss
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 9
 
 train_iters = 50_000
 
 depth = 10
 n_vocab = 2**depth + BinaryTreeTiTask.offset
-n_hiddens = [128, 4096]
-n_layers = [1, 2, 4]
+n_hiddens = [128]
+n_layers = [2]
 
 use_biases = [False]
 freeze_embs = [True]
