@@ -130,7 +130,7 @@ class SimpleSelfAttention(nn.Module):
     # NOTE: muP scale implemented only for single head case
 
     @nn.compact
-    def __call__(self, inputs):
+    def __call__(self, inputs, mask=None):
         self.sow('intermediates', 'inputs', inputs)
         
         n_feats = inputs.shape[-1]
@@ -141,16 +141,21 @@ class SimpleSelfAttention(nn.Module):
         
         query = nn.DenseGeneral(features=(n_heads, head_dim), name='query', use_bias=False)(inputs)
         key = nn.DenseGeneral(features=(n_heads, head_dim), name='key', use_bias=False)(inputs)
+        value = nn.DenseGeneral(features=(n_heads, head_dim), name='value', use_bias=False)(inputs)
 
         query = query / head_dim
         attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key)
+
+        if mask is not None:
+            attn_weights = jnp.where(mask, attn_weights, -jnp.inf)
+
         attn_weights = jax.nn.softmax(attn_weights, axis=-1)
 
         self.sow('intermediates', 'attention_weights', attn_weights)
 
-        out = jnp.einsum('...hqk,...kd->...qhd', attn_weights, inputs)
-        # out = nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False)(out)
-        out = nn.DenseGeneral(features=1, axis=(-2, -1), use_bias=False)(out)
+        out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
+        out = nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False)(out)
+        # out = nn.DenseGeneral(features=1, axis=(-2, -1), use_bias=False)(out)
         return out
 
 
@@ -165,7 +170,7 @@ class TransformerBlock(nn.Module):
         assert inputs.ndim == 3
 
         if self.config.use_simple_att or self.config.mup_scale:
-            x = SimpleSelfAttention(config=self.config)(inputs)
+            x = SimpleSelfAttention(config=self.config)(inputs, mask=decoder_mask)
         else:
             x = nn.MultiHeadDotProductAttention(num_heads=self.config.n_heads, 
                                                 qkv_features=self.config.n_hidden,
@@ -238,7 +243,7 @@ class Transformer(nn.Module):
         return logits
 
 
-### COORDINATE CHECKING
+## COORDINATE CHECKING
 # import matplotlib.pyplot as plt
 
 # import sys
@@ -248,7 +253,7 @@ class Transformer(nn.Module):
 # from train import *
 
 
-# base_lr = 0.1
+# base_lr = 0.01
 # depth = 5
 # n_vocab = 2**depth + 4
 
@@ -259,9 +264,9 @@ class Transformer(nn.Module):
 # xs_init, _ = next(train_task)
 
 # all_norms = []
-# for n_steps in tqdm([1,2,3,4]):
+# for n_steps in tqdm([1]):
 #     curr_norms = []
-#     for n_hidden in [32, 64, 128, 256, 512, 1024, 2048]:
+#     for n_hidden in [128, 256, 512, 1024, 2048]:
 #         gamma0 = 1
 #         gamma = gamma0 * np.sqrt(n_hidden)
 #         lr = gamma0**2 * base_lr
@@ -279,7 +284,7 @@ class Transformer(nn.Module):
 #                                 return_final_logits_only=False,
 #                                 use_bias=False,
 #                                 freeze_emb=True,
-#                                 mup_scale=True)
+#                                 mup_scale=False)
 
 
 #         state = create_train_state(jax.random.key(new_seed()),
@@ -310,7 +315,6 @@ class Transformer(nn.Module):
     
 #     all_norms.append(curr_norms)
 
-# # <codecell>
 # for norms in all_norms:
 #     plt.plot(norms, 'o--')
 

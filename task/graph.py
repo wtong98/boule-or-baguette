@@ -85,6 +85,10 @@ def _samp_children(key, nodes, samp_dist):
     return children
 
 
+def _pred_frac_on(depth):
+    return 1.3 * np.exp(-0.45 * (depth - 1.5))
+
+
 class GraphTiTask:
     def __init__(self, n_nodes, n_dims=None, p_connect=None, prob_thresh=(0.1, 0.7), samp_adj=True, seed=None, batch_size=128) -> None:
         assert batch_size % 2 == 0, 'batch size must be even'
@@ -174,7 +178,7 @@ class BinaryTreeTiTask:
                  shuffle=False, 
                  cot=False, unwrap=False, 
                  rl_prompt=False, n_thought=None,
-                 use_sep=True,
+                 use_sep=True, repeat_first=True,
                  apply_offset=True,
                  batch_size=128) -> None:
 
@@ -198,8 +202,11 @@ class BinaryTreeTiTask:
         self.n_thought = n_thought
         self.unwrap = unwrap
         self.use_sep = use_sep
+        self.repeat_first = repeat_first
         self.apply_offset = apply_offset
 
+        self.pred_frac_on = _pred_frac_on(self.depth)
+        self.off_branch_eff_batch_size = int(1.1 * self.batch_size / self.pred_frac_on)
         self.seed = new_seed()
         self.source = jax.random.key(self.seed)
 
@@ -213,18 +220,17 @@ class BinaryTreeTiTask:
         if self.on_branch:
             xs, ys = samp_nodes_on_branch(key, self.depth, self.samp_dist, self.batch_size)
         else:
-            xs, ys = samp_nodes_off_branch(key, self.depth, self.samp_dist, self.batch_size)
+            xs, ys = samp_nodes_off_branch(key, self.depth, self.samp_dist, self.off_branch_eff_batch_size)
+            keep_idx = (ys == 0)
+            while np.sum(keep_idx) < self.batch_size:
+                # print('warn: insufficient examples, resampling')
+                xs_add, ys_add = samp_nodes_off_branch(key, self.depth, self.samp_dist, self.off_branch_eff_batch_size)
+                xs = jnp.concatenate((xs, xs_add))
+                ys = jnp.concatenate((ys, ys_add))
+                keep_idx = (ys == 0)
 
-            if self.fill_gaps:
-                while np.sum(ys == 0) < self.batch_size:
-                    # print('warn: insufficient examples, resampling')
-                    xs_add, ys_add = samp_nodes_off_branch(key, self.depth, self.samp_dist, self.batch_size)
-                    xs = jnp.concatenate((xs, xs_add))
-                    ys = jnp.concatenate((ys, ys_add))
-                
-                idxs = np.argsort(ys)
-                xs = xs[idxs[:self.batch_size]]
-                ys = ys[idxs[:self.batch_size]]
+            xs = xs[keep_idx][:self.batch_size]
+            ys = ys[keep_idx][:self.batch_size]
 
         if self.order == 'rev':
             xs = xs[:,::-1]
@@ -239,7 +245,7 @@ class BinaryTreeTiTask:
             if self.apply_offset:
                 xs = xs + BinaryTreeTiTask.offset
             
-            xs = _add_chain(xs, self.depth, self.batch_size, self.use_sep)
+            xs = _add_chain(xs, self.depth, self.batch_size, self.use_sep, self.repeat_first)
 
             if self.unwrap:
                 xs, ys = _unwrap(xs, self.depth, self.use_sep)
@@ -256,7 +262,7 @@ class BinaryTreeTiTask:
                 xs = xs + BinaryTreeTiTask.offset
             
             thought_toks = np.zeros((self.batch_size, self.n_thought))
-            xs = np.concatenate((
+            xs = jnp.concatenate((
                 xs,
                 BinaryTreeTiTask.sep_idx * np.ones((self.batch_size, 1 if self.use_sep else 0)),
                 thought_toks
@@ -275,11 +281,12 @@ class BinaryTreeTiTask:
         return self
 
 
-@functools.partial(jax.jit, static_argnums=(1,2,3))
-def _add_chain(xs, depth, batch_size, add_sep):
+@functools.partial(jax.jit, static_argnums=(1,2,3,4))
+def _add_chain(xs, depth, batch_size, add_sep, repeat_first):
     nodes = xs - BinaryTreeTiTask.offset
 
-    facs = 2**np.arange(depth + 1)
+    start_fac = 0 if repeat_first else 1
+    facs = 2**np.arange(start_fac, depth + 1)
 
     first, last = nodes.T
 
@@ -414,3 +421,4 @@ def bt_rew_fn_with_punish(traj, ys):
 
 # print(xs - BinaryTreeTiTask.offset)
 # print(ys)
+

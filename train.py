@@ -16,7 +16,7 @@ import numpy as np
 import optax
 from tqdm import tqdm
 
-from common import new_seed, merge_dicts, generate
+from common import new_seed, merge_dicts, gen1, gen2
 
 
 def create_train_state(rng=None, model=None, dummy_input=None, params=None, gamma=None, lr=1e-4, optim=optax.adamw, **opt_kwargs):
@@ -130,7 +130,7 @@ def gen_acc_cot(state, batch, loss=None):
     ans_idx = jnp.sum(ys != 0, axis=-1) - 1
     ans = ys[jnp.arange(len(ys)), ans_idx]
 
-    traj = generate(state, xs)
+    traj = gen2(state, xs)  # TODO: consider moving generate to state
     preds = extract_pred(traj)
 
     return {'gen_acc': jnp.mean(preds == ans)}
@@ -140,7 +140,7 @@ def gen_acc_cot(state, batch, loss=None):
 def gen_acc_rl(state, batch, loss=None):
     xs, ys = batch
 
-    traj = generate(state, xs)
+    traj = gen2(state, xs)
     preds = extract_pred(traj)
 
     return {'gen_acc': jnp.mean(preds == ys)}

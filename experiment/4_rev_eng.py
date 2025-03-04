@@ -22,11 +22,10 @@ from model.transformer import TransformerConfig
 from task.graph import *
 
 
-depth = 10
+depth = 6
 n_vocab = 2**depth + BinaryTreeTiTask.offset
-n_hidden = 128
+n_hidden = 512
 batch_size = 128
-unwrap = False
 
 n_layers = 2
 
@@ -34,10 +33,11 @@ seed = new_seed()
 
 
 train_task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,6), on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,6), on_branch=False, fill_gaps=False, cot=True, unwrap=unwrap, batch_size=batch_size))
+    BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=True),
+    BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=True))
 
-test_task = BinaryTreeTiTask(depth=depth, samp_dist=6, on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size)
+test_task = BinaryTreeTiTask(depth=depth, samp_dist=4, on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=True)
+
 
 config = TransformerConfig(n_layers=n_layers,
                            n_vocab=n_vocab,
@@ -53,23 +53,75 @@ config = TransformerConfig(n_layers=n_layers,
                            freeze_emb=True,
                            use_bias=False,
                            return_final_logits_only=False,
-                           mup_scale=True
+                           mup_scale=False
                            )
 
 
+# <codecell>
 state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=20_000,
-                    lr=1e-3,
-                    optim=optax.sgd,
+                    train_iters=3_000,
+                    # lr=1e-2,
+                    optim=optax.adamw,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
                     print_fn=print_gen
                     )
 
+
+# <codecell>
+with open('state.pkl', 'wb') as fp:
+    pickle.dump(state.params, fp)
+
+
+# <codecell>
+with open('state.pkl', 'rb') as fp:
+    params = pickle.load(fp)
+
+state = create_train_state(
+    model=config.to_model(), 
+    params=params,
+    # optim=optax.sgd,
+    lr=3e-5
+    )
+
+# <codecell>
+batch_size = 128
+
+train_task = Chain(
+    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=True, rl_prompt=True, batch_size=batch_size, n_thought=None),
+    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=False, fill_gaps=True, rl_prompt=True, batch_size=batch_size, n_thought=None))
+
+test_task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, rl_prompt=True, batch_size=batch_size, n_thought=None)
+
+### RL finetune
+state, hist = reinforce(state, train_task, 
+                        test_iter=test_task,
+                        action_fn=gen2, 
+                        reward_fn=bt_rew_fn, 
+                        rl_loss=bt_rl_loss,
+                        train_iters=10_000,
+                        test_every=100,
+                        test_iters=10,
+                        use_tqdm=True,
+                        eval_fns=[gen_acc_rl]
+                        )
+
+
+# <codecell>
+task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, rl_prompt=True, batch_size=batch_size, n_thought=None)
+batch = next(task)
+gen_acc_rl(state, batch)
+
+# <codecell>
+xs, ys = next(task)
+traj = gen2(state, xs)
+
+print(traj[:3])
+print(ys[:3])
 
 # <codecell>
 jax.tree.map(np.shape, state.params)
@@ -102,6 +154,9 @@ plt.ylabel('Token (input)')
 
 # plt.savefig('fig/logits.png')
 
+# <codecell>
+plt.plot(logits[3], 'o--')
+
 
 # <codecell>
 xs, ys = next(train_task)
@@ -109,7 +164,7 @@ logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediat
 
 atts = [intm['intermediates'][f'TransformerBlock_{i}']['MultiHeadDotProductAttention_0']['attention_weights'][0].squeeze() for i in range(n_layers)]
 
-idx = -1
+idx = 0
 fig, axs = plt.subplots(1, len(atts), figsize=(4 * len(atts), 4))
 
 if n_layers == 1:
@@ -154,57 +209,3 @@ boundaries[0] = 0
 
 
 # plt.savefig('fig/readout_sim.png')
-
-# <codecell>
-with open('state.pkl', 'wb') as fp:
-    pickle.dump(state.params, fp)
-
-# <codecell>
-with open('state.pkl', 'rb') as fp:
-    params = pickle.load(fp)
-
-state = create_train_state(
-    model=config.to_model(), 
-    params=params,
-    optim=optax.sgd,
-    lr=1e-6
-    )
-
-# <codecell>
-train_task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=True, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=depth+1),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=False, fill_gaps=False, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=depth+1))
-
-### RL finetune
-state, hist = reinforce(state, train_task, 
-                        action_fn=generate, 
-                        reward_fn=bt_rew_fn_with_punish, 
-                        rl_loss=bt_rl_loss,
-                        train_iters=20_000,
-                        test_every=1000,
-                        test_iters=10,
-                        use_tqdm=True,
-                        eval_fns=[gen_acc_rl]
-                        )
-
-
-
-# <codecell>
-task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(8), on_branch=True, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=depth+1),
-    BinaryTreeTiTask(depth=depth, samp_dist=(8), on_branch=False, fill_gaps=False, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=depth+1))
-
-batch = next(task)
-
-gen_acc_rl(state, batch)
-
-
-# <codecell>
-for t in task.tasks:
-    t.cot = True
-
-xs, ys = next(task)
-traj = generate(state, xs)
-
-print(traj[:3])
-print(ys[:3])

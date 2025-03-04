@@ -103,7 +103,15 @@ def merge_dicts(dicts):
     return all_dicts
 
 
-def generate(state, xs, idx=2, beta=1, seed=None):
+def gen1(state, xs):
+    return _generate(state, xs, idx=1)
+
+
+def gen2(state, xs):
+    return _generate(state, xs, idx=2)
+
+
+def _generate(state, xs, idx, beta=1, seed=None):
     if seed is None:
         seed = new_seed()
 
