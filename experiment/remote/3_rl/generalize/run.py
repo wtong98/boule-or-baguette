@@ -16,20 +16,18 @@ from task.graph import Chain, BinaryTreeTiTask, bt_rew_fn, bt_rl_loss
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 9
+run_split = 12
 
 train_iters = 50_000
 
-depth = 10
+depth = 8
 n_vocab = 2**depth + BinaryTreeTiTask.offset
-n_hiddens = [128, 512, 2048]
+n_hiddens = [1024, 8192]
 n_layers = [2]
 
-use_biases = [False]
-freeze_embs = [True]
 train_lens_pr = [1, 2, 3]
 train_lens_rl = [1, 2, 3]
-test_lens = [1, 2, 3, 4, 5, 6, 7, 8]
+test_lens = [1, 2, 3, 4, 5, 6]
 
 
 ### START TEST CONFIGS
@@ -53,16 +51,16 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot]
 
-for use_bias, freeze_emb, train_len_pr, train_len_rl, n_hidden, n_layer \
-    in itertools.product(use_biases, freeze_embs, train_lens_pr, train_lens_rl, n_hiddens, n_layers):
+for train_len_pr, train_len_rl, n_hidden, n_layer \
+    in itertools.product(train_lens_pr, train_lens_rl, n_hiddens, n_layers):
 
     model_args = {
         'n_vocab': n_vocab,
         'n_out': n_vocab,
         'n_hidden': n_hidden,
         'n_layers': n_layer,
-        'use_bias': use_bias,
-        'freeze_emb': freeze_emb,
+        'use_bias': False,
+        'freeze_emb': True,
         'mup_scale': True
     }
 
@@ -85,7 +83,7 @@ for use_bias, freeze_emb, train_len_pr, train_len_rl, n_hidden, n_layer \
 
         return Chain(
             BinaryTreeTiTask(on_branch=True, unwrap=unwrap, **task_args),
-            BinaryTreeTiTask(on_branch=False, fill_gaps=False, unwrap=unwrap, **task_args))
+            BinaryTreeTiTask(on_branch=False, unwrap=unwrap, **task_args))
     
 
     def make_test(unwrap=False):
@@ -94,7 +92,13 @@ for use_bias, freeze_emb, train_len_pr, train_len_rl, n_hidden, n_layer \
 
     all_cases.extend([
         Case('Transformer',
-                TransformerConfig(n_heads=2, pos_emb=False, return_final_logits_only=False, **model_args),
+                TransformerConfig(n_heads=2, 
+                                  pos_emb=False, 
+                                  return_final_logits_only=False, 
+                                  n_mlp_layers=0,
+                                  layer_norm=False,
+                                  residual_connections=False,
+                                  **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(unwrap=False),
                 test_task=make_test(unwrap=False),
@@ -138,12 +142,11 @@ for case in tqdm(all_cases):
     rl_state = create_train_state(
         model=case.config.to_model(),
         params=case.state.params,
-        lr=1e-3,
-        optim=optax.sgd
+        lr=3e-5,
     )
 
     case.state, rl_hist = reinforce(rl_state, train_task, 
-                                    action_fn=generate, 
+                                    action_fn=gen2, 
                                     reward_fn=bt_rew_fn, 
                                     rl_loss=bt_rl_loss,
                                     train_iters=4 * train_iters,

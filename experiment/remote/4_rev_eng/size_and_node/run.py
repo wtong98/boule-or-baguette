@@ -78,7 +78,13 @@ for depth, n_hidden, \
 
     all_cases.extend([
         Case('Transformer',
-                TransformerConfig(n_heads=2, pos_emb=False, return_final_logits_only=False, **model_args),
+                TransformerConfig(n_heads=1, 
+                                  pos_emb=False, 
+                                  return_final_logits_only=False,
+                                  n_mlp_layers=0,
+                                  layer_norm=False,
+                                  residual_connections=False,
+                                  **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(unwrap=False),
                 test_task=make_chain(unwrap=False)
