@@ -174,7 +174,7 @@ class BinaryTreeTiTask:
     offset = 3
 
     def __init__(self, depth, order=None, samp_dist=1, 
-                 on_branch=True, fill_gaps=True, 
+                 on_branch=True, 
                  shuffle=False, 
                  cot=False, trace_to_start=True, unwrap=False, 
                  rl_prompt=False, n_thought=None,
@@ -194,7 +194,6 @@ class BinaryTreeTiTask:
         self.order = order
         self.samp_dist = samp_dist
         self.on_branch = on_branch
-        self.fill_gaps = fill_gaps
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.cot = cot
@@ -422,8 +421,106 @@ def bt_rew_fn_with_punish(traj, ys):
     return reward
 
 
+class StarfishTask:
+    pad_idx = 0
+    no_idx = 1
+    yes_idx = 2
+    sep_idx = 3
+    offset = 3
 
-# task = BinaryTreeTiTask(depth=3, samp_dist=1, batch_size=10, on_branch=True, cot=True, trace_to_start=True)
+    def __init__(self, depth, n_arms=2, samp_dist=1, batch_size=128) -> None:
+        self.depth = depth
+        self.n_arms = n_arms
+        self.samp_dist = samp_dist
+        self.batch_size = batch_size
+
+        self.seed = new_seed()
+        self.source = jax.random.key(self.seed)
+    
+    def __next__(self):
+        k1, k2, self.source = jax.random.split(self.source, num=3)
+        n_on = n_off = self.batch_size // 2
+
+        xs_on = _star_samp_on(k1, self.depth, self.n_arms, self.samp_dist, n_on)
+        xs_off = _star_samp_off(k2, self.depth, self.n_arms, self.samp_dist, n_off)
+        xs = jnp.concatenate((xs_on, xs_off), axis=0)
+        xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size)
+
+        ys = xs[:,1:]
+        ys = ys.at[:,:2].set(0)   # mask prompt
+        xs = xs[:,:-1]
+
+        return xs.astype(int), ys.astype(int)
+
+    def __iter__(self):
+        return self
+
+@functools.partial(jax.jit, static_argnums=(1, 2, 3, 4))
+def _star_samp_on(key, depth, n_arms, samp_dist, batch_size):
+    key, source = jax.random.split(key)
+    samp_dist = _split_samp_dist(key, samp_dist, batch_size)
+    upr = n_arms * (depth - samp_dist)
+
+    key, source = jax.random.split(source)
+    parents = jax.random.randint(key, minval=1, maxval=upr, shape=batch_size)
+    children = parents + samp_dist * n_arms
+
+    key, source = jax.random.split(source)
+    origin_idx = parents == 1
+    accept_origin = jax.random.bernoulli(key, shape=batch_size)
+    children = children - (origin_idx & accept_origin).astype(int)
+
+    return jnp.stack((parents, children), axis=1)
+
+
+@functools.partial(jax.jit, static_argnums=(1, 2, 3, 4))
+def _star_samp_off(key, depth, n_arms, samp_dist, batch_size):
+    key, source = jax.random.split(key)
+    samp_dist = _split_samp_dist(key, samp_dist, batch_size)
+    upr = n_arms * (depth - samp_dist)
+
+    key, source = jax.random.split(source)
+    parents = jax.random.randint(key, minval=2, maxval=upr, shape=batch_size)
+    children = parents + samp_dist * n_arms
+
+    key, source = jax.random.split(source)
+    pert = jax.random.randint(key, minval=1, maxval=n_arms-1, shape=batch_size)
+    children += pert
+
+    wrap_idx = (children % n_arms) == 0
+    children -= n_arms * wrap_idx
+
+    return jnp.stack((parents, children), axis=1)
+
+
+@functools.partial(jax.jit, static_argnums=(1,2,3))
+def _star_add_chain(xs, depth, n_arms, batch_size):
+    parents, children = xs.T
+
+    diffs = n_arms * np.arange(depth + 2)
+    chain = children[:,None] - diffs
+
+    target_idx = jnp.sum(parents[:,None] < chain, axis=1)
+    target_val = chain[jnp.arange(batch_size),target_idx]
+
+    resp = jnp.where(parents == target_val, BinaryTreeTiTask.yes_idx, BinaryTreeTiTask.no_idx)
+
+    keep_mask = chain > 0
+    chain = chain + StarfishTask.offset
+    chain = chain * keep_mask
+    keep_idx = jnp.sum(keep_mask, axis=1)
+    chain = chain.at[jnp.arange(batch_size), keep_idx].set(resp)
+
+    xs = jnp.concatenate((
+        xs + StarfishTask.offset, 
+        StarfishTask.sep_idx * jnp.ones((batch_size, 1)),
+        chain
+    ), axis=-1)
+
+    return xs
+
+
+# task = StarfishTask(depth=10, samp_dist=(1,3), batch_size=10)
 # xs, ys = next(task)
 
 # print(xs)

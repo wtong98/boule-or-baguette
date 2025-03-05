@@ -1,4 +1,4 @@
-"""Reverse engineering the Transformer's solution"""
+"""Experimenting with Starfish task"""
 
 
 # <codecell>
@@ -22,23 +22,15 @@ from model.transformer import TransformerConfig
 from task.graph import *
 
 
-depth = 6
-n_vocab = 2**depth + BinaryTreeTiTask.offset
+depth = 10
+n_vocab = 2 * depth + 1 + StarfishTask.offset
 n_hidden = 128
 batch_size = 128
 
 n_layers = 1
 
-seed = new_seed()
-
-repeat_first = True
-trace_to_start = True
-
-train_task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,4), on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,4), on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start))
-
-test_task = BinaryTreeTiTask(depth=depth, samp_dist=4, on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start)
+train_task = StarfishTask(depth=depth, samp_dist=(1,8), batch_size=batch_size)
+test_task = StarfishTask(depth=depth, samp_dist=8, batch_size=batch_size)
 
 
 config = TransformerConfig(n_layers=n_layers,
@@ -58,6 +50,10 @@ config = TransformerConfig(n_layers=n_layers,
                            mup_scale=False
                            )
 
+# xs, ys = next(train_task)
+
+# print(xs[:3])
+# print(ys[:3])
 
 # <codecell>
 state, hist = train(config,
@@ -73,6 +69,16 @@ state, hist = train(config,
                     print_fn=print_gen
                     )
 
+
+# <codecell>
+xs, ys = next(train_task)
+
+logits = state.apply_fn({'params': state.params}, xs)
+preds = logits.argmax(-1)
+
+print(xs[:3])
+print(preds[:3])
+print(ys[:3])
 
 # <codecell>
 with open('state.pkl', 'wb') as fp:
