@@ -34,6 +34,9 @@ n_layers = 2
 
 # depths = [5]
 # n_hiddens = [128]
+# n_mlp_layers = [0]
+# use_layer_norm = [False]
+# use_mup_scale = [False]
 ### END TEST CONFIGS
 
 all_cases = []
@@ -54,7 +57,6 @@ for mup_scale, layer_norm, depth, n_hidden, n_mlp_layer \
         'n_layers': n_layers,
         'use_bias': False,
         'freeze_emb': True,
-        'mup_scale': False
     }
 
     def make_train_args(loss='ce_mask'):
@@ -87,7 +89,7 @@ for mup_scale, layer_norm, depth, n_hidden, n_mlp_layer \
                                   n_mlp_layers=n_mlp_layer,
                                   layer_norm=layer_norm,
                                   residual_connections=False,
-                                  mup_scale=mup_scale
+                                  mup_scale=mup_scale,
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(unwrap=False),
