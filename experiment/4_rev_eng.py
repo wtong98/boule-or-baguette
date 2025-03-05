@@ -32,12 +32,13 @@ n_layers = 2
 seed = new_seed()
 
 repeat_first = True
+trace_to_start = True
 
 train_task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first))
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,4), on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start),
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,4), on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start))
 
-test_task = BinaryTreeTiTask(depth=depth, samp_dist=4, on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first)
+test_task = BinaryTreeTiTask(depth=depth, samp_dist=4, on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start)
 
 
 config = TransformerConfig(n_layers=n_layers,
@@ -64,7 +65,7 @@ state, hist = train(config,
                     test_iter=iter(test_task), 
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=5_000,
+                    train_iters=25_000,
                     # lr=1e-2,
                     # optim=optax.sgd,
                     use_tqdm=False,
@@ -118,6 +119,7 @@ batch = next(task)
 gen_acc_rl(state, batch)
 
 # <codecell>
+task = BinaryTreeTiTask(depth=depth, samp_dist=1, on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first)
 xs, ys = next(task)
 traj = gen2(state, xs)
 
@@ -140,14 +142,14 @@ xs = np.array(state.params['Embed_freeze']['embedding'])
 
 logits = xs @ R
 
-out = (xs[[25]] + 0.1 * xs[[3]]) @ R
+# out = (xs[[25]] + 0.1 * xs[[3]]) @ R
 
 R.shape
 
 est = np.linalg.pinv(xs @ xs.T) @ xs @ R
 R_est = xs.T @ est
 
-plt.imshow(logits, vmin=-500, vmax=500, cmap='BrBG')
+plt.imshow(logits, cmap='BrBG', vmin=-500, vmax=500)
 plt.colorbar()
 
 plt.xlabel('Class (output)')
@@ -156,11 +158,20 @@ plt.ylabel('Token (input)')
 # plt.savefig('fig/logits.png')
 
 # <codecell>
-plt.plot(logits[3], 'o--')
-
+plt.plot(logits[4], 'o--')
 
 # <codecell>
-xs, ys = next(test_task)
+plt.plot(logits[:,1], 'o--')
+plt.plot(logits[:,2], 'o--')
+plt.plot(logits[:,30], 'o--')
+plt.plot(logits[:,20], 'o--')
+
+
+# <codecell
+xs, ys = next(train_task)
+xs = np.array(xs)
+xs[0] = [6, 59,  3, 59, 31, 17, 10,  6,  4,  2]
+# xs[0] = [5, 7, 3, 7, 5, 2, 0]
 
 logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 
@@ -221,7 +232,7 @@ traj - 3
 
 # <codecell>
 ### SIZE VS NODE PLOTTING
-df = collate_dfs('remote/4_rev_eng/size_and_node', show_progress=True)
+df = collate_dfs('remote/4_rev_eng/size_and_node/set1_small_setting', show_progress=True)
 df
 
 # <codecell>
@@ -249,7 +260,8 @@ g = sns.lineplot(plot_df, x='n_hidden', y='best_acc', hue='depth', marker='o')
 g.set_xscale('log', base=2)
 
 xs = np.unique(plot_df['n_hidden'])
-preds = 0.04 * np.log(xs)**(3.1/2)
+preds = 0.97 - 1 / (0.01 * xs)
+# preds = 0.04 * np.log(xs)**(3.1/2)
 plt.plot(xs, preds)
 
 

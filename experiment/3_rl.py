@@ -71,10 +71,10 @@ branches = ['on', 'off']
 for branch in branches:
     mdf = plot_df.copy()
     mdf = mdf[(mdf['branch'] == branch)
-              & (mdf['n_hidden'] == 1024)
+              & (mdf['n_hidden'] == 512)
               & (mdf['n_layer'] == 2)]
 
-    gs = sns.relplot(mdf, x='test_len', y='gen_acc', hue='mode', col='dist_pr', row='dist_rl', marker='o', height=1.5, aspect=1.2, alpha=0.7)
+    gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='dist_pr', row='dist_rl', marker='o', height=1.5, aspect=1.2, alpha=0.7)
     fig = gs.figure
     fig.suptitle(f'branch={branch}')
     fig.subplots_adjust(top=0.88)

@@ -20,31 +20,31 @@ run_split = 12
 
 train_iters = 50_000
 
-depth = 6
+depth = 7
 n_vocab = 2**depth + BinaryTreeTiTask.offset
-n_hiddens = [128, 512]
+n_hiddens = [256, 512, 1024, 2048]
 n_layers = [2]
 
 train_lens_pr = [1, 2, 3]
 train_lens_rl = [1, 2, 3]
-test_lens = [1, 2, 3, 4]
+test_lens = [1, 2, 3, 4, 5]
 
 
 ### START TEST CONFIGS
-# run_split = 1
+run_split = 1
 
-# train_iters = 10
+train_iters = 10
 
-# depth = 5
-# n_vocab = 2**depth + BinaryTreeTiTask.offset
-# n_hiddens = [128]
-# n_layers = [1]
+depth = 5
+n_vocab = 2**depth + BinaryTreeTiTask.offset
+n_hiddens = [128]
+n_layers = [1]
 
-# use_biases = [False]
-# freeze_embs = [True]
-# train_lens_pr = [1]
-# train_lens_rl = [1]
-# test_lens = [1]
+use_biases = [False]
+freeze_embs = [True]
+train_lens_pr = [1]
+train_lens_rl = [1]
+test_lens = [1]
 ### END TEST CONFIGS
 
 all_cases = []

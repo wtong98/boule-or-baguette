@@ -176,7 +176,7 @@ class BinaryTreeTiTask:
     def __init__(self, depth, order=None, samp_dist=1, 
                  on_branch=True, fill_gaps=True, 
                  shuffle=False, 
-                 cot=False, unwrap=False, 
+                 cot=False, trace_to_start=True, unwrap=False, 
                  rl_prompt=False, n_thought=None,
                  use_sep=True, repeat_first=True,
                  apply_offset=True,
@@ -198,6 +198,7 @@ class BinaryTreeTiTask:
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.cot = cot
+        self.trace_to_start = trace_to_start
         self.rl_prompt = rl_prompt
         self.n_thought = n_thought
         self.unwrap = unwrap
@@ -245,7 +246,7 @@ class BinaryTreeTiTask:
             if self.apply_offset:
                 xs = xs + BinaryTreeTiTask.offset
             
-            xs = _add_chain(xs, self.depth, self.batch_size, self.use_sep, self.repeat_first)
+            xs = _add_chain(xs, self.depth, self.batch_size, self.use_sep, self.repeat_first, trace_to_start=self.trace_to_start)
 
             if self.unwrap:
                 xs, ys = _unwrap(xs, self.depth, self.use_sep)
@@ -281,12 +282,12 @@ class BinaryTreeTiTask:
         return self
 
 
-@functools.partial(jax.jit, static_argnums=(1,2,3,4))
-def _add_chain(xs, depth, batch_size, add_sep, repeat_first):
+@functools.partial(jax.jit, static_argnums=(1,2,3,4,5))
+def _add_chain(xs, depth, batch_size, add_sep, repeat_first, trace_to_start=True):
     nodes = xs - BinaryTreeTiTask.offset
 
     start_fac = 0 if repeat_first else 1
-    facs = 2**np.arange(start_fac, depth + 1)
+    facs = 2**np.arange(start_fac, depth + 2)
 
     first, last = nodes.T
 
@@ -297,12 +298,18 @@ def _add_chain(xs, depth, batch_size, add_sep, repeat_first):
 
     resp = jnp.where(first == target_val, BinaryTreeTiTask.yes_idx, BinaryTreeTiTask.no_idx)
 
-    stop_mask = first[:,None] > chain
-    stop_mask = stop_mask.at[jnp.arange(batch_size), target_idx].set(False)
-
-    chain = chain + BinaryTreeTiTask.offset
-    chain = chain * (~stop_mask)
-    chain = chain.at[jnp.arange(batch_size), target_idx + 1].set(resp)
+    if trace_to_start:
+        keep_mask = chain > 0
+        chain = chain + BinaryTreeTiTask.offset
+        chain = chain * keep_mask
+        keep_idx = jnp.sum(keep_mask, axis=1)
+        chain = chain.at[jnp.arange(batch_size), keep_idx].set(resp)
+    else:
+        chain = chain + BinaryTreeTiTask.offset
+        stop_mask = first[:,None] > chain
+        stop_mask = stop_mask.at[jnp.arange(batch_size), target_idx].set(False)
+        chain = chain * (~stop_mask)
+        chain = chain.at[jnp.arange(batch_size), target_idx + 1].set(resp)
 
     xs = jnp.concatenate((
         xs, 
@@ -416,9 +423,9 @@ def bt_rew_fn_with_punish(traj, ys):
 
 
 
-# task = BinaryTreeTiTask(depth=5, samp_dist=2, batch_size=10, on_branch=False, rl_prompt=True)
+# task = BinaryTreeTiTask(depth=3, samp_dist=1, batch_size=10, on_branch=True, cot=True, trace_to_start=True)
 # xs, ys = next(task)
 
-# print(xs - BinaryTreeTiTask.offset)
+# print(xs)
 # print(ys)
 
