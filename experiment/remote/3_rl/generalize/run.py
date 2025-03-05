@@ -20,14 +20,14 @@ run_split = 12
 
 train_iters = 50_000
 
-depth = 8
+depth = 6
 n_vocab = 2**depth + BinaryTreeTiTask.offset
-n_hiddens = [1024, 8192]
+n_hiddens = [128, 512]
 n_layers = [2]
 
 train_lens_pr = [1, 2, 3]
 train_lens_rl = [1, 2, 3]
-test_lens = [1, 2, 3, 4, 5, 6]
+test_lens = [1, 2, 3, 4]
 
 
 ### START TEST CONFIGS
@@ -61,7 +61,7 @@ for train_len_pr, train_len_rl, n_hidden, n_layer \
         'n_layers': n_layer,
         'use_bias': False,
         'freeze_emb': True,
-        'mup_scale': True
+        'mup_scale': False
     }
 
     def make_train_args(loss='ce_mask'):
