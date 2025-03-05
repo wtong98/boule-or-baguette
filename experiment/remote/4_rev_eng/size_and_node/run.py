@@ -40,7 +40,7 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot]
 
-for use_mup_scale, use_layer_norm, depth, n_hidden, n_mlp_layer \
+for mup_scale, layer_norm, depth, n_hidden, n_mlp_layer \
     in itertools.product(use_mup_scale, use_layer_norm, depths, n_hiddens, n_mlp_layers):
 
     n_vocab = 2**depth + BinaryTreeTiTask.offset
@@ -85,9 +85,9 @@ for use_mup_scale, use_layer_norm, depth, n_hidden, n_mlp_layer \
                                   pos_emb=False, 
                                   return_final_logits_only=False,
                                   n_mlp_layers=n_mlp_layer,
-                                  layer_norm=use_layer_norm,
+                                  layer_norm=layer_norm,
                                   residual_connections=False,
-                                  mup_scale=use_mup_scale
+                                  mup_scale=mup_scale
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(unwrap=False),
