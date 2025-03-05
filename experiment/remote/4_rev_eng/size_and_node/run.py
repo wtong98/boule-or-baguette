@@ -18,10 +18,13 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-train_iters = 50_000
+train_iters = 100_000
 
 depths = [5, 6, 7, 8, 9, 10]
 n_hiddens = [128, 256, 512, 1024, 2048, 4096]
+n_mlp_layers = [0, 2]
+use_layer_norm = [False, True]
+use_mup_scale = [False, True]
 n_layers = 2
 
 
@@ -37,8 +40,8 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot]
 
-for depth, n_hidden, \
-    in itertools.product(depths, n_hiddens):
+for use_mup_scale, use_layer_norm, depth, n_hidden, n_mlp_layer \
+    in itertools.product(use_mup_scale, use_layer_norm, depths, n_hiddens, n_mlp_layers):
 
     n_vocab = 2**depth + BinaryTreeTiTask.offset
     train_len_pr = depth - 2
@@ -81,9 +84,10 @@ for depth, n_hidden, \
                 TransformerConfig(n_heads=1, 
                                   pos_emb=False, 
                                   return_final_logits_only=False,
-                                  n_mlp_layers=0,
-                                  layer_norm=False,
+                                  n_mlp_layers=n_mlp_layer,
+                                  layer_norm=use_layer_norm,
                                   residual_connections=False,
+                                  mup_scale=use_mup_scale
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(unwrap=False),

@@ -92,7 +92,7 @@ for train_len_pr, train_len_rl, n_hidden, n_layer \
 
     all_cases.extend([
         Case('Transformer',
-                TransformerConfig(n_heads=2, 
+                TransformerConfig(n_heads=1, 
                                   pos_emb=False, 
                                   return_final_logits_only=False, 
                                   n_mlp_layers=0,
@@ -132,7 +132,7 @@ for case in tqdm(all_cases):
         'depth': depth,
         'samp_dist': (1, case.info['etc']['train_len_rl']),
         'rl_prompt': True,
-        'batch_size': 1024
+        'batch_size': 128
     }
 
     train_task = Chain(

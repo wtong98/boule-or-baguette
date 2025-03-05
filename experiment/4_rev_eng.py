@@ -24,19 +24,20 @@ from task.graph import *
 
 depth = 6
 n_vocab = 2**depth + BinaryTreeTiTask.offset
-n_hidden = 512
+n_hidden = 128
 batch_size = 128
 
 n_layers = 2
 
 seed = new_seed()
 
+repeat_first = True
 
 train_task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=True),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=True))
+    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first),
+    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first))
 
-test_task = BinaryTreeTiTask(depth=depth, samp_dist=4, on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=True)
+test_task = BinaryTreeTiTask(depth=depth, samp_dist=4, on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first)
 
 
 config = TransformerConfig(n_layers=n_layers,
@@ -63,9 +64,9 @@ state, hist = train(config,
                     test_iter=iter(test_task), 
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=3_000,
+                    train_iters=5_000,
                     # lr=1e-2,
-                    optim=optax.adamw,
+                    # optim=optax.sgd,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
                     print_fn=print_gen
@@ -159,7 +160,8 @@ plt.plot(logits[3], 'o--')
 
 
 # <codecell>
-xs, ys = next(train_task)
+xs, ys = next(test_task)
+
 logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 
 atts = [intm['intermediates'][f'TransformerBlock_{i}']['MultiHeadDotProductAttention_0']['attention_weights'][0].squeeze() for i in range(n_layers)]
@@ -209,3 +211,53 @@ boundaries[0] = 0
 
 
 # plt.savefig('fig/readout_sim.png')
+
+# <codecell>
+xs = jnp.array([[7, 57, 0, -3, -3, -3, -3, -3, -3]]) + 3
+traj = gen2(state, xs)
+
+traj - 3
+
+
+# <codecell>
+### SIZE VS NODE PLOTTING
+df = collate_dfs('remote/4_rev_eng/size_and_node', show_progress=True)
+df
+
+# <codecell>
+def extract_plot_vals(row):
+    best_acc = np.max([m['gen_acc'] for m in row['hist']['test']])
+    best_loss = np.min([m['loss'] for m in row['hist']['test']])
+
+    return pd.Series([
+        row['name'],
+        row['config']['n_hidden'],
+        row['train_task'].tasks[0].depth,
+        row['info']['gen_acc'],
+        row['info']['loss'],
+        best_acc,
+        best_loss
+    ], index=['name', 'n_hidden', 'depth', 'gen_acc', 'loss', 'best_acc', 'best_loss'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+
+# <codecell>
+g = sns.lineplot(plot_df, x='n_hidden', y='best_acc', hue='depth', marker='o')
+
+g.set_xscale('log', base=2)
+
+xs = np.unique(plot_df['n_hidden'])
+preds = 0.04 * np.log(xs)**(3.1/2)
+plt.plot(xs, preds)
+
+
+# g.set_yscale('log')
+# plt.savefig('fig/acc_scale.png')
+
+# <codecell>
+plot_df[plot_df['depth'] == 10]
+
+# <codecell>
+plt.plot([m['gen_acc'] for m in df.iloc[59]['hist']['test']])
