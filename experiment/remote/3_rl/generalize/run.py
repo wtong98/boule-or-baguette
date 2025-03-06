@@ -137,7 +137,7 @@ for case in tqdm(all_cases):
 
     train_task = Chain(
         BinaryTreeTiTask(on_branch=True, **task_args),
-        BinaryTreeTiTask(on_branch=False, fill_gaps=False, **task_args))
+        BinaryTreeTiTask(on_branch=False, **task_args))
     
     rl_state = create_train_state(
         model=case.config.to_model(),

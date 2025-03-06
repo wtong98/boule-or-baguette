@@ -23,7 +23,7 @@ from task.graph import *
 
 
 # <codecell>
-df = collate_dfs('remote/3_rl/generalize', show_progress=True)
+df = collate_dfs('remote/3_rl/generalize/set3_good', show_progress=True)
 df
 
 # <codecell>
@@ -71,7 +71,7 @@ branches = ['on', 'off']
 for branch in branches:
     mdf = plot_df.copy()
     mdf = mdf[(mdf['branch'] == branch)
-              & (mdf['n_hidden'] == 512)
+              & (mdf['n_hidden'] == 128)
               & (mdf['n_layer'] == 2)]
 
     gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='dist_pr', row='dist_rl', marker='o', height=1.5, aspect=1.2, alpha=0.7)
@@ -79,7 +79,7 @@ for branch in branches:
     fig.suptitle(f'branch={branch}')
     fig.subplots_adjust(top=0.88)
 
-    # plt.savefig(f'fig/acc_rl_stable_{branch}.png')
+    plt.savefig(f'fig/acc_rl_stable_small_{branch}.png')
     plt.show()
 
 
@@ -88,13 +88,13 @@ for branch in branches:
 mdf = plot_df.copy()
 mdf[(mdf['dist_pr'] == 1) 
     & (mdf['dist_rl'] == 3)
-    & (mdf['n_hidden'] == 128)
+    & (mdf['n_hidden'] == 256)
     & (mdf['n_layer'] == 2)
     & (mdf['branch'] == 'on')
     ]
 
 # <codecell>
-plt.plot(df.iloc[4]['info']['etc']['rl_hist']['rew'], '--o')
+plt.plot(df.iloc[35]['info']['etc']['rl_hist']['rew'], '--o')
 
 
 # <codecell>

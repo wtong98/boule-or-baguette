@@ -232,7 +232,7 @@ traj - 3
 
 # <codecell>
 ### SIZE VS NODE PLOTTING
-df = collate_dfs('remote/4_rev_eng/size_and_node/set1_small_setting', show_progress=True)
+df = collate_dfs('remote/4_rev_eng/size_and_node', show_progress=True)
 df
 
 # <codecell>
@@ -243,30 +243,42 @@ def extract_plot_vals(row):
     return pd.Series([
         row['name'],
         row['config']['n_hidden'],
+        row['config']['n_mlp_layers'],
+        row['config']['layer_norm'],
+        row['config']['mup_scale'],
         row['train_task'].tasks[0].depth,
         row['info']['gen_acc'],
         row['info']['loss'],
         best_acc,
         best_loss
-    ], index=['name', 'n_hidden', 'depth', 'gen_acc', 'loss', 'best_acc', 'best_loss'])
+    ], index=['name', 'n_hidden', 'n_mlp_layers', 'layer_norm', 'mup_scale', 'depth', 'gen_acc', 'loss', 'best_acc', 'best_loss'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
 
+plot_df
+
 
 # <codecell>
-g = sns.lineplot(plot_df, x='n_hidden', y='best_acc', hue='depth', marker='o')
+mdf = plot_df.copy()
+mdf = mdf[
+    (mdf['n_mlp_layers'] == 0)
+    & (mdf['layer_norm'] == False)
+    & (mdf['mup_scale'] == True)
+    ]
+
+g = sns.lineplot(mdf, x='n_hidden', y='best_acc', hue='depth', marker='o')
 
 g.set_xscale('log', base=2)
 
-xs = np.unique(plot_df['n_hidden'])
-preds = 0.97 - 1 / (0.01 * xs)
+# xs = np.unique(plot_df['n_hidden'])
+# preds = 0.97 - 1 / (0.01 * xs)
 # preds = 0.04 * np.log(xs)**(3.1/2)
-plt.plot(xs, preds)
+# plt.plot(xs, preds)
 
 
 # g.set_yscale('log')
-# plt.savefig('fig/acc_scale.png')
+# plt.savefig('fig/acc_scale_mlp_mup.png')
 
 # <codecell>
 plot_df[plot_df['depth'] == 10]

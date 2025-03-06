@@ -24,7 +24,6 @@ class MlpConfig:
     """Global hyperparamters"""
     n_vocab: int | None = None
     n_layers: int = 2
-    n_emb: int = 64
     n_hidden: int = 128
     n_out: int = 1
     act_fn: str = 'relu'

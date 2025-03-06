@@ -18,27 +18,35 @@ import sys
 sys.path.append('../')
 from common import *
 from train import *
+from model.mlp import MlpConfig
 from model.transformer import TransformerConfig 
 from task.graph import *
 
 
-depth = 10
+depth = 25
 n_vocab = 2 * depth + 1 + StarfishTask.offset
-n_hidden = 128
+n_hidden = 512
 batch_size = 128
 
 n_layers = 1
 
-train_task = StarfishTask(depth=depth, samp_dist=(1,8), batch_size=batch_size)
-test_task = StarfishTask(depth=depth, samp_dist=8, batch_size=batch_size)
+cot = False
 
+train_task = StarfishTask(depth=depth, samp_dist=(1,3), batch_size=batch_size, cot=cot)
+test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=cot)
 
-config = TransformerConfig(n_layers=n_layers,
+# config = MlpConfig(n_vocab=n_vocab,
+#                    n_layers=1,
+#                    n_emb=n_hidden,
+#                    n_hidden=n_hidden,
+#                    use_bias=False)
+
+config = TransformerConfig(n_layers=2,
                            n_vocab=n_vocab,
-                           n_out=n_vocab,
+                           n_out=1,
                            n_hidden=n_hidden,
-                           pos_emb=False,
-                           n_mlp_layers=2,
+                           pos_emb=True,
+                           n_mlp_layers=0,
                            n_heads=1,
                            layer_norm=False,
                            as_rf_model=False,
@@ -46,9 +54,27 @@ config = TransformerConfig(n_layers=n_layers,
                            use_simple_att=False,
                            freeze_emb=True,
                            use_bias=False,
-                           return_final_logits_only=False,
-                           mup_scale=False
+                           return_final_logits_only=True,
+                           mup_scale=True
                            )
+
+
+# config = TransformerConfig(n_layers=n_layers,
+#                            n_vocab=n_vocab,
+#                            n_out=n_vocab,
+#                            n_hidden=n_hidden,
+#                            pos_emb=False,
+#                            n_mlp_layers=2,
+#                            n_heads=1,
+#                            layer_norm=False,
+#                            as_rf_model=False,
+#                            residual_connections=False,
+#                            use_simple_att=False,
+#                            freeze_emb=True,
+#                            use_bias=False,
+#                            return_final_logits_only=False,
+#                            mup_scale=True
+#                            )
 
 # xs, ys = next(train_task)
 
@@ -59,14 +85,13 @@ config = TransformerConfig(n_layers=n_layers,
 state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
-                    loss='ce_mask',
+                    loss='bce',
+                    # loss='ce_mask',
                     test_every=1000,
-                    train_iters=25_000,
-                    # lr=1e-2,
-                    # optim=optax.sgd,
+                    train_iters=100_000,
                     use_tqdm=False,
-                    eval_fns=[loss_and_acc, gen_acc_cot],
-                    print_fn=print_gen
+                    # eval_fns=[loss_and_acc, gen_acc_cot],
+                    # print_fn=print_gen
                     )
 
 
@@ -238,7 +263,7 @@ traj - 3
 
 # <codecell>
 ### SIZE VS NODE PLOTTING
-df = collate_dfs('remote/4_rev_eng/size_and_node/set1_small_setting', show_progress=True)
+df = collate_dfs('remote/5_starfish/size', show_progress=True)
 df
 
 # <codecell>
@@ -249,30 +274,35 @@ def extract_plot_vals(row):
     return pd.Series([
         row['name'],
         row['config']['n_hidden'],
-        row['train_task'].tasks[0].depth,
+        row['config']['n_mlp_layers'],
+        row['config']['layer_norm'],
+        row['config']['mup_scale'],
+        row['train_task'].depth,
         row['info']['gen_acc'],
         row['info']['loss'],
         best_acc,
         best_loss
-    ], index=['name', 'n_hidden', 'depth', 'gen_acc', 'loss', 'best_acc', 'best_loss'])
+    ], index=['name', 'n_hidden', 'n_mlp_layers', 'layer_norm', 'mup_scale', 'depth', 'gen_acc', 'loss', 'best_acc', 'best_loss'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
 
 
 # <codecell>
-g = sns.lineplot(plot_df, x='n_hidden', y='best_acc', hue='depth', marker='o')
+mdf = plot_df.copy()
+mdf = mdf[
+    (mdf['n_mlp_layers'] == 2)
+    & (mdf['layer_norm'] == False)
+    & (mdf['mup_scale'] == False)
+    ]
+
+g = sns.lineplot(mdf, x='n_hidden', y='best_acc', hue='depth', marker='o')
 
 g.set_xscale('log', base=2)
 
-xs = np.unique(plot_df['n_hidden'])
-preds = 0.97 - 1 / (0.01 * xs)
-# preds = 0.04 * np.log(xs)**(3.1/2)
-plt.plot(xs, preds)
-
 
 # g.set_yscale('log')
-# plt.savefig('fig/acc_scale.png')
+plt.savefig('fig/acc_star_scale_mlp.png')
 
 # <codecell>
 plot_df[plot_df['depth'] == 10]

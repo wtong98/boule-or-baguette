@@ -428,10 +428,11 @@ class StarfishTask:
     sep_idx = 3
     offset = 3
 
-    def __init__(self, depth, n_arms=2, samp_dist=1, batch_size=128) -> None:
+    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, batch_size=128) -> None:
         self.depth = depth
         self.n_arms = n_arms
         self.samp_dist = samp_dist
+        self.cot = cot
         self.batch_size = batch_size
 
         self.seed = new_seed()
@@ -444,11 +445,14 @@ class StarfishTask:
         xs_on = _star_samp_on(k1, self.depth, self.n_arms, self.samp_dist, n_on)
         xs_off = _star_samp_off(k2, self.depth, self.n_arms, self.samp_dist, n_off)
         xs = jnp.concatenate((xs_on, xs_off), axis=0)
-        xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size)
 
-        ys = xs[:,1:]
-        ys = ys.at[:,:2].set(0)   # mask prompt
-        xs = xs[:,:-1]
+        if self.cot:
+            xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size)
+            ys = xs[:,1:]
+            ys = ys.at[:,:2].set(0)   # mask prompt
+            xs = xs[:,:-1]
+        else:
+            ys = jnp.concat((jnp.ones(n_on), jnp.zeros(n_off)))
 
         return xs.astype(int), ys.astype(int)
 
