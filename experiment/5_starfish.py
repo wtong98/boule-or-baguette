@@ -28,9 +28,9 @@ n_vocab = 2 * depth + 1 + StarfishTask.offset
 n_hidden = 512
 batch_size = 128
 
-n_layers = 1
+n_layers = 2
 
-cot = False
+cot = True
 
 train_task = StarfishTask(depth=depth, samp_dist=(1,3), batch_size=batch_size, cot=cot)
 test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=cot)
@@ -41,30 +41,30 @@ test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=c
 #                    n_hidden=n_hidden,
 #                    use_bias=False)
 
-config = TransformerConfig(n_layers=2,
-                           n_vocab=n_vocab,
-                           n_out=1,
-                           n_hidden=n_hidden,
-                           pos_emb=True,
-                           n_mlp_layers=0,
-                           n_heads=1,
-                           layer_norm=False,
-                           as_rf_model=False,
-                           residual_connections=False,
-                           use_simple_att=False,
-                           freeze_emb=True,
-                           use_bias=False,
-                           return_final_logits_only=True,
-                           mup_scale=True
-                           )
+# config = TransformerConfig(n_layers=2,
+#                            n_vocab=n_vocab,
+#                            n_out=1,
+#                            n_hidden=n_hidden,
+#                            pos_emb=True,
+#                            n_mlp_layers=0,
+#                            n_heads=1,
+#                            layer_norm=False,
+#                            as_rf_model=False,
+#                            residual_connections=False,
+#                            use_simple_att=False,
+#                            freeze_emb=True,
+#                            use_bias=False,
+#                            return_final_logits_only=True,
+#                            mup_scale=True
+#                            )
 
-
+# TODO: implement positional encodings for trajectory generation
 # config = TransformerConfig(n_layers=n_layers,
 #                            n_vocab=n_vocab,
 #                            n_out=n_vocab,
 #                            n_hidden=n_hidden,
 #                            pos_emb=False,
-#                            n_mlp_layers=2,
+#                            n_mlp_layers=0,
 #                            n_heads=1,
 #                            layer_norm=False,
 #                            as_rf_model=False,
@@ -85,13 +85,13 @@ config = TransformerConfig(n_layers=2,
 state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
-                    loss='bce',
-                    # loss='ce_mask',
+                    # loss='bce',
+                    loss='ce_mask',
                     test_every=1000,
                     train_iters=100_000,
                     use_tqdm=False,
-                    # eval_fns=[loss_and_acc, gen_acc_cot],
-                    # print_fn=print_gen
+                    eval_fns=[loss_and_acc, gen_acc_cot],
+                    print_fn=print_gen
                     )
 
 
@@ -309,3 +309,46 @@ plot_df[plot_df['depth'] == 10]
 
 # <codecell>
 plt.plot([m['gen_acc'] for m in df.iloc[59]['hist']['test']])
+
+
+# <codecell>
+### LENGTHWISE GENERALIZATION
+df = collate_dfs('remote/5_starfish/length', show_progress=True)
+df
+
+# <codecell>
+def extract_plot_vals(row):
+    return pd.Series([
+        row['name'],
+        row['train_task'].samp_dist[1],
+        row['info'],
+    ], index=['name', 'n_hop', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+# <codecell>
+mdf = plot_df[plot_df['n_hop'] == 3]
+sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o')
+
+# <codecell>
+plot_df[plot_df['name'] == 'Att + CoT + MLP']
+
+# <codecell>
+df.iloc[4]['hist']
