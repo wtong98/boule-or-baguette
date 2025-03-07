@@ -18,11 +18,14 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-train_iters = 50_000
+train_iter_set = [0, 1_000, 4_000, 16_000, 64_000]
+train_iter_rl = 200_000
 
 depth = 7
 n_vocab = 2**depth + BinaryTreeTiTask.offset
-n_hiddens = [256, 512, 1024, 2048]
+n_hiddens = [256, 1024]
+mup_scale = [False, True]
+
 n_layers = [2]
 
 train_lens_pr = [1, 2, 3]
@@ -33,7 +36,8 @@ test_lens = [1, 2, 3, 4, 5]
 ### START TEST CONFIGS
 # run_split = 1
 
-# train_iters = 10
+# train_iter_set = [10]
+# train_iter_rl = 10
 
 # depth = 5
 # n_vocab = 2**depth + BinaryTreeTiTask.offset
@@ -45,14 +49,15 @@ test_lens = [1, 2, 3, 4, 5]
 # train_lens_pr = [1]
 # train_lens_rl = [1]
 # test_lens = [1]
+# mup = [True]
 ### END TEST CONFIGS
 
 all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot]
 
-for train_len_pr, train_len_rl, n_hidden, n_layer \
-    in itertools.product(train_lens_pr, train_lens_rl, n_hiddens, n_layers):
+for train_len_pr, train_len_rl, mup, n_hidden, n_layer, train_iters \
+    in itertools.product(train_lens_pr, train_lens_rl, mup_scale, n_hiddens, n_layers, train_iter_set):
 
     model_args = {
         'n_vocab': n_vocab,
@@ -61,7 +66,7 @@ for train_len_pr, train_len_rl, n_hidden, n_layer \
         'n_layers': n_layer,
         'use_bias': False,
         'freeze_emb': True,
-        'mup_scale': False
+        'mup_scale': mup
     }
 
     def make_train_args(loss='ce_mask'):
@@ -149,7 +154,7 @@ for case in tqdm(all_cases):
                                     action_fn=gen2, 
                                     reward_fn=bt_rew_fn, 
                                     rl_loss=bt_rl_loss,
-                                    train_iters=4 * train_iters,
+                                    train_iters=train_iter_rl,
                                     test_every=1000,
                                     eval_fns=[gen_acc_rl]
                                     )
