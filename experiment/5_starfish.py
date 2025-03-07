@@ -59,22 +59,22 @@ test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=c
 #                            )
 
 # TODO: implement positional encodings for trajectory generation
-# config = TransformerConfig(n_layers=n_layers,
-#                            n_vocab=n_vocab,
-#                            n_out=n_vocab,
-#                            n_hidden=n_hidden,
-#                            pos_emb=False,
-#                            n_mlp_layers=0,
-#                            n_heads=1,
-#                            layer_norm=False,
-#                            as_rf_model=False,
-#                            residual_connections=False,
-#                            use_simple_att=False,
-#                            freeze_emb=True,
-#                            use_bias=False,
-#                            return_final_logits_only=False,
-#                            mup_scale=True
-#                            )
+config = TransformerConfig(n_layers=n_layers,
+                           n_vocab=n_vocab,
+                           n_out=n_vocab,
+                           n_hidden=n_hidden,
+                           pos_emb=False,
+                           n_mlp_layers=0,
+                           n_heads=1,
+                           layer_norm=False,
+                           as_rf_model=False,
+                           residual_connections=False,
+                           use_simple_att=False,
+                           freeze_emb=True,
+                           use_bias=False,
+                           return_final_logits_only=False,
+                           mup_scale=True
+                           )
 
 # xs, ys = next(train_task)
 
@@ -344,8 +344,22 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-mdf = plot_df[plot_df['n_hop'] == 3]
-sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o')
+hops = [1, 3, 5, 10, 16]
+
+for hop in hops:
+    mdf = plot_df[plot_df['n_hop'] == hop]
+    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', errorbar=('ci', False), estimator='max')
+    g.axvline(x=hop, color='gray', linestyle='dashed')
+
+    plt.savefig(f'fig/star_length_{hop}_gen.png')
+    plt.show()
+
+# <codecell>
+mdf = plot_df.copy()
+sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', errorbar=('ci', False), estimator='max', marker='o', height=2, aspect=1.2)
+
+plt.savefig('fig/star_length_gen.png')
+
 
 # <codecell>
 plot_df[plot_df['name'] == 'Att + CoT + MLP']
