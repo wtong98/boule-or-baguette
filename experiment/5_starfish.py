@@ -25,7 +25,7 @@ from task.graph import *
 
 depth = 25
 n_vocab = 2 * depth + 1 + StarfishTask.offset
-n_hidden = 512
+n_hidden = 128
 batch_size = 128
 
 n_layers = 2
@@ -64,16 +64,16 @@ config = TransformerConfig(n_layers=n_layers,
                            n_out=n_vocab,
                            n_hidden=n_hidden,
                            pos_emb=False,
-                           n_mlp_layers=0,
+                           n_mlp_layers=2,
                            n_heads=1,
-                           layer_norm=False,
+                           layer_norm=True,
                            as_rf_model=False,
-                           residual_connections=False,
+                           residual_connections=True,
                            use_simple_att=False,
                            freeze_emb=True,
                            use_bias=False,
                            return_final_logits_only=False,
-                           mup_scale=True
+                           mup_scale=False
                            )
 
 # xs, ys = next(train_task)
@@ -88,7 +88,7 @@ state, hist = train(config,
                     # loss='bce',
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=0,
+                    train_iters=10_000,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
                     print_fn=print_gen
@@ -96,9 +96,29 @@ state, hist = train(config,
 
 
 # <codecell>
-xs, ys = next(train_task)
+xs, ys = next(test_task)
 
-logits = state.apply_fn({'params': state.params}, xs)
+config = TransformerConfig(n_layers=n_layers,
+                           n_vocab=n_vocab,
+                           n_out=n_vocab,
+                           n_hidden=n_hidden,
+                           pos_emb=False,
+                           n_mlp_layers=2,
+                           n_heads=1,
+                           layer_norm=True,
+                           as_rf_model=False,
+                           residual_connections=True,
+                           use_simple_att=False,
+                           freeze_emb=True,
+                           use_bias=False,
+                           return_final_logits_only=False,
+                           mup_scale=False,
+                           remove_att=True
+                           )
+model = config.to_model()
+logits = model.apply({'params': state.params}, xs)
+
+# logits = state.apply_fn({'params': state.params}, xs)
 preds = logits.argmax(-1)
 
 print(xs[:3])
@@ -180,7 +200,7 @@ R.shape
 est = np.linalg.pinv(xs @ xs.T) @ xs @ R
 R_est = xs.T @ est
 
-plt.imshow(logits, cmap='BrBG', vmin=-500, vmax=500)
+plt.imshow(logits, cmap='BrBG')
 plt.colorbar()
 
 plt.xlabel('Class (output)')
@@ -198,10 +218,10 @@ plt.plot(logits[:,30], 'o--')
 plt.plot(logits[:,20], 'o--')
 
 
-# <codecell
-xs, ys = next(train_task)
+# <codecell>
+xs, ys = next(test_task)
 xs = np.array(xs)
-xs[0] = [6, 59,  3, 59, 31, 17, 10,  6,  4,  2]
+# xs[0] = [6, 59,  3, 59, 31, 17, 10,  6,  4,  2]
 # xs[0] = [5, 7, 3, 7, 5, 2, 0]
 
 logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
@@ -209,7 +229,7 @@ logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediat
 atts = [intm['intermediates'][f'TransformerBlock_{i}']['MultiHeadDotProductAttention_0']['attention_weights'][0].squeeze() for i in range(n_layers)]
 
 idx = 0
-fig, axs = plt.subplots(1, len(atts), figsize=(4 * len(atts), 4))
+fig, axs = plt.subplots(1, len(atts), figsize=(5 * len(atts), 5))
 
 if n_layers == 1:
     axs = np.array([axs])
@@ -362,7 +382,62 @@ plt.savefig('fig/star_length_gen.png')
 
 
 # <codecell>
-plot_df[plot_df['name'] == 'Att + CoT + MLP']
+### LENGTHWISE GENERALIZATION
+df = collate_dfs('remote/5_starfish/length_sweep', show_progress=True)
+df
 
 # <codecell>
-df.iloc[4]['hist']
+def extract_plot_vals(row):
+    return pd.Series([
+        row['name'],
+        row['train_task'].samp_dist[1],
+        row['config']['n_layers'],
+        row['info'],
+    ], index=['name', 'n_hop', 'n_layers', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+# <codecell>
+# hops = [1, 3, 5, 10, 16]
+hops = [2, 3, 5]
+
+# TODO: check if cyan model generates faithful CoT <-- STOPPED HERE
+
+for hop in hops:
+    mdf = plot_df.copy()
+    mdf = mdf[
+        (mdf['n_hop'] == hop)
+        & ((mdf['n_layers'] == 2) | (mdf['n_layers'] == 1))
+    ]
+    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='mean')
+    g.axvline(x=hop, color='gray', linestyle='dashed')
+
+    # plt.savefig(f'fig/star_length_{hop}_gen.png')
+    plt.show()
+
+# <codecell>
+mdf = plot_df.copy()
+mdf = mdf[
+    ((mdf['n_layers'] == 2) | (mdf['n_layers'] == 1))
+    ]
+
+sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', errorbar=('ci', False), estimator='max', marker='o', height=2, aspect=1.2)
+
+# plt.savefig('fig/star_length_gen.png')

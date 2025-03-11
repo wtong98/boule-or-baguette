@@ -23,7 +23,7 @@ from task.graph import *
 
 
 # <codecell>
-df = collate_dfs('remote/3_rl/generalize/set3_good', show_progress=True)
+df = collate_dfs('remote/3_rl/generalize', show_progress=True)
 df
 
 # <codecell>
@@ -35,10 +35,12 @@ def extract_plot_vals(row):
         row['name'],
         row['config']['n_layers'],
         row['config']['n_hidden'],
+        row['config']['mup_scale'],
+        row['train_args']['train_iters'],
         d1,
         row['info']['etc']['train_len_rl'],
         row['info']
-    ], index=['name', 'n_layer', 'n_hidden', 'dist_pr', 'dist_rl', 'info'])
+    ], index=['name', 'n_layer', 'n_hidden', 'mup_scale', 'train_iters', 'dist_pr', 'dist_rl', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -71,16 +73,36 @@ branches = ['on', 'off']
 for branch in branches:
     mdf = plot_df.copy()
     mdf = mdf[(mdf['branch'] == branch)
-              & (mdf['n_hidden'] == 128)
+              & (mdf['n_hidden'] == 256)
+              & (mdf['mup_scale'] == False)
+              & (mdf['train_iters'] == 64000)
               & (mdf['n_layer'] == 2)]
 
-    gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='dist_pr', row='dist_rl', marker='o', height=1.5, aspect=1.2, alpha=0.7)
+    gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='dist_pr', row='dist_rl', marker='o', height=1.5, aspect=1.2, alpha=0.7, estimator='max')
     fig = gs.figure
     fig.suptitle(f'branch={branch}')
     fig.subplots_adjust(top=0.88)
 
-    plt.savefig(f'fig/acc_rl_stable_small_{branch}.png')
+    plt.savefig(f'fig/acc_rl_stable_small_max_{branch}.png')
     plt.show()
+
+
+# <codecell>
+size = 1024
+mdf = plot_df.copy()
+mdf = mdf[(mdf['n_hidden'] == size)
+        & (mdf['mode'] == 'rl')
+        & (mdf['dist_pr'] == 1)
+        & (mdf['dist_rl'] == 3)
+        & (mdf['n_layer'] == 2)]
+
+gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='train_iters', col='mup_scale', row='branch', marker='o', height=2.5, aspect=1.2, alpha=0.7, estimator='max')
+# fig = gs.figure
+# fig.suptitle(f'branch={branch}')
+# fig.subplots_adjust(top=0.88)
+
+plt.savefig(f'fig/acc_rl_time_comparison_{size}.png')
+plt.show()
 
 
 
@@ -89,7 +111,6 @@ mdf = plot_df.copy()
 mdf[(mdf['dist_pr'] == 1) 
     & (mdf['dist_rl'] == 3)
     & (mdf['n_hidden'] == 256)
-    & (mdf['n_layer'] == 2)
     & (mdf['branch'] == 'on')
     ]
 
@@ -98,9 +119,9 @@ plt.plot(df.iloc[35]['info']['etc']['rl_hist']['rew'], '--o')
 
 
 # <codecell>
-depth = 10
+depth = 7
 n_vocab = 2**depth + BinaryTreeTiTask.offset
-n_hidden = 128
+n_hidden = 256
 batch_size = 32
 unwrap = False
 
@@ -109,20 +130,20 @@ seed = new_seed()
 
 train_task = Chain(
     BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=False, fill_gaps=False, cot=True, unwrap=unwrap, batch_size=batch_size))
+    BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=False, cot=True, unwrap=unwrap, batch_size=batch_size))
 
-test_task = BinaryTreeTiTask(depth=depth, samp_dist=8, on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size)
+test_task = BinaryTreeTiTask(depth=depth, samp_dist=5, on_branch=True, cot=True, unwrap=unwrap, batch_size=batch_size)
 
 config = TransformerConfig(n_layers=2,
                            n_vocab=n_vocab,
                            n_out=n_vocab,
                            n_hidden=n_hidden,
                            pos_emb=False,
-                           n_mlp_layers=2,
-                           n_heads=2,
-                           layer_norm=True,
+                           n_mlp_layers=0,
+                           n_heads=1,
+                           layer_norm=False,
                            as_rf_model=False,
-                           residual_connections=True,
+                           residual_connections=False,
                            use_simple_att=False,
                            freeze_emb=True,
                            use_bias=False,
@@ -136,7 +157,7 @@ state, hist = train(config,
                     test_iter=iter(test_task), 
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=50_000,
+                    train_iters=0,
                     # lr=1e-3,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
@@ -155,26 +176,26 @@ with open('state.pkl', 'rb') as fp:
 state = create_train_state(
     model=config.to_model(), 
     params=params,
-    optim=optax.sgd,
-    lr=5e-4
+    # optim=optax.sgd,
+    lr=3e-5
     )
 
 # <codecell>
-batch_size = 1024
+batch_size = 128
 
 train_task = Chain(
     BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=True, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=None),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=False, fill_gaps=False, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=None))
+    BinaryTreeTiTask(depth=depth, samp_dist=(1, 3), on_branch=False, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=None))
 
 test_task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=None)
 
 ### RL finetune
 state, hist = reinforce(state, train_task, 
                         test_iter=test_task,
-                        action_fn=generate, 
+                        action_fn=gen2, 
                         reward_fn=bt_rew_fn, 
                         rl_loss=bt_rl_loss,
-                        train_iters=100_000,
+                        train_iters=50_000,
                         test_every=1000,
                         test_iters=10,
                         use_tqdm=True,
@@ -188,10 +209,11 @@ state, hist = reinforce(state, train_task,
 #     BinaryTreeTiTask(depth=depth, samp_dist=(8), on_branch=True, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=None),
 #     BinaryTreeTiTask(depth=depth, samp_dist=(8), on_branch=False, fill_gaps=False, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=None))
 
-task = BinaryTreeTiTask(depth=depth, samp_dist=(8), on_branch=True, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=None)
+task = BinaryTreeTiTask(depth=depth, samp_dist=(3), on_branch=False, rl_prompt=True, unwrap=unwrap, batch_size=batch_size, n_thought=None)
 
 batch = next(task)
 
+# TODO: evaluation may have problem with inf values
 gen_acc_rl(state, batch)
 
 # <codecell>
@@ -199,7 +221,7 @@ task.cot = True
 xs, _ = next(task)
 # logits = state.apply_fn({'params': state.params}, xs)
 # preds = logits.argmax(-1)
-preds = generate(state, xs)
+preds = gen2(state, xs)
 
 print(preds[:3])
 print(xs[:3])

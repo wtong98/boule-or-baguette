@@ -428,11 +428,12 @@ class StarfishTask:
     sep_idx = 3
     offset = 3
 
-    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, batch_size=128) -> None:
+    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, trace_to_start=False, batch_size=128) -> None:
         self.depth = depth
         self.n_arms = n_arms
         self.samp_dist = samp_dist
         self.cot = cot
+        self.trace_to_start = trace_to_start
         self.batch_size = batch_size
 
         self.seed = new_seed()
@@ -447,7 +448,7 @@ class StarfishTask:
         xs = jnp.concatenate((xs_on, xs_off), axis=0)
 
         if self.cot:
-            xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size)
+            xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size, trace_to_start=self.trace_to_start)
             ys = xs[:,1:]
             ys = ys.at[:,:2].set(0)   # mask prompt
             xs = xs[:,:-1]
@@ -497,23 +498,31 @@ def _star_samp_off(key, depth, n_arms, samp_dist, batch_size):
     return jnp.stack((parents, children), axis=1)
 
 
-@functools.partial(jax.jit, static_argnums=(1,2,3))
-def _star_add_chain(xs, depth, n_arms, batch_size):
+@functools.partial(jax.jit, static_argnums=(1,2,3,4))
+def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True):
     parents, children = xs.T
 
     diffs = n_arms * np.arange(depth + 2)
     chain = children[:,None] - diffs
+    chain = chain + (chain == 0)           # connect to root
 
     target_idx = jnp.sum(parents[:,None] < chain, axis=1)
     target_val = chain[jnp.arange(batch_size),target_idx]
 
     resp = jnp.where(parents == target_val, BinaryTreeTiTask.yes_idx, BinaryTreeTiTask.no_idx)
 
-    keep_mask = chain > 0
-    chain = chain + StarfishTask.offset
-    chain = chain * keep_mask
-    keep_idx = jnp.sum(keep_mask, axis=1)
-    chain = chain.at[jnp.arange(batch_size), keep_idx].set(resp)
+    if trace_to_start:
+        keep_mask = chain > 0
+        chain = chain + StarfishTask.offset
+        chain = chain * keep_mask
+        keep_idx = jnp.sum(chain > 0, axis=1)
+        chain = chain.at[jnp.arange(batch_size), keep_idx].set(resp)
+    else:
+        chain = chain + BinaryTreeTiTask.offset
+        stop_mask = parents[:,None] > chain
+        stop_mask = stop_mask.at[jnp.arange(batch_size), target_idx].set(False)
+        chain = chain * (~stop_mask)
+        chain = chain.at[jnp.arange(batch_size), target_idx + 1].set(resp)
 
     xs = jnp.concatenate((
         xs + StarfishTask.offset, 
@@ -524,7 +533,7 @@ def _star_add_chain(xs, depth, n_arms, batch_size):
     return xs
 
 
-# task = StarfishTask(depth=10, samp_dist=(1,3), batch_size=10)
+# task = StarfishTask(depth=5, samp_dist=(1,3), batch_size=10, cot=True)
 # xs, ys = next(task)
 
 # print(xs)

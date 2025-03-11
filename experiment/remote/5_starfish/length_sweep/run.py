@@ -29,7 +29,9 @@ n_hidden = 512
 n_layers = [2, 3, 4]
 use_layer_norm = [False, True]
 use_resid = [False, True]
-mup_scale = [False, True]
+mup_scale = [True]
+use_trace_to_start = [False, True]
+n_mlp_layers = [0, 2]
 
 ### START TEST CONFIGS
 # run_split = 1
@@ -43,6 +45,9 @@ mup_scale = [False, True]
 # use_layer_norm = [False]
 # use_resid = [False]
 # mup_scale = [True]
+
+# use_trace_to_start = [False]
+# n_mlp_layers = [0]
 ### END TEST CONFIGS
 
 all_cases = []
@@ -75,13 +80,13 @@ for n_hop in n_hops:
         return args
 
 
-    def make_chain(cot=True):
+    def make_chain(**kwargs):
         task_args = {
             'depth': depth,
             'samp_dist': (1, n_hop),
         }
 
-        return StarfishTask(cot=cot, **task_args)
+        return StarfishTask(**task_args, **kwargs)
     
 
     all_cases.extend([
@@ -92,38 +97,24 @@ for n_hop in n_hops:
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False)
         ), 
-
-        Case('Att',
-                TransformerConfig(n_heads=1,
-                                  n_out=1,
-                                  n_layers=2,
-                                  pos_emb=True, 
-                                  return_final_logits_only=True,
-                                  n_mlp_layers=0,
-                                  layer_norm=False,
-                                  residual_connections=False,
-                                  mup_scale=True,
-                                  **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False)
-        ), 
     ])
 
-    for n_layer, layer_norm, resid, mup in itertools.product(n_layers, use_layer_norm, use_resid, mup_scale):
+    for n_layer, layer_norm, resid, mup, trace_to_start, mlp_layers \
+        in itertools.product(n_layers, use_layer_norm, use_resid, mup_scale, use_trace_to_start, n_mlp_layers):
         all_cases.append(
-            Case(f'Full (n_layer={n_layer},layer_norm={layer_norm},resid={resid},mup={mup})',
+            Case(f'(n_layer={n_layer},lnorm={layer_norm},resid={resid},full_tr={trace_to_start},n_mlp={mlp_layers})',
                     TransformerConfig(n_heads=1, 
                                     n_out=n_vocab,
                                     n_layers=n_layer,
                                     pos_emb=False, 
                                     return_final_logits_only=False,
-                                    n_mlp_layers=2,
+                                    n_mlp_layers=mlp_layers,
                                     layer_norm=layer_norm,
                                     residual_connections=resid,
                                     mup_scale=mup,
                                     **model_args),
                     train_args=make_train_args('ce_mask'),
-                    train_task=make_chain(cot=True)
+                    train_task=make_chain(cot=True, trace_to_start=trace_to_start)
             )
         )
 
