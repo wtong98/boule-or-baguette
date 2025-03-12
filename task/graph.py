@@ -428,11 +428,12 @@ class StarfishTask:
     sep_idx = 3
     offset = 3
 
-    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, trace_to_start=False, batch_size=128) -> None:
+    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, rl_prompt=False, trace_to_start=False, batch_size=128) -> None:
         self.depth = depth
         self.n_arms = n_arms
         self.samp_dist = samp_dist
         self.cot = cot
+        self.rl_prompt = rl_prompt
         self.trace_to_start = trace_to_start
         self.batch_size = batch_size
 
@@ -446,14 +447,23 @@ class StarfishTask:
         xs_on = _star_samp_on(k1, self.depth, self.n_arms, self.samp_dist, n_on)
         xs_off = _star_samp_off(k2, self.depth, self.n_arms, self.samp_dist, n_off)
         xs = jnp.concatenate((xs_on, xs_off), axis=0)
+        ys = jnp.concat((jnp.ones(n_on), jnp.zeros(n_off)))
 
         if self.cot:
             xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size, trace_to_start=self.trace_to_start)
             ys = xs[:,1:]
             ys = ys.at[:,:2].set(0)   # mask prompt
             xs = xs[:,:-1]
-        else:
-            ys = jnp.concat((jnp.ones(n_on), jnp.zeros(n_off)))
+        elif self.rl_prompt:
+            xs = xs + StarfishTask.offset
+            
+            thought_toks = np.zeros((self.batch_size, 2 * self.depth))
+            xs = jnp.concatenate((
+                xs,
+                StarfishTask.sep_idx * np.ones((self.batch_size, 1)),
+                thought_toks
+            ), axis=1)
+            ys = ys + 1
 
         return xs.astype(int), ys.astype(int)
 
@@ -533,7 +543,7 @@ def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True):
     return xs
 
 
-# task = StarfishTask(depth=5, samp_dist=(1,3), batch_size=10, cot=True)
+# task = StarfishTask(depth=5, samp_dist=(1,3), batch_size=10, rl_prompt=True)
 # xs, ys = next(task)
 
 # print(xs)

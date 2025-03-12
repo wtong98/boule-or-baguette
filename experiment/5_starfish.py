@@ -31,9 +31,10 @@ batch_size = 128
 n_layers = 2
 
 cot = True
+ttr = True
 
-train_task = StarfishTask(depth=depth, samp_dist=(1,3), batch_size=batch_size, cot=cot)
-test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=cot)
+train_task = StarfishTask(depth=depth, samp_dist=(1,3), batch_size=batch_size, cot=cot, trace_to_start=ttr)
+test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=cot, trace_to_start=ttr)
 
 # config = MlpConfig(n_vocab=n_vocab,
 #                    n_layers=1,
@@ -120,6 +121,17 @@ logits = model.apply({'params': state.params}, xs)
 
 # logits = state.apply_fn({'params': state.params}, xs)
 preds = logits.argmax(-1)
+
+print(xs[:3])
+print(preds[:3])
+print(ys[:3])
+
+# <codecell>
+test_task.cot = False
+test_task.rl_prompt = True
+xs, ys = next(test_task)
+
+preds = gen2(state, xs)
 
 print(xs[:3])
 print(preds[:3])
@@ -392,8 +404,9 @@ def extract_plot_vals(row):
         row['name'],
         row['train_task'].samp_dist[1],
         row['config']['n_layers'],
+        row['train_task'].trace_to_start,
         row['info'],
-    ], index=['name', 'n_hop', 'n_layers', 'info'])
+    ], index=['name', 'n_hop', 'n_layers', 'trace_to_start', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -416,20 +429,20 @@ plot_df
 
 # <codecell>
 # hops = [1, 3, 5, 10, 16]
-hops = [2, 3, 5]
+hops = [2, 5]
+use_trace_to_start = [False, True]
 
-# TODO: check if cyan model generates faithful CoT <-- STOPPED HERE
-
-for hop in hops:
+for hop, tts in itertools.product(hops, use_trace_to_start):
     mdf = plot_df.copy()
     mdf = mdf[
         (mdf['n_hop'] == hop)
+        * (mdf['trace_to_start'] == tts)
         & ((mdf['n_layers'] == 2) | (mdf['n_layers'] == 1))
     ]
     g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='mean')
     g.axvline(x=hop, color='gray', linestyle='dashed')
 
-    # plt.savefig(f'fig/star_length_{hop}_gen.png')
+    plt.savefig(f'fig/star_length_{hop}_tts_{tts}_gen.png')
     plt.show()
 
 # <codecell>
