@@ -65,16 +65,16 @@ config = TransformerConfig(n_layers=n_layers,
                            n_out=n_vocab,
                            n_hidden=n_hidden,
                            pos_emb=False,
-                           n_mlp_layers=2,
+                           n_mlp_layers=0,
                            n_heads=1,
-                           layer_norm=True,
+                           layer_norm=False,
                            as_rf_model=False,
-                           residual_connections=True,
+                           residual_connections=False,
                            use_simple_att=False,
                            freeze_emb=True,
                            use_bias=False,
                            return_final_logits_only=False,
-                           mup_scale=False
+                           mup_scale=True
                            )
 
 # xs, ys = next(train_task)
@@ -89,10 +89,11 @@ state, hist = train(config,
                     # loss='bce',
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=10_000,
+                    train_iters=20_000,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
-                    print_fn=print_gen
+                    print_fn=print_gen,
+                    lr=5e-4
                     )
 
 
