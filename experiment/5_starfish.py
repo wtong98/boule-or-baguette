@@ -454,3 +454,55 @@ mdf = mdf[
 sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', errorbar=('ci', False), estimator='max', marker='o', height=2, aspect=1.2)
 
 # plt.savefig('fig/star_length_gen.png')
+
+
+# <codecell>
+### RL
+df = collate_dfs('remote/5_starfish/rl', show_progress=True)
+df
+
+# <codecell>
+def extract_plot_vals(row):
+    return pd.Series([
+        row['name'],
+        row['config']['n_hidden'],
+        row['train_args']['train_iters'],
+        row['train_task'].trace_to_start,
+        row['train_task'].samp_dist[1],
+        row['info']['etc']['train_len_rl'],
+        row['info']
+    ], index=['name', 'n_hidden', 'train_iters', 'trace_to_start', 'dist_pr', 'dist_rl', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+adf = adf[adf['level_1'] != 'etc']
+
+plot_df = plot_df.drop('info', axis='columns').join(adf)
+
+ldf = plot_df['level_1'].str.split('_', expand=True) \
+                        .rename(columns={
+                            0: 'mode',
+                            1: 'test_len',
+                        })
+
+plot_df = pd.concat((plot_df, ldf), axis='columns').drop('level_1', axis='columns')
+adf = pd.DataFrame(plot_df['info'].to_list())
+plot_df = pd.concat((plot_df.drop('info', axis=1).reset_index(), adf), axis=1)
+plot_df
+
+# <codecell>
+mdf = plot_df.copy()
+
+mdf = mdf[(mdf['n_hidden'] == 32)
+        & (mdf['train_iters'] == 0)
+        & (mdf['trace_to_start'] == True)
+]
+
+gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='dist_pr', row='dist_rl', marker='o', height=1.5, aspect=1.5, alpha=0.7, estimator='max')
+
+# plt.savefig(f'fig/acc_rl_stable_small_max_{branch}.png')

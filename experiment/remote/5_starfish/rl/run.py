@@ -31,7 +31,7 @@ batch_size = 128
 n_layers = [2]
 
 trace_to_start = [False, True]
-train_lens = [1, 3, 5, 10]
+train_lens = [1, 3, 5]
 test_lens = np.arange(1, depth-1)
 
 
@@ -96,9 +96,9 @@ for train_len_idx, mup, ttr, n_hidden, n_layer, train_iters \
                 TransformerConfig(n_heads=1, 
                                   pos_emb=False, 
                                   return_final_logits_only=False, 
-                                  n_mlp_layers=0,
-                                  layer_norm=False,
-                                  residual_connections=False,
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(trace_to_start=ttr),
