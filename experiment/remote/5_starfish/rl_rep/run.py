@@ -78,7 +78,8 @@ for train_len_idx, mup, ttr, n_hidden, n_layer, train_iters \
             'test_every': 1000,
             'train_iters': train_iters,
             'eval_fns': eval_fns,
-            'print_fn': print_gen
+            'print_fn': print_gen,
+            'lr': 5e-4
         }
 
     def make_chain(**kwargs):
@@ -99,7 +100,6 @@ for train_len_idx, mup, ttr, n_hidden, n_layer, train_iters \
                                   n_mlp_layers=0,
                                   layer_norm=False,
                                   residual_connections=False,
-                                  lr=5e-4
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(trace_to_start=ttr),
