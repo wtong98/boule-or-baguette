@@ -24,7 +24,7 @@ from task.graph import *
 
 
 depth = 25
-n_vocab = 2 * depth + 1 + StarfishTask.offset
+n_vocab = 2 * depth + 1 + CircleTask.offset
 n_hidden = 128
 batch_size = 128
 
@@ -33,12 +33,11 @@ n_layers = 2
 cot = True
 ttr = True
 
-train_task = StarfishTask(depth=depth, samp_dist=(1,3), batch_size=batch_size, cot=cot, trace_to_start=ttr)
-test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=cot, trace_to_start=ttr)
+train_task = CircleTask(depth=depth, samp_dist=(1,5), batch_size=batch_size, cot=cot, trace_to_start=ttr)
+test_task = CircleTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=cot, trace_to_start=ttr)
 
 # config = MlpConfig(n_vocab=n_vocab,
 #                    n_layers=1,
-#                    n_emb=n_hidden,
 #                    n_hidden=n_hidden,
 #                    use_bias=False)
 
@@ -59,17 +58,16 @@ test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=c
 #                            mup_scale=True
 #                            )
 
-# TODO: implement positional encodings for trajectory generation
 config = TransformerConfig(n_layers=n_layers,
                            n_vocab=n_vocab,
                            n_out=n_vocab,
                            n_hidden=n_hidden,
                            pos_emb=False,
-                           n_mlp_layers=0,
+                           n_mlp_layers=2,
                            n_heads=1,
-                           layer_norm=False,
+                           layer_norm=True,
                            as_rf_model=False,
-                           residual_connections=False,
+                           residual_connections=True,
                            use_simple_att=False,
                            freeze_emb=True,
                            use_bias=False,
@@ -93,7 +91,7 @@ state, hist = train(config,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
                     print_fn=print_gen,
-                    lr=5e-4
+                    # lr=1e-3
                     )
 
 

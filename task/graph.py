@@ -543,7 +543,130 @@ def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True):
     return xs
 
 
-# task = StarfishTask(depth=5, samp_dist=(1,3), batch_size=10, rl_prompt=True)
+class CircleTask:
+    pad_idx = 0
+    no_idx = 1
+    yes_idx = 2
+    sep_idx = 3
+    offset = 3
+
+    def __init__(self, depth, samp_dist=1, cot=False, rl_prompt=False, trace_to_start=False, batch_size=128) -> None:
+        self.depth = depth
+        self.samp_dist = samp_dist
+        self.cot = cot
+        self.rl_prompt = rl_prompt
+        self.trace_to_start = trace_to_start
+        self.batch_size = batch_size
+
+        self.seed = new_seed()
+        self.source = jax.random.key(self.seed)
+    
+    def __next__(self):
+        k1, k2, self.source = jax.random.split(self.source, num=3)
+        n_on = n_off = self.batch_size // 2
+
+        xs_on = _circle_samp_on(k1, self.depth, self.samp_dist, n_on)
+        xs_off = _circle_samp_off(k2, self.depth, self.samp_dist, n_off)
+        xs = jnp.concatenate((xs_on, xs_off), axis=0)
+        ys = jnp.concat((jnp.ones(n_on), jnp.zeros(n_off)))
+
+        if self.cot:
+            xs = _circle_add_chain(xs, self.depth, self.batch_size, trace_to_start=self.trace_to_start)
+            ys = xs[:,1:]
+            ys = ys.at[:,:2].set(0)   # mask prompt
+            xs = xs[:,:-1]
+        elif self.rl_prompt:
+            xs = xs + CircleTask.offset
+            
+            thought_toks = np.zeros((self.batch_size, 2 * self.depth))
+            xs = jnp.concatenate((
+                xs,
+                StarfishTask.sep_idx * np.ones((self.batch_size, 1)),
+                thought_toks
+            ), axis=1)
+            ys = ys + 1
+
+        return xs.astype(int), ys.astype(int)
+
+    def __iter__(self):
+        return self
+
+@functools.partial(jax.jit, static_argnums=(1, 2, 3))
+def _circle_samp_on(key, depth, samp_dist, batch_size):
+    key, source = jax.random.split(key)
+    samp_dist = _split_samp_dist(key, samp_dist, batch_size)
+
+    key, source = jax.random.split(source)
+    parents = jax.random.randint(key, minval=0, maxval=depth, shape=batch_size)
+    children = (parents + samp_dist) % depth + 1
+    parents += 1  # adjust for 1-indexing
+
+    key, source = jax.random.split(source)
+    ring = jax.random.bernoulli(key, shape=batch_size)
+    parents += ring * depth
+    children += ring * depth
+
+    return jnp.stack((parents, children), axis=1)
+
+
+# TODO: consider varying samp_dist for off-chain examples
+@functools.partial(jax.jit, static_argnums=(1, 2, 3))
+def _circle_samp_off(key, depth, samp_dist, batch_size):
+    key, source = jax.random.split(key)
+    samp_dist = _split_samp_dist(key, samp_dist, batch_size)
+
+    key, source = jax.random.split(source)
+    parents = jax.random.randint(key, minval=0, maxval=depth, shape=batch_size)
+    children = (parents + samp_dist) % depth + 1
+    parents += 1  # adjust for 1-indexing
+
+    key, source = jax.random.split(source)
+    ring = jax.random.bernoulli(key, shape=batch_size)
+    parents += ring * depth
+    children += (1 - ring) * depth
+
+    return jnp.stack((parents, children), axis=1)
+
+
+
+
+@functools.partial(jax.jit, static_argnums=(1,2,3))
+def _circle_add_chain(xs, depth, batch_size, trace_to_start=True):
+    parents, children = xs.T
+    ring = (children - 1) // depth
+    inv_ring = 1 - ring
+
+    diffs = np.arange(depth)
+    chain = (children[:,None] - diffs - 1) % depth + 1
+    on_chain = chain + (ring * depth)[:,None]
+    off_chain = chain + (inv_ring * depth)[:,None]
+
+    resp_mask = (parents[:,None] == on_chain) | (parents[:,None] == off_chain)
+    keep_mask = (1 - jnp.cumsum(resp_mask, axis=1)).astype(bool) | resp_mask
+
+    target_idx = jnp.sum(keep_mask, axis=1) - 1
+    target_val = on_chain[jnp.arange(batch_size), target_idx]
+    resp = jnp.where(parents == target_val, CircleTask.yes_idx, CircleTask.no_idx)
+
+    on_chain += CircleTask.offset
+
+    if trace_to_start:
+        chain = jnp.concatenate((on_chain, resp[:,None]), axis=1)
+    else:
+        keep_idx = jnp.sum(keep_mask, axis=1)
+        chain = on_chain * keep_mask
+        chain = chain.at[jnp.arange(batch_size), keep_idx].set(resp)
+
+    xs = jnp.concatenate((
+        xs + CircleTask.offset, 
+        CircleTask.sep_idx * jnp.ones((batch_size, 1)),
+        chain
+    ), axis=-1)
+
+    return xs
+
+    
+# task = CircleTask(depth=5, samp_dist=(1,3), batch_size=10, cot=False, trace_to_start=True)
 # xs, ys = next(task)
 
 # print(xs)
