@@ -285,66 +285,10 @@ boundaries[0] = 0
 
 # plt.savefig('fig/readout_sim.png')
 
-# <codecell>
-xs = jnp.array([[7, 57, 0, -3, -3, -3, -3, -3, -3]]) + 3
-traj = gen2(state, xs)
-
-traj - 3
-
-
-# <codecell>
-### SIZE VS NODE PLOTTING
-df = collate_dfs('remote/5_starfish/size', show_progress=True)
-df
-
-# <codecell>
-def extract_plot_vals(row):
-    best_acc = np.max([m['gen_acc'] for m in row['hist']['test']])
-    best_loss = np.min([m['loss'] for m in row['hist']['test']])
-
-    return pd.Series([
-        row['name'],
-        row['config']['n_hidden'],
-        row['config']['n_mlp_layers'],
-        row['config']['layer_norm'],
-        row['config']['mup_scale'],
-        row['train_task'].depth,
-        row['info']['gen_acc'],
-        row['info']['loss'],
-        best_acc,
-        best_loss
-    ], index=['name', 'n_hidden', 'n_mlp_layers', 'layer_norm', 'mup_scale', 'depth', 'gen_acc', 'loss', 'best_acc', 'best_loss'])
-
-plot_df = df.apply(extract_plot_vals, axis=1) \
-            .reset_index(drop=True) \
-
-
-# <codecell>
-mdf = plot_df.copy()
-mdf = mdf[
-    (mdf['n_mlp_layers'] == 2)
-    & (mdf['layer_norm'] == False)
-    & (mdf['mup_scale'] == False)
-    ]
-
-g = sns.lineplot(mdf, x='n_hidden', y='best_acc', hue='depth', marker='o')
-
-g.set_xscale('log', base=2)
-
-
-# g.set_yscale('log')
-plt.savefig('fig/acc_star_scale_mlp.png')
-
-# <codecell>
-plot_df[plot_df['depth'] == 10]
-
-# <codecell>
-plt.plot([m['gen_acc'] for m in df.iloc[59]['hist']['test']])
-
 
 # <codecell>
 ### LENGTHWISE GENERALIZATION
-df = collate_dfs('remote/5_starfish/length', show_progress=True)
+df = collate_dfs('remote/6_circle/length', show_progress=True)
 df
 
 # <codecell>
@@ -379,17 +323,17 @@ hops = [1, 3, 5, 10, 16]
 
 for hop in hops:
     mdf = plot_df[plot_df['n_hop'] == hop]
-    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', errorbar=('ci', False), estimator='max')
+    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='max')
     g.axvline(x=hop, color='gray', linestyle='dashed')
 
-    plt.savefig(f'fig/star_length_{hop}_gen.png')
+    plt.savefig(f'fig/circle_length_{hop}_gen.png')
     plt.show()
 
 # <codecell>
 mdf = plot_df.copy()
-sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', errorbar=('ci', False), estimator='max', marker='o', height=2, aspect=1.2)
+sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='max', marker='o', height=2, aspect=1.2)
 
-plt.savefig('fig/star_length_gen.png')
+plt.savefig('fig/circle_length_gen.png')
 
 
 # <codecell>

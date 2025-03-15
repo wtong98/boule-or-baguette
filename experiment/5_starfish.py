@@ -547,10 +547,12 @@ plot_df = pd.concat((plot_df.drop('info', axis=1).reset_index(), adf), axis=1)
 plot_df
 
 # %%
-mdf = plot_df.copy()
+trace_to_start = [False, True]
 
-mdf = mdf[(mdf['trace_to_start'] == False)]
+for ttr in trace_to_start:
+    mdf = plot_df.copy()
+    mdf = mdf[(mdf['trace_to_start'] == ttr)]
+    gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='n_hidden', row='train_iters', marker='o', height=2, aspect=2, alpha=0.7, estimator='max')
 
-gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='n_hidden', row='train_iters', marker='o', height=2, aspect=2, alpha=0.7, estimator='max')
-
-# plt.savefig(f'fig/acc_rl_stable_small_max_{branch}.png')
+    plt.savefig(f'fig/rl_rep_star_ttr_{ttr}.png')
+    plt.show()
