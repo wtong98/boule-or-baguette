@@ -129,7 +129,7 @@ for case in tqdm(all_cases):
 
     for n_hop in n_hops:
         tt = case.train_task
-        test_task = CircleTask(depth=depth, samp_dist=n_hop, cot=tt.cot)
+        test_task = CircleTask(depth=depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start)
 
         case.eval(
             test_task,

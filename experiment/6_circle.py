@@ -338,7 +338,7 @@ plt.savefig('fig/circle_length_gen.png')
 
 # <codecell>
 ### LENGTHWISE GENERALIZATION
-df = collate_dfs('remote/5_starfish/length_sweep', show_progress=True)
+df = collate_dfs('remote/6_circle/length_sweep', show_progress=True)
 df
 
 # <codecell>
@@ -385,7 +385,9 @@ for hop, tts in itertools.product(hops, use_trace_to_start):
     g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='mean')
     g.axvline(x=hop, color='gray', linestyle='dashed')
 
-    plt.savefig(f'fig/star_length_{hop}_tts_{tts}_gen.png')
+    sns.move_legend(g, 'upper left', bbox_to_anchor=(1,1))
+
+    plt.savefig(f'fig/circle_length_{hop}_tts_{tts}_gen.png', bbox_inches='tight')
     plt.show()
 
 # <codecell>
