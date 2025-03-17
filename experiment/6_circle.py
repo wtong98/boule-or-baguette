@@ -96,35 +96,16 @@ state, hist = train(config,
 
 
 # <codecell>
-xs, ys = next(test_task)
-
-config = TransformerConfig(n_layers=n_layers,
-                           n_vocab=n_vocab,
-                           n_out=n_vocab,
-                           n_hidden=n_hidden,
-                           pos_emb=False,
-                           n_mlp_layers=2,
-                           n_heads=1,
-                           layer_norm=True,
-                           as_rf_model=False,
-                           residual_connections=True,
-                           use_simple_att=False,
-                           freeze_emb=True,
-                           use_bias=False,
-                           return_final_logits_only=False,
-                           mup_scale=False,
-                           remove_att=True
-                           )
-model = config.to_model()
-logits = model.apply({'params': state.params}, xs)
-
+xs, ys = next(train_task)
 # logits = state.apply_fn({'params': state.params}, xs)
-preds = logits.argmax(-1)
+# preds = logits.argmax(-1)
+preds = gen2(state, xs)
 
 print(xs[:3])
 print(preds[:3])
 print(ys[:3])
 
+gen_acc_cot(state, (xs, ys))
 # <codecell>
 test_task.cot = False
 test_task.rl_prompt = True
@@ -387,7 +368,7 @@ for hop, tts in itertools.product(hops, use_trace_to_start):
 
     sns.move_legend(g, 'upper left', bbox_to_anchor=(1,1))
 
-    plt.savefig(f'fig/circle_length_{hop}_tts_{tts}_gen.png', bbox_inches='tight')
+    # plt.savefig(f'fig/circle_length_{hop}_tts_{tts}_gen.png', bbox_inches='tight')
     plt.show()
 
 # <codecell>

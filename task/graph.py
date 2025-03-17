@@ -660,13 +660,14 @@ def _circle_add_chain(xs, depth, batch_size, trace_to_start=True):
     xs = jnp.concatenate((
         xs + CircleTask.offset, 
         CircleTask.sep_idx * jnp.ones((batch_size, 1)),
-        chain
+        chain,
+        jnp.zeros((batch_size, 1))  # extra space for finish
     ), axis=-1)
 
     return xs
 
     
-# task = CircleTask(depth=5, samp_dist=(1,3), batch_size=10, cot=False, trace_to_start=True)
+# task = CircleTask(depth=5, samp_dist=(1,3), batch_size=10, cot=True, trace_to_start=False)
 # xs, ys = next(task)
 
 # print(xs)
