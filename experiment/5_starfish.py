@@ -33,8 +33,9 @@ n_layers = 2
 cot = True
 ttr = True
 
-train_task = StarfishTask(depth=depth, samp_dist=(1,3), batch_size=batch_size, cot=cot, trace_to_start=ttr)
+train_task = StarfishTask(depth=depth, samp_dist=(1,10), batch_size=batch_size, cot=cot, trace_to_start=ttr)
 test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=cot, trace_to_start=ttr)
+
 
 # config = MlpConfig(n_vocab=n_vocab,
 #                    n_layers=1,
@@ -59,7 +60,6 @@ test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=c
 #                            mup_scale=True
 #                            )
 
-# TODO: implement positional encodings for trajectory generation
 config = TransformerConfig(n_layers=n_layers,
                            n_vocab=n_vocab,
                            n_out=n_vocab,
@@ -74,7 +74,8 @@ config = TransformerConfig(n_layers=n_layers,
                            freeze_emb=True,
                            use_bias=False,
                            return_final_logits_only=False,
-                           mup_scale=True
+                           mup_scale=True,
+                           linear_att=True
                            )
 
 # xs, ys = next(train_task)
@@ -93,7 +94,8 @@ state, hist = train(config,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
                     print_fn=print_gen,
-                    lr=5e-4
+                    lr=1e-4,
+                    # optim=optax.sgd
                     )
 
 
@@ -195,11 +197,16 @@ jax.tree.map(np.shape, state.params)
 
 # <codecell>
 W = state.params['Dense_0']['kernel']
-V0 = state.params['TransformerBlock_0']['MultiHeadDotProductAttention_0']['value']['kernel'].squeeze()
-O0 = state.params['TransformerBlock_0']['MultiHeadDotProductAttention_0']['out']['kernel'].squeeze()
-V1 = state.params['TransformerBlock_1']['MultiHeadDotProductAttention_0']['value']['kernel'].squeeze()
-O1 = state.params['TransformerBlock_1']['MultiHeadDotProductAttention_0']['out']['kernel'].squeeze()
+# V0 = state.params['TransformerBlock_0']['MultiHeadDotProductAttention_0']['value']['kernel'].squeeze()
+# O0 = state.params['TransformerBlock_0']['MultiHeadDotProductAttention_0']['out']['kernel'].squeeze()
+# V1 = state.params['TransformerBlock_1']['MultiHeadDotProductAttention_0']['value']['kernel'].squeeze()
+# O1 = state.params['TransformerBlock_1']['MultiHeadDotProductAttention_0']['out']['kernel'].squeeze()
+# R = V0 @ O0 @ V1 @ O1 @ W
 
+V0 = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze()
+O0 = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze()
+V1 = state.params['TransformerBlock_1']['SimpleSelfAttention_0']['value']['kernel'].squeeze()
+O1 = state.params['TransformerBlock_1']['SimpleSelfAttention_0']['out']['kernel'].squeeze()
 R = V0 @ O0 @ V1 @ O1 @ W
 
 xs = np.array(state.params['Embed_freeze']['embedding'])
@@ -214,6 +221,7 @@ est = np.linalg.pinv(xs @ xs.T) @ xs @ R
 R_est = xs.T @ est
 
 plt.imshow(logits, cmap='BrBG')
+# plt.imshow(logits, cmap='BrBG', vmin=-1000, vmax=1000)
 plt.colorbar()
 
 plt.xlabel('Class (output)')
@@ -222,7 +230,7 @@ plt.ylabel('Token (input)')
 # plt.savefig('fig/logits.png')
 
 # <codecell>
-plt.plot(logits[4], 'o--')
+plt.plot(logits[16], 'o--')
 
 # <codecell>
 plt.plot(logits[:,1], 'o--')
@@ -232,16 +240,17 @@ plt.plot(logits[:,20], 'o--')
 
 
 # <codecell>
-xs, ys = next(test_task)
+xs, ys = next(train_task)
 xs = np.array(xs)
 # xs[0] = [6, 59,  3, 59, 31, 17, 10,  6,  4,  2]
 # xs[0] = [5, 7, 3, 7, 5, 2, 0]
 
 logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 
-atts = [intm['intermediates'][f'TransformerBlock_{i}']['MultiHeadDotProductAttention_0']['attention_weights'][0].squeeze() for i in range(n_layers)]
+# atts = [intm['intermediates'][f'TransformerBlock_{i}']['MultiHeadDotProductAttention_0']['attention_weights'][0].squeeze() for i in range(n_layers)]
+atts = [intm['intermediates'][f'TransformerBlock_{i}']['SimpleSelfAttention_0']['attention_weights'][0].squeeze() for i in range(n_layers)]
 
-idx = 0
+idx = -1
 fig, axs = plt.subplots(1, len(atts), figsize=(5 * len(atts), 5))
 
 if n_layers == 1:
@@ -377,14 +386,22 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-hops = [1, 3, 5, 10, 16]
+# hops = [1, 3, 5, 10, 16]
+hops = [10]
+set_theme()
 
 for hop in hops:
     mdf = plot_df[plot_df['n_hop'] == hop]
-    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', errorbar=('ci', False), estimator='max')
+    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='max')
     g.axvline(x=hop, color='gray', linestyle='dashed')
 
-    plt.savefig(f'fig/star_length_{hop}_gen.png')
+    g.legend().set_title(None)
+    sns.move_legend(g, 'upper left', bbox_to_anchor=(1, 1))
+
+    g.set_xlabel('Test distance')
+    g.set_ylabel('Accuracy')
+
+    plt.savefig(f'fig/star_length_{hop}_gen.png', bbox_inches='tight')
     plt.show()
 
 # <codecell>
@@ -430,20 +447,31 @@ plot_df
 
 # <codecell>
 # hops = [1, 3, 5, 10, 16]
-hops = [2, 5]
-use_trace_to_start = [False, True]
+hops = [10]
+use_trace_to_start = [True]
 
 for hop, tts in itertools.product(hops, use_trace_to_start):
     mdf = plot_df.copy()
     mdf = mdf[
         (mdf['n_hop'] == hop)
-        * (mdf['trace_to_start'] == tts)
+        & (mdf['trace_to_start'] == tts)
+        & (mdf['name'].str.contains('lnorm=False'))
         & ((mdf['n_layers'] == 2) | (mdf['n_layers'] == 1))
     ]
-    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='mean')
+    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='max')
     g.axvline(x=hop, color='gray', linestyle='dashed')
+    
+    g.legend().set_title(None)
+    names = ['Att', 'Att + MLP', 'Att + Resid', 'Att + MLP + Resid']
+    for t, n in zip(g.legend().texts, names):
+        t.set_text(n)
 
-    plt.savefig(f'fig/star_length_{hop}_tts_{tts}_gen.png')
+    sns.move_legend(g, 'upper left', bbox_to_anchor=(1,1))
+
+    g.set_xlabel('Distance')
+    g.set_ylabel('Accuracy')
+
+    plt.savefig(f'fig/star_length_{hop}_tts_{tts}_gen.png', bbox_inches='tight')
     plt.show()
 
 # <codecell>
@@ -554,5 +582,39 @@ for ttr in trace_to_start:
     mdf = mdf[(mdf['trace_to_start'] == ttr)]
     gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='n_hidden', row='train_iters', marker='o', height=2, aspect=2, alpha=0.7, estimator='max')
 
-    plt.savefig(f'fig/rl_rep_star_ttr_{ttr}.png')
+    # plt.savefig(f'fig/rl_rep_star_ttr_{ttr}.png')
     plt.show()
+
+# <codecell>
+set_theme()
+
+mdf = plot_df.copy()
+mdf = mdf[mdf['n_hidden'] == 512]
+mdf['test_len'] = mdf['test_len'].astype(float)
+
+gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='trace_to_start', row='train_iters', marker='o', height=2, aspect=2, alpha=0.7, estimator='max')
+
+gs.set_titles('CoT full = {col_name} | train = {row_name}')
+gs.set_xlabels('Distance')
+gs.set_ylabels('Accuracy')
+
+for g in gs.axes.ravel():
+    g.axvline(x=5, color='gray', linestyle='dashed')
+
+plt.savefig('fig/rl_star_wide_comparison.png', bbox_inches='tight')
+
+# <codecell>
+mdf = plot_df.copy()
+mdf = mdf[mdf['trace_to_start'] == True]
+mdf['test_len'] = mdf['test_len'].astype(float)
+
+gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='n_hidden', row='train_iters', marker='o', height=2, aspect=2, alpha=0.7, estimator='max')
+
+gs.set_titles('width = {col_name} | train = {row_name}')
+gs.set_xlabels('Distance')
+gs.set_ylabels('Accuracy')
+
+for g in gs.axes.ravel():
+    g.axvline(x=5, color='gray', linestyle='dashed')
+
+plt.savefig('fig/rl_star_size_sweep.png', bbox_inches='tight')

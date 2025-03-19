@@ -100,6 +100,7 @@ for train_len_idx, mup, ttr, n_hidden, n_layer, train_iters \
                                   n_mlp_layers=0,
                                   layer_norm=False,
                                   residual_connections=False,
+                                  linear_att=True,
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(trace_to_start=ttr),

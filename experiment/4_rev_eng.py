@@ -22,23 +22,23 @@ from model.transformer import TransformerConfig
 from task.graph import *
 
 
-depth = 6
+depth = 5
 n_vocab = 2**depth + BinaryTreeTiTask.offset
 n_hidden = 128
 batch_size = 128
 
-n_layers = 1
+n_layers = 2
 
 seed = new_seed()
 
 repeat_first = True
-trace_to_start = True
+trace_to_start = False
 
 train_task = Chain(
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,4), on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start),
-    BinaryTreeTiTask(depth=depth, samp_dist=(1,4), on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start))
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,3), on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start),
+    BinaryTreeTiTask(depth=depth, samp_dist=(1,3), on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start))
 
-test_task = BinaryTreeTiTask(depth=depth, samp_dist=4, on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start)
+test_task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start)
 
 
 config = TransformerConfig(n_layers=n_layers,
@@ -46,7 +46,7 @@ config = TransformerConfig(n_layers=n_layers,
                            n_out=n_vocab,
                            n_hidden=n_hidden,
                            pos_emb=False,
-                           n_mlp_layers=2,
+                           n_mlp_layers=0,
                            n_heads=1,
                            layer_norm=False,
                            as_rf_model=False,
@@ -73,6 +73,25 @@ state, hist = train(config,
                     print_fn=print_gen
                     )
 
+# <codecell>
+# test_task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, cot=True, batch_size=batch_size, n_thought=None)
+# test_task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, cot=True, batch_size=batch_size, use_sep=True, repeat_first=True, trace_to_start=False)
+
+# xs, ys = next(test_task)
+# ys = ys[:,2:]
+# ans_idx = jnp.sum(ys != 0, axis=-1) - 1
+# ans = ys[jnp.arange(len(ys)), ans_idx]
+
+# traj = gen2(state, xs)
+# preds = extract_pred(traj)
+
+# print('PR', preds)
+# print('AN', ans)
+
+# traj = gen2(state, xs)
+
+# print(traj[:3])
+# print(ys[:3])
 
 # <codecell>
 with open('state.pkl', 'wb') as fp:
@@ -114,12 +133,12 @@ state, hist = reinforce(state, train_task,
 
 
 # <codecell>
-task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, rl_prompt=True, batch_size=batch_size, n_thought=None)
+task = BinaryTreeTiTask(depth=depth, samp_dist=3, on_branch=True, cot=True, batch_size=batch_size, n_thought=None)
 batch = next(task)
-gen_acc_rl(state, batch)
+gen_acc_cot(state, batch)
 
 # <codecell>
-task = BinaryTreeTiTask(depth=depth, samp_dist=1, on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first)
+task = BinaryTreeTiTask(depth=depth, samp_dist=1, on_branch=False, cot=True, batch_size=batch_size, use_sep=True, repeat_first=repeat_first, trace_to_start=trace_to_start)
 xs, ys = next(task)
 traj = gen2(state, xs)
 
@@ -155,7 +174,20 @@ plt.colorbar()
 plt.xlabel('Class (output)')
 plt.ylabel('Token (input)')
 
-# plt.savefig('fig/logits.png')
+boundaries = 2**np.arange(depth) + 2.5
+boundaries[0] = 3.5
+
+for b in boundaries:
+    plt.axhline(y=b, color='red', alpha=0.3)
+    plt.axvline(x=b, color='red', alpha=0.3)
+
+nodes = np.arange(3, n_vocab // 2 + 1)
+plt.plot(nodes + 1, 2 * nodes, color='magenta', alpha=0.4)
+
+nodes = np.arange(5, n_vocab)
+plt.plot(nodes, 0.5 * nodes + 1, color='magenta', alpha=0.4)
+
+plt.savefig('fig/logits_with_guides.png')
 
 # <codecell>
 plt.plot(logits[4], 'o--')
@@ -167,10 +199,10 @@ plt.plot(logits[:,30], 'o--')
 plt.plot(logits[:,20], 'o--')
 
 
-# <codecell
+# <codecell>
 xs, ys = next(train_task)
 xs = np.array(xs)
-xs[0] = [6, 59,  3, 59, 31, 17, 10,  6,  4,  2]
+# xs[0] = [6, 59,  3, 59, 31, 17, 10,  6,  4,  2]
 # xs[0] = [5, 7, 3, 7, 5, 2, 0]
 
 logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')

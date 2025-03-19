@@ -95,6 +95,7 @@ for n_hop in n_hops:
                                   layer_norm=False,
                                   residual_connections=False,
                                   mup_scale=True,
+                                  linear_att=True,
                                   **model_args),
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False)
@@ -110,6 +111,7 @@ for n_hop in n_hops:
                                   layer_norm=False,
                                   residual_connections=False,
                                   mup_scale=True,
+                                  linear_att=True,
                                   **model_args),
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False)
@@ -125,6 +127,7 @@ for n_hop in n_hops:
                                   layer_norm=False,
                                   residual_connections=False,
                                   mup_scale=True,
+                                  linear_att=True,
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(cot=True)
@@ -140,6 +143,7 @@ for n_hop in n_hops:
                                   layer_norm=False,
                                   residual_connections=False,
                                   mup_scale=True,
+                                  linear_att=True,
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(cot=True)

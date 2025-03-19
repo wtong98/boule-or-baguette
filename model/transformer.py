@@ -44,12 +44,12 @@ class TransformerConfig:
     residual_connections: bool = True
     n_mlp_layers: int = 2
     return_final_logits_only: bool = True
-    pure_linear_self_att: bool = False
     as_rf_model: bool = False
     use_simple_att: bool = False
     freeze_emb: bool = False
     use_bias: bool = True
     mup_scale: bool = False
+    linear_att: bool = False
     remove_att: bool = False
 
     def to_model(self):
@@ -144,18 +144,20 @@ class SimpleSelfAttention(nn.Module):
         key = nn.DenseGeneral(features=(n_heads, head_dim), name='key', use_bias=False)(inputs)
         value = nn.DenseGeneral(features=(n_heads, head_dim), name='value', use_bias=False)(inputs)
 
-        query = query / head_dim
         attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key)
 
         if mask is not None:
-            attn_weights = jnp.where(mask, attn_weights, -jnp.inf)
+            if self.config.linear_att:
+                attn_weights = jnp.where(mask, attn_weights, 0)
+            else:
+                attn_weights = jnp.where(mask, attn_weights, -jnp.inf)
+                attn_weights = jax.nn.softmax(attn_weights / head_dim, axis=-1)
 
-        attn_weights = jax.nn.softmax(attn_weights, axis=-1)
 
         self.sow('intermediates', 'attention_weights', attn_weights)
 
         out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
-        out = nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False)(out)
+        out = nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False, name='out')(out)
         # out = nn.DenseGeneral(features=1, axis=(-2, -1), use_bias=False)(out)
         return out
 
@@ -170,7 +172,7 @@ class TransformerBlock(nn.Module):
 
         assert inputs.ndim == 3
 
-        if self.config.use_simple_att or self.config.mup_scale:
+        if self.config.use_simple_att or self.config.mup_scale or self.linear_att:
             x = SimpleSelfAttention(config=self.config)(inputs, mask=decoder_mask)
         else:
             x = nn.MultiHeadDotProductAttention(num_heads=self.config.n_heads, 

@@ -112,6 +112,7 @@ for n_hop in n_hops:
                                     layer_norm=layer_norm,
                                     residual_connections=resid,
                                     mup_scale=mup,
+                                    linear_att=True,
                                     **model_args),
                     train_args=make_train_args('ce_mask'),
                     train_task=make_chain(cot=True, trace_to_start=trace_to_start)

@@ -300,14 +300,22 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-hops = [1, 3, 5, 10, 16]
+# hops = [1, 3, 5, 10, 16]
+hops = [5]
+set_theme()
 
 for hop in hops:
     mdf = plot_df[plot_df['n_hop'] == hop]
     g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='max')
     g.axvline(x=hop, color='gray', linestyle='dashed')
 
-    plt.savefig(f'fig/circle_length_{hop}_gen.png')
+    g.legend().set_title(None)
+    sns.move_legend(g, 'upper left', bbox_to_anchor=(1, 1))
+
+    g.set_xlabel('Test distance')
+    g.set_ylabel('Accuracy')
+
+    plt.savefig(f'fig/circle_length_{hop}_gen.png', bbox_inches='tight')
     plt.show()
 
 # <codecell>
@@ -353,33 +361,38 @@ plot_df
 
 # <codecell>
 # hops = [1, 3, 5, 10, 16]
-hops = [2, 5]
-use_trace_to_start = [False, True]
+hops = [5]
+use_trace_to_start = [True]
 
 for hop, tts in itertools.product(hops, use_trace_to_start):
     mdf = plot_df.copy()
     mdf = mdf[
         (mdf['n_hop'] == hop)
-        * (mdf['trace_to_start'] == tts)
+        & (mdf['trace_to_start'] == tts)
+        & (mdf['name'].str.contains('lnorm=False'))
         & ((mdf['n_layers'] == 2) | (mdf['n_layers'] == 1))
     ]
-    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='mean')
+    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='name', marker='o', estimator='max')
     g.axvline(x=hop, color='gray', linestyle='dashed')
+
+    g.legend().set_title(None)
+    names = ['Att', 'Att + MLP', 'Att + Resid', 'Att + MLP + Resid']
+    for t, n in zip(g.legend().texts, names):
+        t.set_text(n)
 
     sns.move_legend(g, 'upper left', bbox_to_anchor=(1,1))
 
-    # plt.savefig(f'fig/circle_length_{hop}_tts_{tts}_gen.png', bbox_inches='tight')
+    g.set_xlabel('Distance')
+    g.set_ylabel('Accuracy')
+
+    plt.savefig(f'fig/circle_length_{hop}_tts_{tts}_gen.png', bbox_inches='tight')
     plt.show()
 
 # <codecell>
 mdf = plot_df.copy()
-mdf = mdf[
-    ((mdf['n_layers'] == 2) | (mdf['n_layers'] == 1))
-    ]
-
 sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', errorbar=('ci', False), estimator='max', marker='o', height=2, aspect=1.2)
 
-# plt.savefig('fig/star_length_gen.png')
+plt.savefig('fig/circle_length_gen.png')
 
 
 # <codecell>

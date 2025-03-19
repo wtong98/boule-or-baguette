@@ -304,9 +304,9 @@ def _add_chain(xs, depth, batch_size, add_sep, repeat_first, trace_to_start=True
         keep_idx = jnp.sum(keep_mask, axis=1)
         chain = chain.at[jnp.arange(batch_size), keep_idx].set(resp)
     else:
-        chain = chain + BinaryTreeTiTask.offset
         stop_mask = first[:,None] > chain
         stop_mask = stop_mask.at[jnp.arange(batch_size), target_idx].set(False)
+        chain = chain + BinaryTreeTiTask.offset
         chain = chain * (~stop_mask)
         chain = chain.at[jnp.arange(batch_size), target_idx + 1].set(resp)
 
@@ -528,9 +528,9 @@ def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True):
         keep_idx = jnp.sum(chain > 0, axis=1)
         chain = chain.at[jnp.arange(batch_size), keep_idx].set(resp)
     else:
-        chain = chain + BinaryTreeTiTask.offset
         stop_mask = parents[:,None] > chain
         stop_mask = stop_mask.at[jnp.arange(batch_size), target_idx].set(False)
+        chain = chain + BinaryTreeTiTask.offset
         chain = chain * (~stop_mask)
         chain = chain.at[jnp.arange(batch_size), target_idx + 1].set(resp)
 
@@ -667,7 +667,7 @@ def _circle_add_chain(xs, depth, batch_size, trace_to_start=True):
     return xs
 
     
-# task = CircleTask(depth=5, samp_dist=(1,3), batch_size=10, cot=True, trace_to_start=False)
+# task = StarfishTask(depth=10, samp_dist=(1,8), batch_size=10, cot=True, trace_to_start=False)
 # xs, ys = next(task)
 
 # print(xs)
