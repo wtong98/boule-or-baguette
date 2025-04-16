@@ -2,6 +2,7 @@
 Training utilities
 """
 
+# <codecell>
 from dataclasses import dataclass, field
 from functools import partial
 import itertools
@@ -58,6 +59,18 @@ def ce_mask(logits, labels):
     return res / total
 
 
+def mse_mask(logits, labels):
+    assert logits.shape[:2] == labels.shape, f'logit shape {logits.shape} not compatible with label shape {labels.shape}'
+
+    targets = 2 * jax.nn.one_hot(labels, logits.shape[-1]) - 1
+    out = ((targets - logits)**2).mean(axis=-1)
+    mask = (labels != 0).astype(int)
+
+    res = jnp.sum(out * mask)
+    total = jnp.sum(mask)
+    return res / total
+
+
 def parse_loss_name(loss):
     if callable(loss):
         return loss
@@ -71,6 +84,8 @@ def parse_loss_name(loss):
         loss_func = ce_mask
     elif loss == 'mse':
         loss_func = optax.squared_error
+    elif loss == 'mse_mask':
+        loss_func = mse_mask
     else:
         raise ValueError(f'unrecognized loss name: {loss}')
     return loss_func

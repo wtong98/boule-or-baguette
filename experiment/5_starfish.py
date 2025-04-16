@@ -5,6 +5,7 @@
 from pathlib import Path
 import pickle
 
+from flax import linen as nn
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -23,15 +24,62 @@ from model.transformer import TransformerConfig
 from task.graph import *
 
 
+def transformer_phi(X, flatten=True):
+    X_curr = X.reshape(*X.shape, 1, 1)
+
+    X = jnp.repeat(jnp.expand_dims(X, axis=1), X.shape[1], axis=1)
+    X = jnp.permute_dims(X, (0, 3, 1, 2))  # B x H x L x L
+    X = jnp.tril(X)
+    X = jnp.permute_dims(X, (0, 2, 3, 1))  # B x L x L x H
+    X = t(X) @ X
+
+    X = jnp.expand_dims(X, axis=2)
+    X = X_curr * X                            # B x L x j x k x m
+
+    X = jnp.permute_dims(X, (0, 1, 4, 2, 3))  # B x L x m x j x k
+
+    if flatten:
+        X = X.reshape(X.shape[0], X.shape[1], -1)
+    else:
+        X = X.reshape(X.shape[0], X.shape[1], X.shape[2], -1)
+
+    return X
+
+
+@struct.dataclass
+class TrLogRegConfig:
+    n_vocab: float
+    n_hidden: float = 32
+    flatten: bool = False
+
+    def to_model(self):
+        return TrLogReg(self)
+
+
+class TrLogReg(nn.Module):
+    config: TrLogRegConfig
+
+    @nn.compact
+    def __call__(self, inputs):
+        x = nn.Embed(self.config.n_vocab, features=self.config.n_hidden, name='Embed_freeze')(inputs)
+        x = transformer_phi(x, flatten=self.config.flatten)
+        
+        if not self.config.flatten:
+            x = nn.Dense(1, use_bias=False)(x).squeeze()
+
+        x = nn.Dense(self.config.n_vocab, use_bias=False)(x)
+        return x
+
+
 depth = 25
 n_vocab = 2 * depth + 1 + StarfishTask.offset
-n_hidden = 128
-batch_size = 128
+n_hidden = 32
+batch_size = 64
 
-n_layers = 2
+n_layers = 1
 
 cot = True
-ttr = True
+ttr = False
 
 train_task = StarfishTask(depth=depth, samp_dist=(1,10), batch_size=batch_size, cot=cot, trace_to_start=ttr)
 test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=cot, trace_to_start=ttr)
@@ -70,7 +118,6 @@ config = TransformerConfig(n_layers=n_layers,
                            layer_norm=False,
                            as_rf_model=False,
                            residual_connections=False,
-                           use_simple_att=False,
                            freeze_emb=True,
                            use_bias=False,
                            return_final_logits_only=False,
@@ -78,23 +125,34 @@ config = TransformerConfig(n_layers=n_layers,
                            linear_att=True
                            )
 
+config = TrLogRegConfig(n_vocab=n_vocab, n_hidden=n_hidden, flatten=True)
+
 # xs, ys = next(train_task)
 
 # print(xs[:3])
 # print(ys[:3])
 
+# fix_emb = np.random.randn(n_vocab, n_hidden) / np.sqrt(n_hidden)
+
 # <codecell>
+# state = create_train_state(jax.random.key(new_seed()),
+#                            config.to_model(),
+#                            next(train_task)[0],
+#                            lr=1e-3)
+
+# state.params['Embed_freeze']['embedding'] = fix_emb
+
 state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     # loss='bce',
                     loss='ce_mask',
                     test_every=1000,
-                    train_iters=20_000,
+                    train_iters=10_000,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot],
                     print_fn=print_gen,
-                    lr=1e-4,
+                    lr=1e-3,
                     # optim=optax.sgd
                     )
 
@@ -102,32 +160,26 @@ state, hist = train(config,
 # <codecell>
 xs, ys = next(test_task)
 
-config = TransformerConfig(n_layers=n_layers,
-                           n_vocab=n_vocab,
-                           n_out=n_vocab,
-                           n_hidden=n_hidden,
-                           pos_emb=False,
-                           n_mlp_layers=2,
-                           n_heads=1,
-                           layer_norm=True,
-                           as_rf_model=False,
-                           residual_connections=True,
-                           use_simple_att=False,
-                           freeze_emb=True,
-                           use_bias=False,
-                           return_final_logits_only=False,
-                           mup_scale=False,
-                           remove_att=True
-                           )
-model = config.to_model()
-logits = model.apply({'params': state.params}, xs)
+# TODO: investigate with zero temperature
+preds = gen2(state, xs)
 
-# logits = state.apply_fn({'params': state.params}, xs)
-preds = logits.argmax(-1)
+# print('INPT', xs[:3])
+# print('PRED', preds[:3])
+# print('LABL', ys[:3])
 
-print(xs[:3])
-print(preds[:3])
-print(ys[:3])
+print('INPT', xs[-3:])
+print('PRED', preds[-3:])
+print('LABL', ys[-3:])
+
+# <codecell>
+logits = state.apply_fn({'params': state.params}, xs)
+logits[3].argmax(-1)
+
+# <codecell>
+vals = logits[3][18]
+p = np.exp(vals) / np.sum(np.exp(vals))
+plt.plot(p)
+
 
 # <codecell>
 test_task.cot = False
@@ -193,7 +245,56 @@ print(traj[:3])
 print(ys[:3])
 
 # <codecell>
-jax.tree.map(np.shape, state.params)
+### RECONSTRUCTION AS LINEAR FUNCTION
+xs, ys = next(train_task)
+logits = state.apply_fn({'params': state.params}, xs)
+
+W = state.params['Dense_0']['kernel']
+emb = state.params['Embed_freeze']['embedding']
+K = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['key']['kernel'].squeeze()
+Q = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['query']['kernel'].squeeze()
+V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze()
+O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze()
+
+idx = 0
+
+W = V @ O @ W
+A = Q @ K.T
+
+X = emb[xs]
+X = transformer_phi(X, flatten=False)
+# A = A.T.reshape(-1, 1)
+
+# M = jnp.kron(A, W)
+
+# model = TrLogRegConfig(n_vocab).to_model()
+# params = {'Dense_0': {'kernel': M}, 'Embed_freeze': {'embedding': emb}}
+# pred_logits = model.apply({'params': params}, xs)
+
+# pred_logits = X @ np.kron(A, W)
+
+# pred_logits = (W.T @ X @ A.reshape(-1, 1)).squeeze()
+# pred_logits = (X @ A.reshape(-1, 1)).squeeze() @ W
+
+model = TrLogRegConfig(n_vocab, flatten=False).to_model()
+params = {'Dense_0': {'kernel': A.reshape(-1, 1)}, 
+          'Dense_1': {'kernel': W},
+          'Embed_freeze': {'embedding': emb}}
+pred_logits = model.apply({'params': params}, xs)
+
+np.mean((logits - pred_logits)**2)
+
+# <codecell>
+state = create_train_state(jax.random.key(new_seed()), model, xs)
+state.params['Dense_0']['kernel'] = M
+
+batch = next(train_task)
+gen_acc_cot(state, batch)
+
+
+# <codecell>
+x = np.arange(5)[:,None]
+np.tril(np.repeat(x, 5, axis=-1))
 
 # <codecell>
 W = state.params['Dense_0']['kernel']
@@ -386,8 +487,7 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-# hops = [1, 3, 5, 10, 16]
-hops = [10]
+hops = [1, 3, 5, 10, 16]
 set_theme()
 
 for hop in hops:
@@ -401,14 +501,14 @@ for hop in hops:
     g.set_xlabel('Test distance')
     g.set_ylabel('Accuracy')
 
-    plt.savefig(f'fig/star_length_{hop}_gen.png', bbox_inches='tight')
+    plt.savefig(f'fig/star_length_{hop}_gen_lin.png', bbox_inches='tight')
     plt.show()
 
 # <codecell>
 mdf = plot_df.copy()
 sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', errorbar=('ci', False), estimator='max', marker='o', height=2, aspect=1.2)
 
-plt.savefig('fig/star_length_gen.png')
+plt.savefig('fig/star_length_gen_lin.png')
 
 
 # <codecell>
@@ -446,8 +546,7 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-# hops = [1, 3, 5, 10, 16]
-hops = [10]
+hops = [1, 3, 5, 10, 16]
 use_trace_to_start = [True]
 
 for hop, tts in itertools.product(hops, use_trace_to_start):
@@ -471,7 +570,7 @@ for hop, tts in itertools.product(hops, use_trace_to_start):
     g.set_xlabel('Distance')
     g.set_ylabel('Accuracy')
 
-    plt.savefig(f'fig/star_length_{hop}_tts_{tts}_gen.png', bbox_inches='tight')
+    plt.savefig(f'fig/star_length_{hop}_tts_{tts}_gen_lin.png', bbox_inches='tight')
     plt.show()
 
 # <codecell>
@@ -601,7 +700,7 @@ gs.set_ylabels('Accuracy')
 for g in gs.axes.ravel():
     g.axvline(x=5, color='gray', linestyle='dashed')
 
-plt.savefig('fig/rl_star_wide_comparison.png', bbox_inches='tight')
+plt.savefig('fig/rl_star_wide_comparison_lin.png', bbox_inches='tight')
 
 # <codecell>
 mdf = plot_df.copy()
@@ -617,4 +716,4 @@ gs.set_ylabels('Accuracy')
 for g in gs.axes.ravel():
     g.axvline(x=5, color='gray', linestyle='dashed')
 
-plt.savefig('fig/rl_star_size_sweep.png', bbox_inches='tight')
+plt.savefig('fig/rl_star_size_sweep_lin.png', bbox_inches='tight')

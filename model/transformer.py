@@ -142,7 +142,9 @@ class SimpleSelfAttention(nn.Module):
         
         query = nn.DenseGeneral(features=(n_heads, head_dim), name='query', use_bias=False)(inputs)
         key = nn.DenseGeneral(features=(n_heads, head_dim), name='key', use_bias=False)(inputs)
+        # key = jnp.expand_dims(inputs, axis=2)
         value = nn.DenseGeneral(features=(n_heads, head_dim), name='value', use_bias=False)(inputs)
+        # value = jnp.expand_dims(inputs, axis=2)
 
         attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key)
 
@@ -158,7 +160,6 @@ class SimpleSelfAttention(nn.Module):
 
         out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
         out = nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False, name='out')(out)
-        # out = nn.DenseGeneral(features=1, axis=(-2, -1), use_bias=False)(out)
         return out
 
 
