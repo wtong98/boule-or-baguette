@@ -11,7 +11,6 @@ import sys
 sys.path.append('../../../../')
 from common import *
 from train import *
-from model.mlp import MlpConfig
 from model.transformer import TransformerConfig
 from task.graph import *
 
@@ -40,8 +39,10 @@ def transformer_phi(X, flatten=True):
 @struct.dataclass
 class TrLogRegConfig:
     n_vocab: float
+    n_out: float = 1
     n_hidden: float = 32
     flatten: bool = False
+    return_final_logits_only: bool = False
 
     def to_model(self):
         return TrLogReg(self)
@@ -58,7 +59,45 @@ class TrLogReg(nn.Module):
         if not self.config.flatten:
             x = nn.Dense(1, use_bias=False)(x).squeeze()
 
-        x = nn.Dense(self.config.n_vocab, use_bias=False)(x)
+        x = nn.Dense(self.config.n_out, use_bias=False)(x)
+
+        if self.config.return_final_logits_only:
+            x = x[:,-1]
+
+            if self.config.n_out == 1:
+                x = x.flatten()
+
+        return x
+
+
+@struct.dataclass
+class TrConfig:
+    n_vocab: float
+    n_out: float = 1
+    n_hidden: float = 32
+    return_final_logits_only: bool = False
+
+    def to_model(self):
+        return Tr(self)
+
+
+class Tr(nn.Module):
+    config: TrConfig
+
+    @nn.compact
+    def __call__(self, inputs):
+        x = nn.Embed(self.config.n_vocab, features=self.config.n_hidden, name='Embed_freeze')(inputs) # B x L x H
+        Ax = nn.Dense(self.config.n_hidden, use_bias=False)(x)
+        att = jnp.tril(x @ t(Ax))  # B x L x L
+        x = att @ x
+
+        x = nn.Dense(self.config.n_out, use_bias=False)(x)
+        if self.config.return_final_logits_only:
+            x = x[:,-1]
+
+            if self.config.n_out == 1:
+                x = x.flatten()
+
         return x
 
 run_id = new_seed()
@@ -67,6 +106,7 @@ print('RUN ID', run_id)
 run_split = 12
 
 train_iters = 50_000
+cots = [False, True]
 depth = 15
 
 n_hops = np.arange(1, depth - 1)
@@ -82,23 +122,25 @@ n_hidden = 64
 # n_hops = [1]
 
 # n_hidden = 16
+# cots = [False]
 ### END TEST CONFIGS
 
 all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot]
 
-for n_hop in n_hops:
+for cot, n_hop in itertools.product(cots, n_hops):
     n_vocab = 2 * depth + 1 + StarfishTask.offset
 
     model_args = {
         'n_vocab': n_vocab,
         'n_hidden': n_hidden,
-        'use_bias': False,
-        'freeze_emb': True,
+        'n_out': n_vocab if cot else 1,
     }
 
-    def make_train_args(loss='ce_mask'):
+    def make_train_args():
+        loss = 'ce_mask' if cot else 'bce'
+
         args = {
             'loss': loss,
             'test_every': 1000,
@@ -115,7 +157,7 @@ for n_hop in n_hops:
         return args
 
 
-    def make_chain(cot=True):
+    def make_chain():
         task_args = {
             'depth': depth,
             'samp_dist': (1, n_hop),
@@ -127,7 +169,6 @@ for n_hop in n_hops:
     all_cases.extend([
         Case('Full',
                 TransformerConfig(n_heads=1,
-                                  n_out=n_vocab,
                                   n_layers=1,
                                   pos_emb=False, 
                                   return_final_logits_only=False,
@@ -136,21 +177,29 @@ for n_hop in n_hops:
                                   residual_connections=False,
                                   mup_scale=True,
                                   linear_att=True,
+                                  use_bias=False,
+                                  freeze_emb=False,
                                   **model_args),
-                train_args=make_train_args('ce_mask'),
-                train_task=make_chain(cot=True)
+                train_args=make_train_args(),
+                train_task=make_chain()
         ), 
 
-        Case('Mix',
-                TrLogRegConfig(n_vocab=n_vocab, n_hidden=n_hidden, flatten=False),
-                train_args=make_train_args('ce_mask'),
-                train_task=make_chain(cot=True)
+        Case('Mix (dot)',
+                TrConfig(**model_args),
+                train_args=make_train_args(),
+                train_task=make_chain()
+        ), 
+
+        Case('Mix (phi)',
+                TrLogRegConfig(flatten=False, **model_args),
+                train_args=make_train_args(),
+                train_task=make_chain()
         ), 
 
         Case('Flat',
-                TrLogRegConfig(n_vocab=n_vocab, n_hidden=n_hidden, flatten=True),
-                train_args=make_train_args('ce_mask'),
-                train_task=make_chain(cot=True)
+                TrLogRegConfig(flatten=True, **model_args),
+                train_args=make_train_args(),
+                train_task=make_chain()
         ), 
     ])
     

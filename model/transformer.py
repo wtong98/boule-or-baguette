@@ -26,7 +26,7 @@ import numpy as np
 
 import sys
 sys.path.append('../')
-from common import new_seed
+from common import new_seed, t
 
 
 @struct.dataclass
@@ -160,6 +160,7 @@ class SimpleSelfAttention(nn.Module):
 
         out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
         out = nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False, name='out')(out)
+        out = out.squeeze()
         return out
 
 
