@@ -116,7 +116,7 @@ n_hidden = 64
 
 ### START TEST CONFIGS
 # run_split = 1
-# train_iters = 10
+# train_iters = 1000
 
 # depth = 5
 # n_hops = [1]
@@ -136,6 +136,7 @@ for cot, n_hop in itertools.product(cots, n_hops):
         'n_vocab': n_vocab,
         'n_hidden': n_hidden,
         'n_out': n_vocab if cot else 1,
+        'return_final_logits_only': False if cot else True
     }
 
     def make_train_args():
@@ -171,7 +172,6 @@ for cot, n_hop in itertools.product(cots, n_hops):
                 TransformerConfig(n_heads=1,
                                   n_layers=1,
                                   pos_emb=False, 
-                                  return_final_logits_only=False,
                                   n_mlp_layers=0,
                                   layer_norm=False,
                                   residual_connections=False,

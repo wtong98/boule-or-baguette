@@ -266,8 +266,9 @@ def extract_plot_vals(row):
     return pd.Series([
         row['name'],
         row['train_task'].samp_dist[1],
+        row['train_task'].cot,
         row['info'],
-    ], index=['name', 'n_hop', 'info'])
+    ], index=['name', 'n_hop', 'cot', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -291,5 +292,7 @@ plot_df
 
 # <codecell>
 mdf = plot_df.copy()
+mdf = mdf[mdf['cot'] == True]
 sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='max', marker='o', height=2, aspect=1.2)
-plt.savefig('fig/tr_logreg_compare.png')
+
+# plt.savefig('fig/tr_logreg_compare.png')
