@@ -91,27 +91,10 @@ def sinusoidal_init(max_len=2048,
 
 
 class AddPositionEmbs(nn.Module):
-    """Adds (optionally learned) positional embeddings to the inputs.
-
-    Args:
-        config: TransformerConfig dataclass containing hyperparameters.
-    """
     config: TransformerConfig
 
     @nn.compact
     def __call__(self, inputs):
-        """Applies AddPositionEmbs module.
-
-        By default this layer uses a fixed sinusoidal embedding table. If a
-        learned position embedding is desired, pass an initializer to
-        posemb_init in the configuration.
-
-        Args:
-            inputs: input data.
-
-        Returns:
-            output: `(bs, timesteps, in_dim)`
-        """
         config = self.config
         # inputs.shape is (batch_size, seq_len, emb_dim)
         assert inputs.ndim == 3, ('Number of dimensions should be 3,'
@@ -123,6 +106,12 @@ class AddPositionEmbs(nn.Module):
                                                                 None)
         
         pe = pos_embedding[:, :length, :]
+
+        # x = inputs
+        # pe = jnp.arange(x.shape[1])[None]
+        # pe = nn.Embed(self.config.max_len, features=self.config.n_hidden, name='PE_freeze')(pe)
+        # x = x + pe
+
         return inputs + pe
 
 
@@ -160,7 +149,7 @@ class SimpleSelfAttention(nn.Module):
 
         out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
         out = nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False, name='out')(out)
-        out = out.squeeze()
+        # out = out.squeeze()
         return out
 
 

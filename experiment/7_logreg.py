@@ -20,7 +20,7 @@ sys.path.append('../')
 from common import *
 from train import *
 from model.mlp import MlpConfig
-from model.transformer import TransformerConfig 
+from model.transformer import TransformerConfig, sinusoidal_init
 from task.graph import *
 
 
@@ -53,6 +53,8 @@ class TrLogRegConfig:
     n_hidden: float = 32
     flatten: bool = False
     return_final_logits_only: bool = False
+    pos_emb: bool = False
+    max_len: int = 2
 
     def to_model(self):
         return TrLogReg(self)
@@ -64,6 +66,20 @@ class TrLogReg(nn.Module):
     @nn.compact
     def __call__(self, inputs):
         x = nn.Embed(self.config.n_vocab, features=self.config.n_hidden, name='Embed_freeze')(inputs)
+
+        if self.config.pos_emb:
+            pos_emb_shape = (1, config.max_len, x.shape[-1])
+            pos_embedding = sinusoidal_init(max_len=config.max_len)(None,
+                                                                    pos_emb_shape,
+                                                                    None)
+        
+            pe = pos_embedding[:, :x.shape[1], :]
+
+            # ps = jnp.arange(x.shape[1])[None]
+            # ps = nn.Embed(self.config.max_length, features=self.config.n_hidden, name='PE_freeze')(ps)
+
+            x = x + pe
+
         x = transformer_phi(x, flatten=self.config.flatten)
         
         if not self.config.flatten:
@@ -82,10 +98,12 @@ class TrLogReg(nn.Module):
 
 @struct.dataclass
 class TrConfig:
-    n_vocab: float
-    n_out: float = 1
-    n_hidden: float = 32
+    n_vocab: int
+    n_out: int = 1
+    n_hidden: int = 32
     return_final_logits_only: bool = False
+    pos_emb: bool = False
+    max_len: int = 2
 
     def to_model(self):
         return Tr(self)
@@ -97,6 +115,20 @@ class Tr(nn.Module):
     @nn.compact
     def __call__(self, inputs):
         x = nn.Embed(self.config.n_vocab, features=self.config.n_hidden, name='Embed_freeze')(inputs) # B x L x H
+
+        if self.config.pos_emb:
+            pos_emb_shape = (1, config.max_len, x.shape[-1])
+            pos_embedding = sinusoidal_init(max_len=config.max_len)(None,
+                                                                    pos_emb_shape,
+                                                                    None)
+        
+            pe = pos_embedding[:, :x.shape[1], :]
+
+            # ps = jnp.arange(x.shape[1])[None]
+            # ps = nn.Embed(self.config.max_length, features=self.config.n_hidden, name='PE_freeze')(ps)
+
+            x = x + pe
+
         Ax = nn.Dense(self.config.n_hidden, use_bias=False)(x)
         att = jnp.tril(x @ t(Ax))  # B x L x L
         x = att @ x
@@ -111,10 +143,9 @@ class Tr(nn.Module):
         return x
 
 
-
-depth = 15
+depth = 20
 n_vocab = 2 * depth + 1 + StarfishTask.offset
-n_hidden = 32
+n_hidden = 64
 batch_size = 64
 
 n_layers = 1
@@ -122,15 +153,16 @@ n_layers = 1
 cot = False
 ttr = False
 
-train_task = StarfishTask(depth=depth, samp_dist=(1,8), batch_size=batch_size, cot=cot, trace_to_start=ttr)
-test_task = StarfishTask(depth=depth, samp_dist=10, batch_size=batch_size, cot=cot, trace_to_start=ttr)
+train_task = StarfishTask(depth=depth, samp_dist=(1,10), batch_size=batch_size, cot=cot, trace_to_start=ttr)
+test_task = StarfishTask(depth=depth, samp_dist=13, batch_size=batch_size, cot=cot, trace_to_start=ttr)
 
 
 config = TransformerConfig(n_layers=n_layers,
                            n_vocab=n_vocab,
                            n_out=n_vocab if cot else 1,
                            n_hidden=n_hidden,
-                           pos_emb=False,
+                           pos_emb=True,
+                           max_len=100,
                            n_mlp_layers=0,
                            n_heads=1,
                            layer_norm=False,
@@ -140,19 +172,22 @@ config = TransformerConfig(n_layers=n_layers,
                            use_bias=False,
                            return_final_logits_only=False if cot else True,
                            mup_scale=True,
-                           linear_att=False
+                           linear_att=True
                            )
 
 # config = TrLogRegConfig(n_vocab=n_vocab, 
+#                         pos_emb=True,
 #                         n_out=n_vocab if cot else 1,
 #                         n_hidden=n_hidden, 
 #                         flatten=True,
 #                         return_final_logits_only=False if cot else True)
 
-# config = TrConfig(n_vocab=n_vocab, 
-#                   n_out=n_vocab if cot else 1,
-#                   n_hidden=n_hidden, 
-#                   return_final_logits_only=False if cot else True)
+config = TrConfig(n_vocab=n_vocab, 
+                  pos_emb=True,
+                  max_len=100,
+                  n_out=n_vocab if cot else 1,
+                  n_hidden=n_hidden, 
+                  return_final_logits_only=False if cot else True)
 
 # xs, ys = next(train_task)
 
@@ -174,7 +209,7 @@ state, hist = train(config,
                     test_iter=iter(test_task), 
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=20_000,
+                    train_iters=100_000,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot] if cot else None,
                     print_fn=print_gen if cot else None,
@@ -292,7 +327,7 @@ plot_df
 
 # <codecell>
 mdf = plot_df.copy()
-mdf = mdf[mdf['cot'] == True]
+mdf = mdf[mdf['cot'] == False]
 sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='max', marker='o', height=2, aspect=1.2)
 
-# plt.savefig('fig/tr_logreg_compare.png')
+plt.savefig('fig/tr_logreg_compare_no_cot.png')
