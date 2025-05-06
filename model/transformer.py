@@ -80,7 +80,7 @@ def sinusoidal_init(max_len=2048,
         scale_factor = -np.log(max_scale / min_scale) / (d_feature // 2 - 1)
         div_term = min_scale * np.exp(np.arange(0, d_feature // 2) * scale_factor)
         pe[:, :d_feature // 2] = np.sin(position * div_term)
-        pe[:, d_feature // 2: 2 * (d_feature // 2)] = np.cos(position * div_term)
+        pe[:, d_feature // 2:] = np.cos(position * div_term)
 
         if not squeeze:
             pe = pe[np.newaxis, :, :]  # [1, max_len, d_feature]

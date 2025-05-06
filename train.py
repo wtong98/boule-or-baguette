@@ -211,7 +211,7 @@ def train(config, train_iter,
     hist = {
         'train': [],
         'test': [],
-        'params': []
+        'params': [state.params]
     }
 
     it = zip(range(train_iters), train_iter)

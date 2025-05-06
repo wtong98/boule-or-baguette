@@ -103,12 +103,12 @@ def merge_dicts(dicts):
     return all_dicts
 
 
-def gen1(state, xs):
-    return _generate(state, xs, idx=1)
+def gen1(state, xs, **kwargs):
+    return _generate(state, xs, idx=1, **kwargs)
 
 
-def gen2(state, xs):
-    return _generate(state, xs, idx=2)
+def gen2(state, xs, **kwargs):
+    return _generate(state, xs, idx=2, **kwargs)
 
 
 def _generate(state, xs, idx, beta=1, seed=None):

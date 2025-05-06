@@ -20,8 +20,26 @@ sys.path.append('../')
 from common import *
 from train import *
 from model.mlp import MlpConfig
-from model.transformer import TransformerConfig, sinusoidal_init
+from model.transformer import TransformerConfig
 from task.graph import *
+
+def sinusoidal_init(max_len=2048,
+                    squeeze=False):
+
+    def init(key, shape, dtype=np.float32):
+        del key, dtype
+        d_feature = shape[-1]
+        pe = np.zeros((max_len, d_feature), dtype=np.float32)
+        position = np.arange(0, max_len)[:, np.newaxis]
+        pe[:, :d_feature // 2] = np.sin(position * np.pi / 2)
+        pe[:, d_feature // 2:] = np.cos(position * np.pi / 2)
+
+        if not squeeze:
+            pe = pe[np.newaxis, :, :]  # [1, max_len, d_feature]
+
+        return jnp.array(pe)
+
+    return init
 
 
 def transformer_phi(X, flatten=True):
@@ -143,48 +161,58 @@ class Tr(nn.Module):
         return x
 
 
-depth = 20
+# config = TrConfig(10, max_len=2)
+# x = np.ones((10, 2, 64))
+
+# pos_emb_shape = (1, config.max_len, x.shape[-1])
+# pos_embedding = sinusoidal_init(max_len=config.max_len)(None,
+#                                                         pos_emb_shape,
+#                                                         None)
+
+# plt.plot(pos_embedding[0].T, '--o')
+
+# <codecell>
+depth = 10
 n_vocab = 2 * depth + 1 + StarfishTask.offset
-n_hidden = 64
+n_hidden = 512
 batch_size = 64
 
 n_layers = 1
 
-cot = False
+cot = True
 ttr = False
 
-train_task = StarfishTask(depth=depth, samp_dist=(1,10), batch_size=batch_size, cot=cot, trace_to_start=ttr)
-test_task = StarfishTask(depth=depth, samp_dist=13, batch_size=batch_size, cot=cot, trace_to_start=ttr)
+train_task = StarfishTask(depth=depth, samp_dist=(1,5), batch_size=batch_size, cot=cot, trace_to_start=ttr)
+test_task = StarfishTask(depth=depth, samp_dist=6, batch_size=batch_size, cot=cot, trace_to_start=ttr)
 
 
-config = TransformerConfig(n_layers=n_layers,
-                           n_vocab=n_vocab,
-                           n_out=n_vocab if cot else 1,
-                           n_hidden=n_hidden,
-                           pos_emb=True,
-                           max_len=100,
-                           n_mlp_layers=0,
-                           n_heads=1,
-                           layer_norm=False,
-                           as_rf_model=False,
-                           residual_connections=False,
-                           freeze_emb=True,
-                           use_bias=False,
-                           return_final_logits_only=False if cot else True,
-                           mup_scale=True,
-                           linear_att=True
-                           )
+# config = TransformerConfig(n_layers=n_layers,
+#                            n_vocab=n_vocab,
+#                            n_out=n_vocab if cot else 1,
+#                            n_hidden=n_hidden,
+#                            pos_emb=False,
+#                            max_len=100,
+#                            n_mlp_layers=0,
+#                            n_heads=1,
+#                            layer_norm=False,
+#                            as_rf_model=False,
+#                            residual_connections=False,
+#                            freeze_emb=True,
+#                            use_bias=False,
+#                            return_final_logits_only=False if cot else True,
+#                            mup_scale=True,
+#                            linear_att=True
+#                            )
 
 # config = TrLogRegConfig(n_vocab=n_vocab, 
 #                         pos_emb=True,
 #                         n_out=n_vocab if cot else 1,
 #                         n_hidden=n_hidden, 
-#                         flatten=True,
+#                         flatten=False,
 #                         return_final_logits_only=False if cot else True)
 
 config = TrConfig(n_vocab=n_vocab, 
-                  pos_emb=True,
-                  max_len=100,
+                  pos_emb=False,
                   n_out=n_vocab if cot else 1,
                   n_hidden=n_hidden, 
                   return_final_logits_only=False if cot else True)
@@ -209,12 +237,11 @@ state, hist = train(config,
                     test_iter=iter(test_task), 
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=100_000,
+                    train_iters=10_000,
                     use_tqdm=False,
                     eval_fns=[loss_and_acc, gen_acc_cot] if cot else None,
                     print_fn=print_gen if cot else None,
                     lr=1e-3
-                    # optim=optax.sgd
                     )
 
 # <codecell>
@@ -225,12 +252,54 @@ emb = state.params['Embed_freeze']['embedding']
 A = state.params['Dense_0']['kernel']
 W = state.params['Dense_1']['kernel']
 
+coeff = np.linalg.pinv(emb @ emb.T) @ emb @ W
+W_est = emb.T @ coeff
+
+out = np.einsum('ai,bj->abij', emb, emb)
+out = out.reshape(out.shape[0]**2, -1)
+
+a_coeff = np.linalg.pinv(out @ out.T) @ out @ A.reshape(-1, 1)
+A_est = out.T @ a_coeff
+A_est = A_est.reshape(A.shape)
+
 xs, ys = next(train_task)
 X = emb[xs]
-X = transformer_phi(X, flatten=False)
 
-logits = ((X @ A).squeeze() @ W).squeeze()
-logits[:,-1]
+logits = np.tril(X @ t(A_est) @ t(X)) @ X @ W_est
+logits = logits
+logits
+
+# <codecell>
+true_logits = state.apply_fn({'params': state.params}, xs)
+true_logits
+
+# <codecell>
+np.mean(np.abs(logits - true_logits))
+
+# <codecell>
+# EXPLICATION OF FAILURE MODE
+xs = jnp.array([[6, 20, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+gen2(state, xs)
+
+# <codecell>
+xs = jnp.array([[6, 20, 3, 20, 18]])
+X = emb[xs]
+
+att = X @ t(A_est) @ t(X)
+logits = np.tril(att) @ X @ W_est
+plt.plot(logits[0, -1])
+
+np.round(np.tril(att), decimals=2)
+
+# <codecell>
+tok = emb[14][None]
+plt.plot((tok @ W_est).flatten())
+
+# <codecell>
+A_orig = hist['params'][0]['Dense_0']['kernel']
+
+toks = emb[np.array([6, 24])]
+toks @ t(A) @ t(toks)
 
 # <codecell>
 state.apply_fn({'params': state.params}, xs).squeeze()
@@ -300,10 +369,11 @@ df
 def extract_plot_vals(row):
     return pd.Series([
         row['name'],
+        row['config']['pos_emb'],
         row['train_task'].samp_dist[1],
         row['train_task'].cot,
         row['info'],
-    ], index=['name', 'n_hop', 'cot', 'info'])
+    ], index=['name', 'pos_emb', 'n_hop', 'cot', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -327,7 +397,17 @@ plot_df
 
 # <codecell>
 mdf = plot_df.copy()
-mdf = mdf[mdf['cot'] == False]
-sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='max', marker='o', height=2, aspect=1.2)
+mdf = mdf[
+    (mdf['cot'] == False)
+    & (mdf['pos_emb'] == True)
+    ]
+sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='max', marker='o', height=2, aspect=1.2, hue_order=['Full', 'Mix (dot)', 'Mix (phi)', 'Flat'])
+plt.savefig('fig/tr_logreg_compare_no_cot_pe.png')
 
-plt.savefig('fig/tr_logreg_compare_no_cot.png')
+# <codecell>
+mdf = plot_df.copy()
+mdf = mdf[mdf['n_hop'] == 6]
+
+sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='pos_emb', row='cot', kind='line', estimator='max', marker='o', height=2, aspect=1.2, hue_order=['Full', 'Mix (dot)', 'Mix (phi)', 'Flat'])
+plt.savefig('fig/n_hop_6_sweep.png')
+
