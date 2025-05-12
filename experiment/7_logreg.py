@@ -175,16 +175,18 @@ class Tr(nn.Module):
 depth = 10
 n_vocab = 2 * depth + 1 + StarfishTask.offset
 n_hidden = 512
-batch_size = 64
+batch_size = 128
 
 n_layers = 1
 
 cot = True
 ttr = False
+nouveau = True
 
-train_task = StarfishTask(depth=depth, samp_dist=(1,5), batch_size=batch_size, cot=cot, trace_to_start=ttr)
-test_task = StarfishTask(depth=depth, samp_dist=6, batch_size=batch_size, cot=cot, trace_to_start=ttr)
+train_task = StarfishTask(depth=depth, samp_dist=(1,4), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
+test_task = StarfishTask(depth=depth, samp_dist=6, batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
 
+# <codecell>
 
 # config = TransformerConfig(n_layers=n_layers,
 #                            n_vocab=n_vocab,
@@ -244,13 +246,13 @@ state, hist = train(config,
                     lr=1e-3
                     )
 
-# <codecell>
-jax.tree.map(np.shape, state.params)
 
 # <codecell>
-emb = state.params['Embed_freeze']['embedding']
-A = state.params['Dense_0']['kernel']
-W = state.params['Dense_1']['kernel']
+emb = np.array(state.params['Embed_freeze']['embedding'])
+A = np.array(state.params['Dense_0']['kernel'])
+W = np.array(state.params['Dense_1']['kernel'])
+
+# <codecell>
 
 coeff = np.linalg.pinv(emb @ emb.T) @ emb @ W
 W_est = emb.T @ coeff
@@ -267,22 +269,17 @@ X = emb[xs]
 
 logits = np.tril(X @ t(A_est) @ t(X)) @ X @ W_est
 logits = logits
-logits
 
-# <codecell>
 true_logits = state.apply_fn({'params': state.params}, xs)
-true_logits
-
-# <codecell>
 np.mean(np.abs(logits - true_logits))
 
 # <codecell>
 # EXPLICATION OF FAILURE MODE
-xs = jnp.array([[6, 20, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
-gen2(state, xs)
+xs = jnp.array([[3, 6, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+gen2(state, xs, beta=1)
 
 # <codecell>
-xs = jnp.array([[6, 20, 3, 20, 18]])
+xs = jnp.array([[23, 25, 3, 25, 23]])
 X = emb[xs]
 
 att = X @ t(A_est) @ t(X)
@@ -292,17 +289,113 @@ plt.plot(logits[0, -1])
 np.round(np.tril(att), decimals=2)
 
 # <codecell>
-tok = emb[14][None]
-plt.plot((tok @ W_est).flatten())
+# tok = emb[3][None]
+# plt.plot((tok @ W_est).flatten())
+
+plt.imshow(emb @ W, cmap='BrBG', vmin=-4, vmax=4)
+# plt.imshow(emb @ W, cmap='BrBG', vmin=-10, vmax=10)
+plt.colorbar()
+plt.title('readout')
+plt.savefig('fig/lin_readout.png')
 
 # <codecell>
-A_orig = hist['params'][0]['Dense_0']['kernel']
+att = emb @ t(A) @ t(emb)
+plt.imshow(att, cmap='BrBG', vmin=-20, vmax=20)
+# plt.imshow(att, cmap='BrBG', vmin=-30, vmax=30)
+plt.colorbar()
 
-toks = emb[np.array([6, 24])]
-toks @ t(A) @ t(toks)
+plt.title('att')
+plt.savefig('fig/lin_att.png')
+
+att[20,3]
 
 # <codecell>
-state.apply_fn({'params': state.params}, xs).squeeze()
+
+readout = emb @ W
+
+plt.imshow(att.T / np.max(att), cmap='BrBG')
+# plt.imshow(readout / np.max(readout), cmap='BrBG')
+plt.colorbar()
+
+
+# a = att.T.flatten()
+# r = readout.flatten()
+# plt.scatter(a, r, alpha=0.3)
+
+# <codecell>
+### CUSTOM GENERALIZING SOLUTION
+n_vocab = emb.shape[0]
+readout = np.zeros((n_vocab, n_vocab))
+
+readout[3, 4:] = 2
+
+readout[4:,1] = -4
+readout[4:,2] = 2
+
+readout[5, 4] = 1
+readout[np.arange(6, n_vocab),np.arange(4, n_vocab - 2)] = 1
+readout = emb.T @ readout
+plt.imshow(emb @ readout, cmap='BrBG', vmin=-4, vmax=4)
+plt.colorbar()
+
+# <codecell>
+att = np.zeros((n_vocab, n_vocab))
+att[np.arange(4, n_vocab), np.arange(4, n_vocab)] = 1
+att[np.arange(4, n_vocab - 1), np.arange(5, n_vocab)] = -2
+att[4:,3] = 1
+
+att = emb.T @ att.T @ emb
+
+plt.imshow(emb @ t(att) @ emb.T, cmap='BrBG', vmin=-2, vmax=2)
+plt.colorbar()
+
+# <codecell>
+params = {
+    'Dense_0': {'kernel': att},
+    'Dense_1': {'kernel': readout},
+    'Embed_freeze': {'embedding': emb}
+}
+
+xs, ys = next(test_task)
+logits = state.apply_fn({'params': params}, xs)
+preds = logits.argmax(-1)
+
+print('ys', ys[:3])
+print('pr', preds[:3])
+
+print('ys', ys[-3:])
+print('pr', preds[-3:])
+
+# <codecell>
+state = state.replace(params=params)
+preds = gen2(state, xs, beta=1)[:3]
+
+print('ys', ys[:3])
+print('pr', preds[:3])
+
+# <codecell>
+att = params['Dense_0']['kernel']
+W = params['Dense_1']['kernel']
+
+xs = jnp.array([[3, 7, 20, 18, 16, 14, 12, 10]])
+X = emb[xs]
+
+att = X @ t(att) @ t(X)
+logits = np.tril(att) @ X @ W
+plt.plot(logits[0, -1])
+print(np.argmax(logits[0, -1]))
+
+np.round(np.tril(att), decimals=2)
+
+# <codecell>
+plt.imshow(emb @ W, cmap='BrBG', vmin=-2, vmax=2)
+out = emb @ W
+out[3, 8]
+
+# <codecell>
+xs = jnp.array([[3, 7, 20, 0, 0, 0]])
+gen2(state, xs, beta=100)
+
 
 # <codecell>
 emb = state.params['Embed_freeze']['embedding']
@@ -403,6 +496,62 @@ mdf = mdf[
     ]
 sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='max', marker='o', height=2, aspect=1.2, hue_order=['Full', 'Mix (dot)', 'Mix (phi)', 'Flat'])
 plt.savefig('fig/tr_logreg_compare_no_cot_pe.png')
+
+# <codecell>
+mdf = plot_df.copy()
+mdf = mdf[mdf['n_hop'] == 6]
+
+sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='pos_emb', row='cot', kind='line', estimator='max', marker='o', height=2, aspect=1.2, hue_order=['Full', 'Mix (dot)', 'Mix (phi)', 'Flat'])
+plt.savefig('fig/n_hop_6_sweep.png')
+
+
+# <codecell>
+### LENGTHWISE GENERALIZATION
+df = collate_dfs('remote/7_logreg/complex', show_progress=True)
+df
+
+# <codecell>
+def extract_plot_vals(row):
+    return pd.Series([
+        row['name'],
+        row['config']['pos_emb'],
+        row['train_task'].samp_dist[1],
+        row['train_task'].cot,
+        row['train_args']['lr'],
+        row['info'],
+    ], index=['name', 'pos_emb', 'n_hop', 'cot', 'lr', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+
+# <codecell>
+for pe, cot in itertools.product([True, False], [True, False]):
+    mdf = plot_df.copy()
+    mdf = mdf[
+        (mdf['cot'] == cot)
+        & (mdf['pos_emb'] == pe)
+        & (mdf['lr'] == 1e-4)
+        ]
+    sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='mean', marker='o', height=2, aspect=1.2)
+    plt.savefig(f'fig/tr_compare_pe_{pe}_cot_{cot}.png')
+    plt.show()
 
 # <codecell>
 mdf = plot_df.copy()

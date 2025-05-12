@@ -143,6 +143,7 @@ class SimpleSelfAttention(nn.Module):
             else:
                 attn_weights = jnp.where(mask, attn_weights, -jnp.inf)
                 attn_weights = jax.nn.softmax(attn_weights / head_dim, axis=-1)
+                # attn_weights = jax.nn.softmax(attn_weights / np.sqrt(head_dim), axis=-1)
 
 
         self.sow('intermediates', 'attention_weights', attn_weights)

@@ -636,7 +636,7 @@ gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='d
 # plt.savefig(f'fig/acc_rl_stable_small_max_{branch}.png')
 
 # <codecell>
-df = collate_dfs('remote/5_starfish/rl_rep', show_progress=True)
+df = collate_dfs('remote/5_starfish/rl_rep/set1_nonlin_good', show_progress=True)
 df
 
 # <codecell>
@@ -701,6 +701,24 @@ for g in gs.axes.ravel():
     g.axvline(x=5, color='gray', linestyle='dashed')
 
 plt.savefig('fig/rl_star_wide_comparison_lin.png', bbox_inches='tight')
+
+# <codecell>
+mdf = plot_df.copy()
+mdf = mdf[mdf['n_hidden'] == 512]
+mdf = mdf[mdf['trace_to_start'] == False]
+
+mdf['test_len'] = mdf['test_len'].astype(float)
+
+gs = sns.relplot(mdf, kind='line', x='test_len', y='gen_acc', hue='mode', col='train_iters', marker='o', height=3, aspect=1.8, alpha=0.7, estimator='max')
+
+gs.set_titles('Train iters = {col_name}')
+gs.set_xlabels('Distance')
+gs.set_ylabels('Accuracy')
+
+for g in gs.axes.ravel():
+    g.axvline(x=5, color='gray', linestyle='dashed')
+
+plt.savefig('fig/rl_star_wide_comp_trunc.png', bbox_inches='tight')
 
 # <codecell>
 mdf = plot_df.copy()

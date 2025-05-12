@@ -66,11 +66,11 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-train_iters = 50_000
+train_iters = 100_000
 cots = [False, True]
 pos_emb = [False, True]
 depth = 20
-lrs = [1e-3, 5e-4, 1e-4]
+lrs = [1e-3, 1e-4, 1e-5]
 
 n_hops = np.arange(1, depth - 1)
 
@@ -150,6 +150,66 @@ for lr, pos_emb, cot, n_hop in itertools.product(lrs, pos_emb, cots, n_hops):
                 train_task=make_chain()
         ), 
 
+        Case('Linear 2',
+                TransformerConfig(n_heads=1,
+                                  n_layers=2,
+                                  n_mlp_layers=0,
+                                  layer_norm=False,
+                                  residual_connections=False,
+                                  mup_scale=True,
+                                  linear_att=True,
+                                  use_bias=False,
+                                  freeze_emb=False,
+                                  **model_args),
+                train_args=make_train_args(),
+                train_task=make_chain()
+        ), 
+
+        Case('Linear 2 + resid',
+                TransformerConfig(n_heads=1,
+                                  n_layers=2,
+                                  n_mlp_layers=0,
+                                  layer_norm=False,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=True,
+                                  use_bias=False,
+                                  freeze_emb=False,
+                                  **model_args),
+                train_args=make_train_args(),
+                train_task=make_chain()
+        ), 
+
+        Case('Linear 4',
+                TransformerConfig(n_heads=1,
+                                  n_layers=4,
+                                  n_mlp_layers=0,
+                                  layer_norm=False,
+                                  residual_connections=False,
+                                  mup_scale=True,
+                                  linear_att=True,
+                                  use_bias=False,
+                                  freeze_emb=False,
+                                  **model_args),
+                train_args=make_train_args(),
+                train_task=make_chain()
+        ), 
+
+        Case('Linear 4 + resid',
+                TransformerConfig(n_heads=1,
+                                  n_layers=4,
+                                  n_mlp_layers=0,
+                                  layer_norm=False,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=True,
+                                  use_bias=False,
+                                  freeze_emb=False,
+                                  **model_args),
+                train_args=make_train_args(),
+                train_task=make_chain()
+        ), 
+
         Case('SM 1',
                 TransformerConfig(n_heads=1,
                                   n_layers=1,
@@ -165,50 +225,50 @@ for lr, pos_emb, cot, n_hop in itertools.product(lrs, pos_emb, cots, n_hops):
                 train_task=make_chain()
         ), 
 
-        Case('SM 2',
-                TransformerConfig(n_heads=1,
-                                  n_layers=2,
-                                  n_mlp_layers=0,
-                                  layer_norm=False,
-                                  residual_connections=False,
-                                  mup_scale=True,
-                                  linear_att=False,
-                                  use_bias=False,
-                                  freeze_emb=False,
-                                  **model_args),
-                train_args=make_train_args(),
-                train_task=make_chain()
-        ), 
+        # Case('SM 2',
+        #         TransformerConfig(n_heads=1,
+        #                           n_layers=1,
+        #                           n_mlp_layers=0,
+        #                           layer_norm=False,
+        #                           residual_connections=False,
+        #                           mup_scale=True,
+        #                           linear_att=False,
+        #                           use_bias=False,
+        #                           freeze_emb=False,
+        #                           **model_args),
+        #         train_args=make_train_args(),
+        #         train_task=make_chain()
+        # ), 
 
-        Case('SM 4',
-                TransformerConfig(n_heads=1,
-                                  n_layers=4,
-                                  n_mlp_layers=0,
-                                  layer_norm=False,
-                                  residual_connections=False,
-                                  mup_scale=True,
-                                  linear_att=False,
-                                  use_bias=False,
-                                  freeze_emb=False,
-                                  **model_args),
-                train_args=make_train_args(),
-                train_task=make_chain()
-        ), 
+        # Case('SM 4',
+        #         TransformerConfig(n_heads=1,
+        #                           n_layers=4,
+        #                           n_mlp_layers=0,
+        #                           layer_norm=False,
+        #                           residual_connections=False,
+        #                           mup_scale=True,
+        #                           linear_att=False,
+        #                           use_bias=False,
+        #                           freeze_emb=False,
+        #                           **model_args),
+        #         train_args=make_train_args(),
+        #         train_task=make_chain()
+        # ), 
 
-        Case('SM 2 + MLP',
-                TransformerConfig(n_heads=1,
-                                  n_layers=2,
-                                  n_mlp_layers=2,
-                                  layer_norm=False,
-                                  residual_connections=False,
-                                  mup_scale=True,
-                                  linear_att=False,
-                                  use_bias=False,
-                                  freeze_emb=False,
-                                  **model_args),
-                train_args=make_train_args(),
-                train_task=make_chain()
-        ), 
+        # Case('SM 2 + MLP',
+        #         TransformerConfig(n_heads=1,
+        #                           n_layers=2,
+        #                           n_mlp_layers=2,
+        #                           layer_norm=False,
+        #                           residual_connections=False,
+        #                           mup_scale=True,
+        #                           linear_att=False,
+        #                           use_bias=False,
+        #                           freeze_emb=False,
+        #                           **model_args),
+        #         train_args=make_train_args(),
+        #         train_task=make_chain()
+        # ), 
 
         Case('SM 2 + MLP + resid',
                 TransformerConfig(n_heads=1,
