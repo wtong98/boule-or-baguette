@@ -241,6 +241,125 @@ class Transformer(nn.Module):
         return logits
 
 
+def transformer_phi(X, flatten=True):
+    X_curr = X.reshape(*X.shape, 1, 1)
+
+    X = jnp.repeat(jnp.expand_dims(X, axis=1), X.shape[1], axis=1)
+    X = jnp.permute_dims(X, (0, 3, 1, 2))  # B x H x L x L
+    X = jnp.tril(X)
+    X = jnp.permute_dims(X, (0, 2, 3, 1))  # B x L x L x H
+    X = t(X) @ X
+
+    X = jnp.expand_dims(X, axis=2)
+    X = X_curr * X                            # B x L x j x k x m
+
+    X = jnp.permute_dims(X, (0, 1, 4, 2, 3))  # B x L x m x j x k
+
+    if flatten:
+        X = X.reshape(X.shape[0], X.shape[1], -1)
+    else:
+        X = X.reshape(X.shape[0], X.shape[1], X.shape[2], -1)
+
+    return X
+
+
+@struct.dataclass
+class TrLogRegConfig:
+    n_vocab: float
+    n_out: float = 1
+    n_hidden: float = 32
+    flatten: bool = False
+    return_final_logits_only: bool = False
+    pos_emb: bool = False
+    max_len: int = 2
+
+    def to_model(self):
+        return TrLogReg(self)
+
+
+class TrLogReg(nn.Module):
+    config: TrLogRegConfig
+
+    @nn.compact
+    def __call__(self, inputs):
+        x = nn.Embed(self.config.n_vocab, features=self.config.n_hidden, name='Embed_freeze')(inputs)
+
+        if self.config.pos_emb:
+            pos_emb_shape = (1, self.config.max_len, x.shape[-1])
+            pos_embedding = sinusoidal_init(max_len=self.config.max_len)(None,
+                                                                    pos_emb_shape,
+                                                                    None)
+        
+            pe = pos_embedding[:, :x.shape[1], :]
+
+            # ps = jnp.arange(x.shape[1])[None]
+            # ps = nn.Embed(self.config.max_length, features=self.config.n_hidden, name='PE_freeze')(ps)
+
+            x = x + pe
+
+        x = transformer_phi(x, flatten=self.config.flatten)
+        
+        if not self.config.flatten:
+            x = nn.Dense(1, use_bias=False)(x).squeeze()
+
+        x = nn.Dense(self.config.n_out, use_bias=False)(x)
+
+        if self.config.return_final_logits_only:
+            x = x[:,-1]
+
+            if self.config.n_out == 1:
+                x = x.flatten()
+
+        return x
+
+
+@struct.dataclass
+class TrConfig:
+    n_vocab: int
+    n_out: int = 1
+    n_hidden: int = 32
+    return_final_logits_only: bool = False
+    pos_emb: bool = False
+    max_len: int = 2
+
+    def to_model(self):
+        return Tr(self)
+
+
+class Tr(nn.Module):
+    config: TrConfig
+
+    @nn.compact
+    def __call__(self, inputs):
+        x = nn.Embed(self.config.n_vocab, features=self.config.n_hidden, name='Embed_freeze')(inputs) # B x L x H
+
+        if self.config.pos_emb:
+            pos_emb_shape = (1, self.config.max_len, x.shape[-1])
+            pos_embedding = sinusoidal_init(max_len=self.config.max_len)(None,
+                                                                    pos_emb_shape,
+                                                                    None)
+        
+            pe = pos_embedding[:, :x.shape[1], :]
+
+            # ps = jnp.arange(x.shape[1])[None]
+            # ps = nn.Embed(self.config.max_length, features=self.config.n_hidden, name='PE_freeze')(ps)
+
+            x = x + pe
+
+        Ax = nn.Dense(self.config.n_hidden, use_bias=False)(x)
+        att = jnp.tril(x @ t(Ax))  # B x L x L
+        x = att @ x
+
+        x = nn.Dense(self.config.n_out, use_bias=False)(x)
+        if self.config.return_final_logits_only:
+            x = x[:,-1]
+
+            if self.config.n_out == 1:
+                x = x.flatten()
+
+        return x
+
+
 ## COORDINATE CHECKING
 # import matplotlib.pyplot as plt
 

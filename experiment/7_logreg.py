@@ -2,174 +2,18 @@
 
 
 # <codecell>
-from pathlib import Path
-import pickle
-
-from flax import linen as nn
-import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
-import optax
 import pandas as pd
 import seaborn as sns
-from tqdm import tqdm
 
 import sys
 sys.path.append('../')
 from common import *
 from train import *
-from model.mlp import MlpConfig
-from model.transformer import TransformerConfig
+from model.transformer import *
 from task.graph import *
-
-def sinusoidal_init(max_len=2048,
-                    squeeze=False):
-
-    def init(key, shape, dtype=np.float32):
-        del key, dtype
-        d_feature = shape[-1]
-        pe = np.zeros((max_len, d_feature), dtype=np.float32)
-        position = np.arange(0, max_len)[:, np.newaxis]
-        pe[:, :d_feature // 2] = np.sin(position * np.pi / 2)
-        pe[:, d_feature // 2:] = np.cos(position * np.pi / 2)
-
-        if not squeeze:
-            pe = pe[np.newaxis, :, :]  # [1, max_len, d_feature]
-
-        return jnp.array(pe)
-
-    return init
-
-
-def transformer_phi(X, flatten=True):
-    X_curr = X.reshape(*X.shape, 1, 1)
-
-    X = jnp.repeat(jnp.expand_dims(X, axis=1), X.shape[1], axis=1)
-    X = jnp.permute_dims(X, (0, 3, 1, 2))  # B x H x L x L
-    X = jnp.tril(X)
-    X = jnp.permute_dims(X, (0, 2, 3, 1))  # B x L x L x H
-    X = t(X) @ X
-
-    X = jnp.expand_dims(X, axis=2)
-    X = X_curr * X                            # B x L x j x k x m
-
-    X = jnp.permute_dims(X, (0, 1, 4, 2, 3))  # B x L x m x j x k
-
-    if flatten:
-        X = X.reshape(X.shape[0], X.shape[1], -1)
-    else:
-        X = X.reshape(X.shape[0], X.shape[1], X.shape[2], -1)
-
-    return X
-
-
-@struct.dataclass
-class TrLogRegConfig:
-    n_vocab: float
-    n_out: float = 1
-    n_hidden: float = 32
-    flatten: bool = False
-    return_final_logits_only: bool = False
-    pos_emb: bool = False
-    max_len: int = 2
-
-    def to_model(self):
-        return TrLogReg(self)
-
-
-class TrLogReg(nn.Module):
-    config: TrLogRegConfig
-
-    @nn.compact
-    def __call__(self, inputs):
-        x = nn.Embed(self.config.n_vocab, features=self.config.n_hidden, name='Embed_freeze')(inputs)
-
-        if self.config.pos_emb:
-            pos_emb_shape = (1, config.max_len, x.shape[-1])
-            pos_embedding = sinusoidal_init(max_len=config.max_len)(None,
-                                                                    pos_emb_shape,
-                                                                    None)
-        
-            pe = pos_embedding[:, :x.shape[1], :]
-
-            # ps = jnp.arange(x.shape[1])[None]
-            # ps = nn.Embed(self.config.max_length, features=self.config.n_hidden, name='PE_freeze')(ps)
-
-            x = x + pe
-
-        x = transformer_phi(x, flatten=self.config.flatten)
-        
-        if not self.config.flatten:
-            x = nn.Dense(1, use_bias=False)(x).squeeze()
-
-        x = nn.Dense(self.config.n_out, use_bias=False)(x)
-
-        if self.config.return_final_logits_only:
-            x = x[:,-1]
-
-            if config.n_out == 1:
-                x = x.flatten()
-
-        return x
-
-
-@struct.dataclass
-class TrConfig:
-    n_vocab: int
-    n_out: int = 1
-    n_hidden: int = 32
-    return_final_logits_only: bool = False
-    pos_emb: bool = False
-    max_len: int = 2
-
-    def to_model(self):
-        return Tr(self)
-
-
-class Tr(nn.Module):
-    config: TrConfig
-
-    @nn.compact
-    def __call__(self, inputs):
-        x = nn.Embed(self.config.n_vocab, features=self.config.n_hidden, name='Embed_freeze')(inputs) # B x L x H
-
-        if self.config.pos_emb:
-            pos_emb_shape = (1, config.max_len, x.shape[-1])
-            pos_embedding = sinusoidal_init(max_len=config.max_len)(None,
-                                                                    pos_emb_shape,
-                                                                    None)
-        
-            pe = pos_embedding[:, :x.shape[1], :]
-
-            # ps = jnp.arange(x.shape[1])[None]
-            # ps = nn.Embed(self.config.max_length, features=self.config.n_hidden, name='PE_freeze')(ps)
-
-            x = x + pe
-
-        Ax = nn.Dense(self.config.n_hidden, use_bias=False)(x)
-        att = jnp.tril(x @ t(Ax))  # B x L x L
-        x = att @ x
-
-        x = nn.Dense(self.config.n_out, use_bias=False)(x)
-        if self.config.return_final_logits_only:
-            x = x[:,-1]
-
-            if config.n_out == 1:
-                x = x.flatten()
-
-        return x
-
-
-# config = TrConfig(10, max_len=2)
-# x = np.ones((10, 2, 64))
-
-# pos_emb_shape = (1, config.max_len, x.shape[-1])
-# pos_embedding = sinusoidal_init(max_len=config.max_len)(None,
-#                                                         pos_emb_shape,
-#                                                         None)
-
-# plt.plot(pos_embedding[0].T, '--o')
 
 # <codecell>
 depth = 10
@@ -183,10 +27,8 @@ cot = True
 ttr = False
 nouveau = True
 
-train_task = StarfishTask(depth=depth, samp_dist=(1,4), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
-test_task = StarfishTask(depth=depth, samp_dist=6, batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
-
-# <codecell>
+train_task = StarfishTask(depth=depth, samp_dist=(1,3), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
+test_task = StarfishTask(depth=depth, samp_dist=5, batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
 
 # config = TransformerConfig(n_layers=n_layers,
 #                            n_vocab=n_vocab,
@@ -253,7 +95,6 @@ A = np.array(state.params['Dense_0']['kernel'])
 W = np.array(state.params['Dense_1']['kernel'])
 
 # <codecell>
-
 coeff = np.linalg.pinv(emb @ emb.T) @ emb @ W
 W_est = emb.T @ coeff
 
@@ -275,39 +116,76 @@ np.mean(np.abs(logits - true_logits))
 
 # <codecell>
 # EXPLICATION OF FAILURE MODE
-xs = jnp.array([[3, 6, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+xs = jnp.array([[3, 6, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
 gen2(state, xs, beta=1)
 
 # <codecell>
-xs = jnp.array([[23, 25, 3, 25, 23]])
+xs = jnp.array([[3, 33, 50]])
 X = emb[xs]
 
-att = X @ t(A_est) @ t(X)
-logits = np.tril(att) @ X @ W_est
+att = X @ t(A) @ t(X)
+logits = np.tril(att) @ X @ W
 plt.plot(logits[0, -1])
 
 np.round(np.tril(att), decimals=2)
 
 # <codecell>
+out = X @ W
+plt.imshow(out.squeeze(), cmap='BrBG', vmin=-5, vmax=5)
+# plt.plot(out.squeeze().T, '--o', alpha=0.8)
+# plt.plot(logits[0, -1] / 4, '--o', color='gray', alpha=0.5)
+plt.axvline(48, color='magenta', alpha=0.3)
+# plt.colorbar()
+
+# <codecell>
 # tok = emb[3][None]
 # plt.plot((tok @ W_est).flatten())
+thr = max(np.max(emb @ W), -np.min(emb @ W))
 
-plt.imshow(emb @ W, cmap='BrBG', vmin=-4, vmax=4)
+plt.imshow(emb @ W, cmap='BrBG', vmin=-thr, vmax=thr)
+# plt.imshow(emb @ W, cmap='BrBG', vmin=-4, vmax=4)
 # plt.imshow(emb @ W, cmap='BrBG', vmin=-10, vmax=10)
 plt.colorbar()
 plt.title('readout')
+
+xs = np.linspace(0, 21)
+plt.plot(xs, xs + 2, color='red', alpha=0.3)
+
 plt.savefig('fig/lin_readout.png')
 
 # <codecell>
 att = emb @ t(A) @ t(emb)
-plt.imshow(att, cmap='BrBG', vmin=-20, vmax=20)
+thr = max(np.max(att), -np.min(att))
+
+plt.imshow(att, cmap='BrBG', vmin=-thr, vmax=thr)
+# plt.imshow(att, cmap='BrBG', vmin=-20, vmax=20)
 # plt.imshow(att, cmap='BrBG', vmin=-30, vmax=30)
 plt.colorbar()
+
+xs = np.linspace(0, 23)
+plt.plot(xs, xs, color='red', alpha=0.3)
 
 plt.title('att')
 plt.savefig('fig/lin_att.png')
 
-att[20,3]
+
+# <codecell>
+Wr = emb @ W
+
+Wr[:,13]
+
+res_next = -0.1 * np.sum(np.abs(Wr), axis=1) + 2 * Wr[:,13]
+
+res_1 = -0.2 * np.sum(np.abs(Wr), axis=1) + 2 * Wr[:,1]
+res_2 = -0.2 * np.sum(np.abs(Wr), axis=1) + 2 * Wr[:,2]
+
+plt.plot(res_next)
+plt.plot(res_1)
+plt.plot(res_2)
+
+res_total = 0.2 * (res_1 + res_2) + res_next
+plt.plot(res_total)
+
 
 # <codecell>
 
@@ -542,15 +420,17 @@ plot_df
 
 
 # <codecell>
+adf = plot_df.drop(['orig_index', 'loss'], axis=1)
+adf = adf.groupby(['pos_emb', 'cot', 'n_hop', 'test_n_hop', 'name'], as_index=False).max()
+
 for pe, cot in itertools.product([True, False], [True, False]):
-    mdf = plot_df.copy()
+    mdf = adf.copy()
     mdf = mdf[
         (mdf['cot'] == cot)
         & (mdf['pos_emb'] == pe)
-        & (mdf['lr'] == 1e-4)
         ]
     sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='mean', marker='o', height=2, aspect=1.2)
-    plt.savefig(f'fig/tr_compare_pe_{pe}_cot_{cot}.png')
+    plt.savefig(f'fig/tr_compare_lin_pe_{pe}_cot_{cot}.png')
     plt.show()
 
 # <codecell>

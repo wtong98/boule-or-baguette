@@ -544,7 +544,7 @@ def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True, nouveau=
         ), axis=-1)
     else:
         xs = jnp.concatenate((
-            StarfishTask.sep_idx * jnp.ones((batch_size, 1)),
+            # StarfishTask.sep_idx * jnp.ones((batch_size, 1)),
             xs + StarfishTask.offset, 
             chain[:,1:]
         ), axis=-1)

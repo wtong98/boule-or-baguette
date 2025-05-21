@@ -181,6 +181,7 @@ def train(config, train_iter,
           test_iter=None, 
           loss='ce', gamma=None,
           eval_fns: Iterable=None, print_fn=None,
+          summary_fn=None,
           train_iters=10_000, test_iters=10, test_every=1_000, save_params=False,
           early_stop_n=None, early_stop_key='loss', early_stop_decision='min' ,
           optim=optax.adamw,
@@ -211,7 +212,8 @@ def train(config, train_iter,
     hist = {
         'train': [],
         'test': [],
-        'params': [state.params]
+        'params': [state.params],
+        'summary': []
     }
 
     it = zip(range(train_iters), train_iter)
@@ -234,6 +236,10 @@ def train(config, train_iter,
 
             hist['train'].append(all_train)
             hist['test'].append(all_test)
+
+            if summary_fn is not None:
+                summ = summary_fn(state)
+                hist['summary'].append(summ)
 
             print_fn(step+1, hist)
 
