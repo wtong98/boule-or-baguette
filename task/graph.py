@@ -452,9 +452,11 @@ class StarfishTask:
         ys = jnp.concat((jnp.ones(n_on), jnp.zeros(n_off)))
 
         if self.cot:
+            mask_start = 1 if self.nouveau else 2
+
             xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size, trace_to_start=self.trace_to_start, nouveau=self.nouveau)
             ys = xs[:,1:]
-            ys = ys.at[:,:2].set(0)   # mask prompt
+            ys = ys.at[:,:mask_start].set(0)   # mask prompt
             xs = xs[:,:-1]
         elif self.rl_prompt:
             xs = xs + StarfishTask.offset
@@ -479,9 +481,10 @@ def _star_samp_on(key, depth, n_arms, samp_dist, batch_size):
     upr = n_arms * (depth - samp_dist)
 
     key, source = jax.random.split(source)
-    parents = jax.random.randint(key, minval=1, maxval=upr, shape=batch_size)
+    parents = jax.random.randint(key, minval=1, maxval=upr, shape=batch_size)  
     children = parents + samp_dist * n_arms
 
+    # can adjust to omit root
     key, source = jax.random.split(source)
     origin_idx = parents == 1
     accept_origin = jax.random.bernoulli(key, shape=batch_size)
@@ -502,10 +505,10 @@ def _star_samp_off(key, depth, n_arms, samp_dist, batch_size):
 
     key, source = jax.random.split(source)
     pert = jax.random.randint(key, minval=1, maxval=n_arms-1, shape=batch_size)
-    children += pert
+    children += pert - n_arms
 
-    wrap_idx = (children % n_arms) == 0
-    children -= n_arms * wrap_idx
+    # wrap_idx = (children % n_arms) == 0
+    # children -= n_arms * wrap_idx
 
     return jnp.stack((parents, children), axis=1)
 
@@ -676,7 +679,7 @@ def _circle_add_chain(xs, depth, batch_size, trace_to_start=True):
     return xs
 
     
-# task = StarfishTask(depth=10, samp_dist=(1,8), batch_size=10, cot=True, trace_to_start=False)
+# task = StarfishTask(depth=10, samp_dist=2, batch_size=10, cot=True, trace_to_start=False, nouveau=True)
 # xs, ys = next(task)
 
 # print(xs)
