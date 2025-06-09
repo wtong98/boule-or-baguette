@@ -128,7 +128,7 @@ A = np.array(state.params['Dense_0']['kernel'])
 W = np.array(state.params['Dense_1']['kernel'])
 
 # <codecell>
-xs = jnp.array([[13, 14, 12]])
+xs = jnp.array([[12, 20, 18, 16]])
 X = emb[xs]
 
 att = X @ t(A) @ t(X)
