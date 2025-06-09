@@ -146,7 +146,7 @@ def gen_acc_cot(state, batch, loss=None):
     ans = ys[jnp.arange(len(ys)), ans_idx]
 
     # TODO: in-place rough change
-    traj = gen1(state, xs)  # TODO: consider moving generate to state
+    traj = gen2(state, xs)  # TODO: consider moving generate to state
     preds = extract_pred(traj)
 
     return {'gen_acc': jnp.mean(preds == ans)}

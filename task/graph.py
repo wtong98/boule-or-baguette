@@ -504,7 +504,7 @@ def _star_samp_off(key, depth, n_arms, samp_dist, batch_size):
     children = parents + samp_dist * n_arms
 
     key, source = jax.random.split(source)
-    pert = jax.random.randint(key, minval=1, maxval=n_arms-1, shape=batch_size)
+    pert = jax.random.randint(key, minval=1, maxval=n_arms, shape=batch_size)
     children += pert - n_arms
 
     # wrap_idx = (children % n_arms) == 0
@@ -679,7 +679,7 @@ def _circle_add_chain(xs, depth, batch_size, trace_to_start=True):
     return xs
 
     
-# task = StarfishTask(depth=10, samp_dist=2, batch_size=10, cot=True, trace_to_start=False, nouveau=True)
+# task = StarfishTask(n_arms=3, depth=10, samp_dist=1, batch_size=10, cot=True, trace_to_start=False, nouveau=True)
 # xs, ys = next(task)
 
 # print(xs)
