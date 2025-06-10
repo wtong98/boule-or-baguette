@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -c 8
-#SBATCH -t 6:00:00
+#SBATCH -t 16:00:00
 #SBATCH -p kempner_requeue
 #SBATCH --gres=gpu:1
 #SBATCH --mem=32000

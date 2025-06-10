@@ -213,7 +213,7 @@ def train(config, train_iter,
     hist = {
         'train': [],
         'test': [],
-        'params': [state.params],
+        'params': [state.params] if save_params else [],
         'summary': []
     }
 

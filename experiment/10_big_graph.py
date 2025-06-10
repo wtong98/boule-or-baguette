@@ -75,3 +75,11 @@ state, hist = train(config,
                     # lr=1,
                     # optim=optax.sgd,
                     )
+
+# <codecell>
+df = collate_dfs('remote/10_big_graph/length', show_progress=True)
+df
+# %%
+df.iloc[0]
+
+# %%

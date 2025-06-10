@@ -29,14 +29,14 @@ n_hidden = 512
 
 
 ### START TEST CONFIGS
-run_split = 1
-train_iters = 10
+# run_split = 1
+# train_iters = 10
 
-depth = 5
-n_hops = [1]
-n_arms = [3]
+# depth = 5
+# n_hops = [1]
+# n_arms = [3]
 
-n_hidden = 64
+# n_hidden = 64
 ### END TEST CONFIGS
 
 all_cases = []
