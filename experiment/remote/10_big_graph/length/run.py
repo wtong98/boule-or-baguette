@@ -21,9 +21,9 @@ run_split = 12
 
 train_iters = 100_000
 
-depth = 20
-n_arms = np.arange(2, 14)
-n_hops = np.arange(1, depth - 1)
+depth = 30
+n_arms = [2, 3, 5, 10, 15, 20, 30, 50]
+n_hops = [1, 3, 5, 10, 15, 20, 25]
 
 n_hidden = 512
 
@@ -69,58 +69,58 @@ for n_hop, n_arms in itertools.product(n_hops, n_arms):
         return args
 
 
-    def make_chain(cot=True):
+    def make_chain(cot=True, ttr=False):
         task_args = {
             'depth': depth,
             'samp_dist': (1, n_hop),
             'n_arms': n_arms
         }
 
-        return StarfishTask(cot=cot, **task_args)
+        return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)
     
 
     all_cases.extend([
-        Case('MLP',
-                MlpConfig(n_out=1,
-                          n_layers=1,
-                          **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False)
-        ), 
+        # Case('MLP',
+        #         MlpConfig(n_out=1,
+        #                   n_layers=1,
+        #                   **model_args),
+        #         train_args=make_train_args('bce'),
+        #         train_task=make_chain(cot=False)
+        # ), 
 
-        Case('Att',
-                TransformerConfig(n_heads=1,
-                                  n_out=1,
-                                  n_layers=2,
-                                  pos_emb=True, 
-                                  return_final_logits_only=True,
-                                  n_mlp_layers=0,
-                                  layer_norm=False,
-                                  residual_connections=False,
-                                  mup_scale=True,
-                                  linear_att=True,
-                                  **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False)
-        ), 
+        # Case('Att',
+        #         TransformerConfig(n_heads=1,
+        #                           n_out=1,
+        #                           n_layers=2,
+        #                           pos_emb=True, 
+        #                           return_final_logits_only=True,
+        #                           n_mlp_layers=0,
+        #                           layer_norm=False,
+        #                           residual_connections=False,
+        #                           mup_scale=True,
+        #                           linear_att=True,
+        #                           **model_args),
+        #         train_args=make_train_args('bce'),
+        #         train_task=make_chain(cot=False)
+        # ), 
 
-        Case('Att + MLP',
-                TransformerConfig(n_heads=1,
-                                  n_out=1,
-                                  n_layers=2,
-                                  pos_emb=True, 
-                                  return_final_logits_only=True,
-                                  n_mlp_layers=2,
-                                  layer_norm=False,
-                                  residual_connections=False,
-                                  mup_scale=True,
-                                  linear_att=True,
-                                  **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False)
-        ), 
+        # Case('Att + MLP',
+        #         TransformerConfig(n_heads=1,
+        #                           n_out=1,
+        #                           n_layers=2,
+        #                           pos_emb=True, 
+        #                           return_final_logits_only=True,
+        #                           n_mlp_layers=2,
+        #                           layer_norm=False,
+        #                           residual_connections=False,
+        #                           mup_scale=True,
+        #                           linear_att=True,
+        #                           **model_args),
+        #         train_args=make_train_args('bce'),
+        #         train_task=make_chain(cot=False)
+        # ), 
 
-        Case('Transformer zero',
+        Case('Zero',
                 TransformerConfig(n_heads=1,
                                   n_out=1,
                                   n_layers=2,
@@ -136,39 +136,39 @@ for n_hop, n_arms in itertools.product(n_hops, n_arms):
                 train_task=make_chain(cot=False)
         ), 
 
-        Case('Att + CoT',
-                TransformerConfig(n_heads=1, 
-                                  n_out=n_vocab,
-                                  n_layers=2,
-                                  pos_emb=False, 
-                                  return_final_logits_only=False,
-                                  n_mlp_layers=0,
-                                  layer_norm=False,
-                                  residual_connections=False,
-                                  mup_scale=True,
-                                  linear_att=True,
-                                  **model_args),
-                train_args=make_train_args('ce_mask'),
-                train_task=make_chain(cot=True)
-        ), 
+        # Case('Att + CoT',
+        #         TransformerConfig(n_heads=1, 
+        #                           n_out=n_vocab,
+        #                           n_layers=2,
+        #                           pos_emb=False, 
+        #                           return_final_logits_only=False,
+        #                           n_mlp_layers=0,
+        #                           layer_norm=False,
+        #                           residual_connections=False,
+        #                           mup_scale=True,
+        #                           linear_att=True,
+        #                           **model_args),
+        #         train_args=make_train_args('ce_mask'),
+        #         train_task=make_chain(cot=True)
+        # ), 
 
-        Case('Att + CoT + MLP',
-                TransformerConfig(n_heads=1, 
-                                  n_out=n_vocab,
-                                  n_layers=2,
-                                  pos_emb=False, 
-                                  return_final_logits_only=False,
-                                  n_mlp_layers=2,
-                                  layer_norm=False,
-                                  residual_connections=False,
-                                  mup_scale=True,
-                                  linear_att=True,
-                                  **model_args),
-                train_args=make_train_args('ce_mask'),
-                train_task=make_chain(cot=True)
-        ), 
+        # Case('Att + CoT + MLP',
+        #         TransformerConfig(n_heads=1, 
+        #                           n_out=n_vocab,
+        #                           n_layers=2,
+        #                           pos_emb=False, 
+        #                           return_final_logits_only=False,
+        #                           n_mlp_layers=2,
+        #                           layer_norm=False,
+        #                           residual_connections=False,
+        #                           mup_scale=True,
+        #                           linear_att=True,
+        #                           **model_args),
+        #         train_args=make_train_args('ce_mask'),
+        #         train_task=make_chain(cot=True)
+        # ), 
 
-        Case('Transformer AR',
+        Case('AR',
                 TransformerConfig(n_heads=1, 
                                   n_out=n_vocab,
                                   n_layers=2,
@@ -184,6 +184,22 @@ for n_hop, n_arms in itertools.product(n_hops, n_arms):
                 train_task=make_chain(cot=True)
         ), 
 
+        Case('AR full',
+                TransformerConfig(n_heads=1, 
+                                  n_out=n_vocab,
+                                  n_layers=2,
+                                  pos_emb=False, 
+                                  return_final_logits_only=False,
+                                  n_mlp_layers=2,
+                                  layer_norm=False,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True, ttr=True)
+        ), 
+
     ])
     
 all_cases = split_cases(all_cases, run_split)
@@ -196,7 +212,7 @@ for case in tqdm(all_cases):
 
     for n_hop in n_hops:
         tt = case.train_task
-        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot)
+        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start)
 
         case.eval(
             test_task,
