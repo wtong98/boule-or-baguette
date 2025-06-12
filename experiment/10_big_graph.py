@@ -32,9 +32,9 @@ n_vocab = n_arms * depth + 1 + StarfishTask.offset
 train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
 test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(n_hop + 1, test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
 
-xs, ys = next(train_task)
-print(xs[:3])
-print(ys[:3])
+# xs, ys = next(train_task)
+# print(xs[:3])
+# print(ys[:3])
 
 # <codecell>
 # config = TrConfig(n_vocab=n_vocab, 
@@ -111,6 +111,10 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
+n_arms = 2
 mdf = plot_df.copy()
-mdf = mdf[mdf['n_arms'] == 13]
-sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='mean', marker='o', height=2, aspect=1.2)
+mdf = mdf[mdf['n_arms'] == n_arms]
+sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='mean', marker='o', height=2, aspect=1.2, hue_order=['Zero', 'AR', 'AR full'])
+
+plt.savefig(f'fig/tr_star_arms_{n_arms}.png')
+plt.suptitle(f'n_arms = {n_arms}')

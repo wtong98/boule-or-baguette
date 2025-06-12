@@ -21,25 +21,29 @@ run_split = 12
 
 train_iters = 100_000
 
-depth = 26
-n_hops = np.arange(1, depth - 1)
+depths = [10, 30]
+n_hop_props = [0, 0.25, 0.5, 0.75]
+n_arms = [2, 10, 30]
 
 n_hidden = 512
 
-n_layers = [2, 3, 4]
+n_layers = [2]
 use_layer_norm = [False, True]
 use_resid = [False, True]
 mup_scale = [True]
 use_trace_to_start = [False, True]
 n_mlp_layers = [0, 2]
+use_nonlinears = [False, True]
+use_cots = [False, True]
 
 ### START TEST CONFIGS
 # run_split = 1
 # train_iters = 10
-
-# depth = 5
-# n_hops = [1]
 # n_hidden = 64
+
+# depths = [5]
+# n_hop_props = [0]
+# n_arms = [2]
 
 # n_layers = [2]
 # use_layer_norm = [False]
@@ -48,14 +52,16 @@ n_mlp_layers = [0, 2]
 
 # use_trace_to_start = [False]
 # n_mlp_layers = [0]
+
+# use_nonlinears = [False, True]
+# use_cots = [False, True]
 ### END TEST CONFIGS
 
 all_cases = []
 
-eval_fns = [loss_and_acc, gen_acc_cot]
-
-for n_hop in n_hops:
-    n_vocab = 2 * depth + 1 + StarfishTask.offset
+for n_arm, n_hop_prop, depth in itertools.product(n_arms, n_hop_props, depths):
+    n_vocab = n_arm * depth + 1 + StarfishTask.offset
+    n_hop = int(np.round(n_hop_prop * depth)) if n_hop_prop > 0 else 1
 
     model_args = {
         'n_vocab': n_vocab,
@@ -67,14 +73,14 @@ for n_hop in n_hops:
     def make_train_args(loss='ce_mask'):
         args = {
             'loss': loss,
-            'test_every': 1000,
+            'test_every': 10_000,
             'train_iters': train_iters,
         }
 
         args['eval_fns'] = [loss_and_acc]
 
         if loss == 'ce_mask':
-            args['eval_fns'] = eval_fns
+            args['eval_fns'].append(gen_acc_cot)
             args['print_fn'] = print_gen
         
         return args
@@ -82,40 +88,41 @@ for n_hop in n_hops:
 
     def make_chain(**kwargs):
         task_args = {
+            'n_arms': n_arm,
             'depth': depth,
-            'samp_dist': (1, n_hop),
+            'samp_dist': (1, n_hop)
         }
 
         return StarfishTask(**task_args, **kwargs)
     
 
-    all_cases.extend([
-        Case('MLP',
-                MlpConfig(n_out=1,
-                          n_layers=1,
-                          **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False)
-        ), 
-    ])
+    # all_cases.extend([
+    #     Case('MLP',
+    #             MlpConfig(n_out=1,
+    #                       n_layers=1,
+    #                       **model_args),
+    #             train_args=make_train_args('bce'),
+    #             train_task=make_chain(cot=False)
+    #     ), 
+    # ])
 
-    for n_layer, layer_norm, resid, mup, trace_to_start, mlp_layers \
-        in itertools.product(n_layers, use_layer_norm, use_resid, mup_scale, use_trace_to_start, n_mlp_layers):
+    for use_nonlinear, n_layer, layer_norm, resid, mup, trace_to_start, mlp_layers, cot \
+        in itertools.product(use_nonlinears, n_layers, use_layer_norm, use_resid, mup_scale, use_trace_to_start, n_mlp_layers, use_cots):
         all_cases.append(
             Case(f'(n_layer={n_layer},lnorm={layer_norm},resid={resid},full_tr={trace_to_start},n_mlp={mlp_layers})',
                     TransformerConfig(n_heads=1, 
-                                    n_out=n_vocab,
+                                    n_out=n_vocab if cot else 1,
                                     n_layers=n_layer,
-                                    pos_emb=False, 
-                                    return_final_logits_only=False,
+                                    pos_emb=not cot, 
+                                    return_final_logits_only=not cot,
                                     n_mlp_layers=mlp_layers,
                                     layer_norm=layer_norm,
                                     residual_connections=resid,
                                     mup_scale=mup,
-                                    linear_att=True,
+                                    linear_att=not use_nonlinear,
                                     **model_args),
-                    train_args=make_train_args('ce_mask'),
-                    train_task=make_chain(cot=True, trace_to_start=trace_to_start)
+                    train_args=make_train_args('ce_mask' if cot else 'bce'),
+                    train_task=make_chain(cot=cot, trace_to_start=trace_to_start)
             )
         )
 
@@ -128,9 +135,9 @@ for case in tqdm(all_cases):
     print('RUNNING', case.name)
     case.run()
 
-    for n_hop in n_hops:
-        tt = case.train_task
-        test_task = StarfishTask(depth=tt.depth, samp_dist=n_hop, cot=tt.cot)
+    tt = case.train_task
+    for n_hop in range(tt.depth):
+        test_task = StarfishTask(depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start)
 
         case.eval(
             test_task,
