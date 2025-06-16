@@ -39,7 +39,6 @@ class TransformerConfig:
     max_len: int = 1024
     pos_emb: bool = True
     use_last_index_output: bool = False
-    softmax_att: bool = True
     layer_norm: bool = True
     residual_connections: bool = True
     n_mlp_layers: int = 2

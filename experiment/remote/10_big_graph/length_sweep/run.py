@@ -43,7 +43,7 @@ use_cots = [False, True]
 
 # depths = [5]
 # n_hop_props = [0]
-# n_arms = [2]
+# n_arms = [3]
 
 # n_layers = [2]
 # use_layer_norm = [False]
@@ -108,8 +108,11 @@ for n_arm, n_hop_prop, depth in itertools.product(n_arms, n_hop_props, depths):
 
     for use_nonlinear, n_layer, layer_norm, resid, mup, trace_to_start, mlp_layers, cot \
         in itertools.product(use_nonlinears, n_layers, use_layer_norm, use_resid, mup_scale, use_trace_to_start, n_mlp_layers, use_cots):
+        if cot is False and trace_to_start is True:
+            continue
+
         all_cases.append(
-            Case(f'(n_layer={n_layer},lnorm={layer_norm},resid={resid},full_tr={trace_to_start},n_mlp={mlp_layers})',
+            Case(f'(lnorm={layer_norm},resid={resid},full_tr={trace_to_start},n_mlp={mlp_layers})',
                     TransformerConfig(n_heads=1, 
                                     n_out=n_vocab if cot else 1,
                                     n_layers=n_layer,
@@ -122,7 +125,8 @@ for n_arm, n_hop_prop, depth in itertools.product(n_arms, n_hop_props, depths):
                                     linear_att=not use_nonlinear,
                                     **model_args),
                     train_args=make_train_args('ce_mask' if cot else 'bce'),
-                    train_task=make_chain(cot=cot, trace_to_start=trace_to_start)
+                    train_task=make_chain(cot=cot, trace_to_start=trace_to_start),
+                    info={'n_hop_prop': n_hop_prop}
             )
         )
 
@@ -137,7 +141,7 @@ for case in tqdm(all_cases):
 
     tt = case.train_task
     for n_hop in range(tt.depth):
-        test_task = StarfishTask(depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start)
+        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start)
 
         case.eval(
             test_task,

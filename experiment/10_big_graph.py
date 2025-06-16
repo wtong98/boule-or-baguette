@@ -23,9 +23,9 @@ n_layers = 2
 cot = True
 ttr = True
 nouveau = False
-n_arms = 2
-n_hop = 3
-test_n_hop = 5
+n_arms = 10
+n_hop = 5
+test_n_hop = 7
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -58,7 +58,7 @@ config = TransformerConfig(n_layers=n_layers,
                            use_bias=False,
                            return_final_logits_only=False if cot else True,
                            mup_scale=True,
-                           linear_att=True
+                           linear_att=False
                            )
 
 # <codecell>
@@ -118,3 +118,54 @@ sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, k
 
 plt.savefig(f'fig/tr_star_arms_{n_arms}.png')
 plt.suptitle(f'n_arms = {n_arms}')
+
+
+# <codecell>
+df = collate_dfs('remote/10_big_graph/length_sweep', show_progress=True)
+df
+
+# <codecell>
+def extract_plot_vals(row):
+    return pd.Series([
+        row['name'],
+        row['train_task'].samp_dist[1],
+        row['train_task'].n_arms,
+        row['config']['linear_att'],
+        row['config']['layer_norm'],
+        row['config']['residual_connections'],
+        row['config']['n_mlp_layers'],
+        row['train_task'].trace_to_start,
+        row['train_task'].depth,
+        row['train_task'].cot,
+        row['info'],
+    ], index=['name', 'n_hop', 'n_arms', 'linear_att', 'layer_norm', 'resid', 'n_mlp_layers', 'trace_to_start', 'depth', 'cot', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+# %%
+mdf = plot_df.copy()
+
+mdf = mdf[
+    (mdf['n_arms'] == 10)
+    & (mdf['linear_att'] == False)
+    & (mdf['cot'] == False)]
+
+sns.relplot(mdf, x='test_n_hop', y='acc', col='n_hop', row='depth', hue='name')
+plt.savefig('fig/tr_star_big_sweep.png')
