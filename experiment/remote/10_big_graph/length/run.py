@@ -21,9 +21,9 @@ run_split = 12
 
 train_iters = 100_000
 
-depth = 30
-n_arms = [2, 3, 5, 10, 15, 20, 30, 50]
-n_hops = [1, 3, 5, 10, 15, 20, 25]
+depth = 10
+n_arms = [2, 10, 25, 50, 100, 200]
+n_hops = [1, 3, 5, 7]
 
 n_hidden = 512
 

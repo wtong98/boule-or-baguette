@@ -319,6 +319,7 @@ class TrConfig:
     n_hidden: int = 32
     return_final_logits_only: bool = False
     pos_emb: bool = False
+    rand_pos_emb: bool = False
     max_len: int = 2
 
     def to_model(self):
@@ -333,15 +334,26 @@ class Tr(nn.Module):
         x = nn.Embed(self.config.n_vocab, features=self.config.n_hidden, name='Embed_freeze')(inputs) # B x L x H
 
         if self.config.pos_emb:
-            pos_emb_shape = (1, self.config.max_len, x.shape[-1])
-            pos_embedding = sinusoidal_init(max_len=self.config.max_len)(None,
-                                                                    pos_emb_shape,
-                                                                    None)
-        
-            pe = pos_embedding[:, :x.shape[1], :]
+            if not self.config.rand_pos_emb:
+                pos_emb_shape = (1, self.config.max_len, x.shape[-1])
+                pos_embedding = sinusoidal_init(max_len=self.config.max_len)(None,
+                                                                        pos_emb_shape,
+                                                                        None)
+            
+                pe = pos_embedding[:, :x.shape[1], :]
+            else:
+                ps = jnp.arange(x.shape[1])[None]
+                pe = nn.Embed(self.config.max_len, features=self.config.n_hidden, name='PE_freeze')(ps) * np.sqrt(self.config.n_hidden)
+                # div = self.config.n_hidden // 2
+                # pe.at[0,:div].set(pe[1,:div])
 
-            # ps = jnp.arange(x.shape[1])[None]
-            # ps = nn.Embed(self.config.max_length, features=self.config.n_hidden, name='PE_freeze')(ps)
+                # pe = jnp.ones((2, self.config.n_hidden))
+                # pe.at[0, div:].set(0)
+                # pe.at[1,:div].set(0)
+
+
+                # pe = jax.random.normal(jax.random.key(3), shape=(1, x.shape[1], self.config.n_hidden)) / np.sqrt(self.config.n_hidden)
+                # pe = jax.random.normal(jax.random.key(5), shape=(1, x.shape[1], self.config.n_hidden))
 
             x = x + pe
 
