@@ -24,8 +24,8 @@ depth = 10
 n_hop = 5
 n_hops_test = [6, 7, 8, 9]
 
-n_arms = (2**np.linspace(6, 10, num=20)).astype(int)
-n_widths = (2**np.linspace(6, 10, num=20)).astype(int)
+n_arms = (2**np.linspace(5, 9, num=20)).astype(int) * 2
+n_widths = (2**np.linspace(5, 9, num=20)).astype(int) * 2
 
 ### START TEST CONFIGS
 # run_split = 1
