@@ -21,7 +21,7 @@ batch_size = 128
 cot = False
 ttr = False
 nouveau = False
-n_arms = 150
+n_arms = 2
 n_hop = 5
 test_n_hop = 8
 
@@ -33,8 +33,6 @@ test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(n_hop + 1, test_
 # xs, ys = next(train_task)
 # print(xs[:3])
 # print(ys[:3])
-# <codecell>
-next(train_task)
 
 # <codecell>
 # config = TrConfig(n_vocab=n_vocab, 
