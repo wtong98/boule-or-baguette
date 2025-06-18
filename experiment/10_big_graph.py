@@ -15,15 +15,15 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 512
+n_hidden = 1024
 batch_size = 128
 
 cot = False
 ttr = False
 nouveau = False
-n_arms = 2
+n_arms = 64
 n_hop = 5
-test_n_hop = 8
+test_n_hop = 7
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -47,8 +47,8 @@ config = TransformerConfig(n_layers=2,
                            n_out=n_vocab if cot else 1,
                            n_hidden=n_hidden,
                         #    pos_emb=not cot,
-                           pos_emb=True,
-                           max_len=100,
+                           pos_emb=False,
+                        #    max_len=100,
                            n_mlp_layers=2,
                            n_heads=1,
                            layer_norm=True,
@@ -127,13 +127,10 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-n_arms = 2
 mdf = plot_df.copy()
-mdf = mdf[mdf['n_arms'] == n_arms]
-sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', col='n_hop', col_wrap=4, kind='line', estimator='mean', marker='o', height=2, aspect=1.2, hue_order=['Zero', 'AR', 'AR full'])
+sns.relplot(mdf, x='test_n_hop', y='acc', hue='name', row='n_arms', col='n_hop', kind='line', estimator='mean', marker='o', height=2, aspect=1.2, hue_order=['Zero', 'AR', 'AR full'])
 
-plt.savefig(f'fig/tr_star_arms_{n_arms}.png')
-plt.suptitle(f'n_arms = {n_arms}')
+plt.savefig(f'fig/tr_star_many_arms.png')
 
 
 # <codecell>
@@ -192,3 +189,108 @@ for linear_att, cot in itertools.product([True, False], [True, False]):
     sns.relplot(mdf, x='test_n_hop', y='acc', col='n_hop', row='depth', hue='name')
     plt.savefig(f'fig/tr_star_big_sweep_lin_att_{linear_att}_cot_{cot}.png')
     plt.show()
+
+
+# <codecell>
+df = collate_dfs('remote/10_big_graph/mlp_size', show_progress=True)
+df
+
+# %%
+def extract_plot_vals(row):
+    return pd.Series([
+        row['name'],
+        row['train_task'].n_arms,
+        row['train_task'].samp_dist[1],
+        row['config']['n_hidden'],
+        row['info'],
+    ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+# <codecell>
+# TODO: axis names are probably swapped
+mdf = plot_df.copy()
+
+typ = 'full'
+
+mdf = mdf[
+    (mdf['test_n_hop'] == 7)
+    & (mdf['name'] == f'Zero ({typ})')
+    ]
+
+mdf = mdf[['n_arms', 'n_hidden', 'acc']]
+mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).max()
+mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
+
+mdf = mdf.iloc[::-1]
+g = sns.heatmap(mdf, square=False)
+
+# xs = 2**np.linspace(-5, 8)
+# g.plot(xs, 20 - xs + 13, color='black', linestyle='dashed')
+
+g.set_xlabel('n_arms')
+g.set_ylabel('n_hidden')
+
+plt.savefig(f'fig/zero_{typ}_arms_v_size.png')
+
+
+# <codecell>
+df = collate_dfs('remote/10_big_graph/tf_size', show_progress=True)
+df
+
+# %%
+def extract_plot_vals(row):
+    return pd.Series([
+        row['name'],
+        row['train_task'].n_arms,
+        row['train_task'].samp_dist[1],
+        row['config']['n_hidden'],
+        row['info'],
+    ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+# <codecell>
+mdf = plot_df.copy()
+
+# typ = 'simp lin att, sin PE'
+typ = 'lin att'
+
+mdf = mdf[
+    (mdf['test_n_hop'] == 7)
+    & (mdf['name'] == f'Zero ({typ})')
+    ]
+
+g = sns.lineplot(mdf, x='n_arms', y='acc', hue='n_hidden', marker='o', legend='full')
+
+plt.savefig(f'fig/zero_tf_{typ}_arms_v_size.png')

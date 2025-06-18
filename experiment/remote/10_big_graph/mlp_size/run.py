@@ -22,7 +22,7 @@ train_iters = 100_000
 
 depth = 10
 n_hop = 5
-n_hops_test = [6, 7, 8, 9]
+n_hops_test = [5, 6, 7, 8, 9]
 
 n_arms = (2**np.linspace(5, 9, num=20)).astype(int) * 2
 n_widths = (2**np.linspace(5, 9, num=20)).astype(int) * 2
@@ -80,7 +80,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
     
 
     all_cases.extend([
-        Case('Zero (simp)',
+        Case('Zero (base)',
                 TransformerConfig(n_heads=1,
                                   n_out=1,
                                   n_layers=1,
@@ -96,7 +96,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                 train_task=make_chain(cot=False)
         ), 
 
-        Case('Zero (full)',
+        Case('Zero (LN+resid)',
                 TransformerConfig(n_heads=1,
                                   n_out=1,
                                   n_layers=2,
@@ -112,6 +112,53 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                 train_task=make_chain(cot=False)
         ), 
 
+        Case('Zero (PE+LN+resid)',
+                TransformerConfig(n_heads=1,
+                                  n_out=1,
+                                  n_layers=2,
+                                  pos_emb=True, 
+                                  return_final_logits_only=True,
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('bce'),
+                train_task=make_chain(cot=False)
+        ), 
+
+        Case('AR',
+                TransformerConfig(n_heads=1,
+                                  n_out=n_vocab,
+                                  n_layers=2,
+                                  pos_emb=False, 
+                                  return_final_logits_only=False,
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True, ttr=False)
+        ), 
+
+        Case('AR full',
+                TransformerConfig(n_heads=1,
+                                  n_out=n_vocab,
+                                  n_layers=2,
+                                  pos_emb=False, 
+                                  return_final_logits_only=False,
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True, ttr=True)
+        ), 
     ])
     
 all_cases = split_cases(all_cases, run_split)
