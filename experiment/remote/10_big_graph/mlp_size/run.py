@@ -100,7 +100,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                 TransformerConfig(n_heads=1,
                                   n_out=1,
                                   n_layers=2,
-                                  pos_emb=True, 
+                                  pos_emb=False, 
                                   return_final_logits_only=True,
                                   n_mlp_layers=2,
                                   layer_norm=True,

@@ -15,15 +15,15 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 512
+n_hidden = 1024
 batch_size = 128
 
 cot = False
 ttr = False
 nouveau = False
-n_arms = 3
-n_hop = 3
-test_n_hop = 5
+n_arms = 84
+n_hop = 5
+test_n_hop = 7
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -35,32 +35,32 @@ test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(n_hop + 1, test_
 # print(ys[:3])
 
 # <codecell>
-config = TrConfig(n_vocab=n_vocab, 
-                  pos_emb=not cot,
-                  rand_pos_emb=True,
-                  big_pe=False,
-                  n_out=n_vocab if cot else 1,
-                  n_hidden=n_hidden, 
-                  return_final_logits_only=False if cot else True)
+# config = TrConfig(n_vocab=n_vocab, 
+#                   pos_emb=not cot,
+#                   rand_pos_emb=True,
+#                   big_pe=False,
+#                   n_out=n_vocab if cot else 1,
+#                   n_hidden=n_hidden, 
+#                   return_final_logits_only=False if cot else True)
 
-# config = TransformerConfig(n_layers=2,
-#                            n_vocab=n_vocab,
-#                            n_out=n_vocab if cot else 1,
-#                            n_hidden=n_hidden,
-#                         #    pos_emb=not cot,
-#                            pos_emb=False,
-#                         #    max_len=100,
-#                            n_mlp_layers=2,
-#                            n_heads=1,
-#                            layer_norm=True,
-#                            as_rf_model=False,
-#                            residual_connections=True,
-#                            freeze_emb=True,
-#                            use_bias=False,
-#                            return_final_logits_only=False if cot else True,
-#                            mup_scale=True,
-#                            linear_att=False
-#                            )
+config = TransformerConfig(n_layers=2,
+                           n_vocab=n_vocab,
+                           n_out=n_vocab if cot else 1,
+                           n_hidden=n_hidden,
+                        #    pos_emb=not cot,
+                           pos_emb=True,
+                        #    max_len=100,
+                           n_mlp_layers=2,
+                           n_heads=1,
+                           layer_norm=True,
+                           as_rf_model=False,
+                           residual_connections=True,
+                           freeze_emb=True,
+                           use_bias=False,
+                           return_final_logits_only=False if cot else True,
+                           mup_scale=True,
+                           linear_att=False
+                           )
 
 # <codecell>
 state, hist = train(config,
@@ -69,7 +69,7 @@ state, hist = train(config,
                     test_iters=1,
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=20_000,
+                    train_iters=100_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot] if cot else None,
                     print_fn=print_gen if cot else None,
@@ -267,11 +267,12 @@ plot_df
 # TODO: axis names are probably swapped
 mdf = plot_df.copy()
 
-typ = 'full'
+name = 'Zero (LN+resid)'
+# name = 'AR full'
 
 mdf = mdf[
     (mdf['test_n_hop'] == 7)
-    & (mdf['name'] == f'Zero ({typ})')
+    & (mdf['name'] == name)
     ]
 
 mdf = mdf[['n_arms', 'n_hidden', 'acc']]
@@ -279,15 +280,19 @@ mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).max()
 mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
-g = sns.heatmap(mdf, square=False)
+
+g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 # xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 20 - xs + 13, color='black', linestyle='dashed')
 
-g.set_xlabel('n_arms')
-g.set_ylabel('n_hidden')
+# xs = 2**np.linspace(-5, 8)
+# g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
 
-plt.savefig(f'fig/zero_{typ}_arms_v_size.png')
+g.set_ylabel('n_arms')
+g.set_xlabel('n_hidden')
+
+plt.savefig(f'fig/{name}_mlp_arms_v_size.png')
 
 
 # <codecell>
