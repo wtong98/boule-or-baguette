@@ -15,15 +15,15 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 1024
+n_hidden = 512
 batch_size = 128
 
 cot = False
 ttr = False
 nouveau = False
-n_arms = 64
-n_hop = 5
-test_n_hop = 7
+n_arms = 3
+n_hop = 3
+test_n_hop = 5
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -35,31 +35,32 @@ test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(n_hop + 1, test_
 # print(ys[:3])
 
 # <codecell>
-# config = TrConfig(n_vocab=n_vocab, 
-#                   pos_emb=not cot,
-#                   rand_pos_emb=True,
-#                   n_out=n_vocab if cot else 1,
-#                   n_hidden=n_hidden, 
-#                   return_final_logits_only=False if cot else True)
+config = TrConfig(n_vocab=n_vocab, 
+                  pos_emb=not cot,
+                  rand_pos_emb=True,
+                  big_pe=False,
+                  n_out=n_vocab if cot else 1,
+                  n_hidden=n_hidden, 
+                  return_final_logits_only=False if cot else True)
 
-config = TransformerConfig(n_layers=2,
-                           n_vocab=n_vocab,
-                           n_out=n_vocab if cot else 1,
-                           n_hidden=n_hidden,
-                        #    pos_emb=not cot,
-                           pos_emb=False,
-                        #    max_len=100,
-                           n_mlp_layers=2,
-                           n_heads=1,
-                           layer_norm=True,
-                           as_rf_model=False,
-                           residual_connections=True,
-                           freeze_emb=True,
-                           use_bias=False,
-                           return_final_logits_only=False if cot else True,
-                           mup_scale=True,
-                           linear_att=False
-                           )
+# config = TransformerConfig(n_layers=2,
+#                            n_vocab=n_vocab,
+#                            n_out=n_vocab if cot else 1,
+#                            n_hidden=n_hidden,
+#                         #    pos_emb=not cot,
+#                            pos_emb=False,
+#                         #    max_len=100,
+#                            n_mlp_layers=2,
+#                            n_heads=1,
+#                            layer_norm=True,
+#                            as_rf_model=False,
+#                            residual_connections=True,
+#                            freeze_emb=True,
+#                            use_bias=False,
+#                            return_final_logits_only=False if cot else True,
+#                            mup_scale=True,
+#                            linear_att=False
+#                            )
 
 # <codecell>
 state, hist = train(config,
@@ -68,7 +69,7 @@ state, hist = train(config,
                     test_iters=1,
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=100_000,
+                    train_iters=20_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot] if cot else None,
                     print_fn=print_gen if cot else None,
@@ -81,17 +82,57 @@ state, hist = train(config,
 # <codecell>
 jax.tree.map(np.shape, state.params)
 
-# <codecell>
+A = state.params['Dense_0']['kernel']
+w = state.params['Dense_1']['kernel']
 
-xs, ys = next(test_task)
+emb = state.params['Embed_freeze']['embedding']
+pos = state.params['PE_freeze']['embedding']
 
-out, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+# xs, ys = next(test_task)
+xs = jnp.array([[10, 19]])
+xs_orig = np.copy(xs)
+out = state.apply_fn({'params': state.params}, xs)
 
-atts = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
+xs_s = emb[xs]
+# ps = pos * np.sqrt(n_hidden)
+ps = pos
+xs = xs_s + ps
 
-print(np.mean((out > 0).astype(int) == ys))
+a_ss = xs_s @ t(xs_s @ A)
+a_sp = xs_s @ t(ps @ A)
+a_ps = ps @ t(xs_s @ A)
+a_pp = ps @ t(ps @ A)
 
-atts[-4]
+att = a_ss + a_sp + a_ps + a_pp
+print('a_ss', a_ss[0,-1])
+print('a_sp', a_sp[0,-1])
+print('a_ps', a_ps[0,-1])
+print('a_pp', a_pp[-1])
+# att_t = jnp.tril((xs_s + ps) @ t((xs_s + ps) @ A))
+# print(att[:3])
+# print(att_t[:3])
+
+w1 = (xs[:,0] @ w).flatten()
+w2 = (xs[:,1] @ w).flatten()
+# ps = ps[None]
+# w1 = (ps[:,0] @ w).flatten()
+# w2 = (ps[:,1] @ w).flatten()
+
+a1 = att[:,1,0]
+a2 = att[:,1,1]
+
+pred = a1 * w1 + a2 * w2
+
+print('a1', a1)
+print('w1', w1)
+print('a2', a2)
+print('w2', w2)
+
+
+print(pred)
+print(out)
+
+# plt.hist(-out[out < 0], bins=10)
 
 
 # <codecell>

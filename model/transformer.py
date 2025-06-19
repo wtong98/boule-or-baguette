@@ -320,6 +320,7 @@ class TrConfig:
     return_final_logits_only: bool = False
     pos_emb: bool = False
     rand_pos_emb: bool = False
+    big_pe: bool = True
     max_len: int = 2
 
     def to_model(self):
@@ -343,7 +344,11 @@ class Tr(nn.Module):
                 pe = pos_embedding[:, :x.shape[1], :]
             else:
                 ps = jnp.arange(x.shape[1])[None]
-                pe = nn.Embed(self.config.max_len, features=self.config.n_hidden, name='PE_freeze')(ps) * np.sqrt(self.config.n_hidden)
+                # pe = nn.Embed(self.config.max_len, features=self.config.n_hidden, name='PE_freeze')(ps) * np.sqrt(self.config.n_hidden)
+                pe = nn.Embed(self.config.max_len, features=self.config.n_hidden, name='PE_freeze')(ps)
+                if self.config.big_pe:
+                    pe = pe * np.sqrt(self.config.n_hidden)
+
                 # div = self.config.n_hidden // 2
                 # pe.at[0,:div].set(pe[1,:div])
 

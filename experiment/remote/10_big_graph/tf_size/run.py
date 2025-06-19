@@ -22,12 +22,12 @@ train_iters = 100_000
 
 depth = 10
 n_hop = 5
-n_hops_test = [6, 7, 8, 9]
+n_hops_test = [5, 6, 7, 8, 9]
 
-# n_arms = (2**np.linspace(6, 10, num=20)).astype(int)
-# n_widths = (2**np.linspace(6, 10, num=20)).astype(int)
-n_arms = [2, 3, 5, 8, 12, 17]
-n_widths = [64, 128, 256, 512, 1024, 2048, 4096]
+# n_arms = (2**np.linspace(5, 9, num=20)).astype(int) * 2
+# n_widths = (2**np.linspace(5, 9, num=20)).astype(int) * 2
+n_arms = [2, 3, 4, 5, 6, 7, 10, 15, 20, 30, 50, 100, 200, 400]
+n_widths = [256, 512, 1024]
 
 ### START TEST CONFIGS
 # run_split = 1
@@ -82,18 +82,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
     
 
     all_cases.extend([
-        Case('Zero (simp lin att, sin PE)',
-                TrConfig(n_vocab=n_vocab, 
-                         pos_emb=True,
-                         rand_pos_emb=False,
-                         n_out=1,
-                         n_hidden=n_hidden, 
-                         return_final_logits_only=True),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False)
-        ),
-
-        Case('Zero (simp lin att, rand PE)',
+        Case('Zero (std PE)',
                 TrConfig(n_vocab=n_vocab, 
                          pos_emb=True,
                          rand_pos_emb=True,
@@ -104,20 +93,32 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                 train_task=make_chain(cot=False)
         ),
 
-        Case('Zero (lin att)',
+        Case('Zero (big PE)',
+                TrConfig(n_vocab=n_vocab, 
+                         pos_emb=True,
+                         rand_pos_emb=True,
+                         big_pe=True,
+                         n_out=1,
+                         n_hidden=n_hidden, 
+                         return_final_logits_only=True),
+                train_args=make_train_args('bce'),
+                train_task=make_chain(cot=False)
+        ),
+
+        Case('AR',
                 TransformerConfig(n_heads=1,
-                                  n_out=1,
+                                  n_out=n_vocab,
                                   n_layers=1,
-                                  pos_emb=True, 
-                                  return_final_logits_only=True,
+                                  pos_emb=False, 
+                                  return_final_logits_only=False,
                                   n_mlp_layers=0,
                                   layer_norm=False,
                                   residual_connections=False,
                                   mup_scale=True,
                                   linear_att=True,
                                   **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False)
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True)
         ), 
     ])
     
