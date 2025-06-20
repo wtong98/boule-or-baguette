@@ -264,11 +264,10 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-# TODO: axis names are probably swapped
 mdf = plot_df.copy()
 
-name = 'Zero (LN+resid)'
-# name = 'AR full'
+# name = 'Zero (base)'
+name = 'AR'
 
 mdf = mdf[
     (mdf['test_n_hop'] == 7)
@@ -284,7 +283,7 @@ mdf = mdf.iloc[::-1]
 g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 # xs = 2**np.linspace(-5, 8)
-# g.plot(xs, 20 - xs + 13, color='black', linestyle='dashed')
+# g.plot(xs, 34 - 1 * xs, color='black', linestyle='dashed')
 
 # xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
@@ -292,7 +291,9 @@ g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 g.set_ylabel('n_arms')
 g.set_xlabel('n_hidden')
 
-plt.savefig(f'fig/{name}_mlp_arms_v_size.png')
+# TODO: x-axis name chopped off
+g.set_title(name)
+plt.savefig(f'fig/{name}_mlp_arms_v_size.png', bbox_inches='tight')
 
 
 # <codecell>
@@ -330,13 +331,15 @@ plot_df
 mdf = plot_df.copy()
 
 # typ = 'simp lin att, sin PE'
-typ = 'lin att'
+# name = 'Zero (big PE)'
 
 mdf = mdf[
-    (mdf['test_n_hop'] == 7)
-    & (mdf['name'] == f'Zero ({typ})')
+    # (mdf['test_n_hop'] == 6)
+    # & (mdf['name'] == name)
+    (mdf['n_hidden'] == 512)
     ]
 
-g = sns.lineplot(mdf, x='n_arms', y='acc', hue='n_hidden', marker='o', legend='full')
+gs = sns.relplot(mdf, x='n_arms', y='acc', hue='name', marker='o', legend='full', col='test_n_hop', height=2)
+gs.set(xscale='log')
 
-plt.savefig(f'fig/zero_tf_{typ}_arms_v_size.png')
+plt.savefig(f'fig/lin_att_many_arms.png')
