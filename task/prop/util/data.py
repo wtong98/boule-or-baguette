@@ -1,5 +1,5 @@
 
-"""Basic types"""
+"""Basic types and operations"""
 
 from __future__ import annotations
 from dataclasses import dataclass
@@ -92,25 +92,6 @@ class Downshift:
         return f"⇓{self.operand}"
 
 Proposition = And | PosAnd | NegAnd | Or | Implies | PTrue | PFalse | Atom | PosAtom | NegAtom | Upshift | Downshift # up and down shifts are used in proof search only
-
-
-def freeVars(p : Proposition) -> List[str]:
-    match p:
-        case Atom(name):
-            return [name]
-        case And(left, right):
-            return freeVars(left) + freeVars(right)
-        case Or(left, right):
-            return freeVars(left) + freeVars(right)
-        case Implies(left, right):
-            return freeVars(left) + freeVars(right)
-        case PTrue():
-            return []
-        case PFalse():
-            return []
-        case _:
-            raise ValueError(f"Invalid proposition: {p}")
-
 
 @dataclass(frozen=True)
 class ImpliesR:
@@ -249,7 +230,6 @@ class NegAtomL:
 class UpshiftL:
     name: str
     sub: Proof
-
 
 
 Proof = (ImpliesR | NegAndR | NegTrueR | NegAtomR | UpshiftR | OrL | FalseL |
