@@ -266,7 +266,7 @@ plot_df
 # <codecell>
 mdf = plot_df.copy()
 
-# name = 'Zero (base)'
+# name = 'Zero (LN+resid)'
 name = 'AR'
 
 mdf = mdf[

@@ -7,17 +7,25 @@ Parts of this code are adapted from https://arxiv.org/abs/2404.07382
 # <codecell>
 from util.data import *
 from util.proof import prove
-from util.out import format_example
+from util.out import format_example, start_lean
 
 
 # prop = decode_prop(1001, 3)
-prop = Implies(Atom('p2'), Or(Atom('p1'), Atom('p2')))
+# prop = Implies(Atom('p3'), Implies(Or(Atom('p1'), Or(Atom('p2'), Atom('p3'))), Or(Atom('p1'), Atom('p3'))))
+# prop = Implies(Atom('p3'), Or(Or(Atom('p1'), Atom('p2')), Atom('p3')))
+# prop = Implies(Implies(Atom('p1'), And(Atom('p2'), Atom('p1'))), Implies(Atom('p1'), And(Atom('p2'), Atom('p2'))))
+# prop = Implies(And(Atom('p1'), And(Atom('p2'), Atom('p2'))), And(Atom('p2'), And(Atom('p1'), Atom('p1'))))
+prop = Implies(Or(Atom('p1'), Atom('p1')), Atom('p1'))
+
+
+# TODO: format proofs
 
 print('PROP', prop)
-proof = prove(prop, keep='simplest')
+proof = prove(prop, keep='until_success')
 print('PROOF', proof)
 
-# TODO: keep lean repl online
-ex = format_example(2, prop, proof)
+with start_lean() as lean_proc:
+    ex = format_example(lean_proc, 3, prop, proof)
+
 print(ex)
 

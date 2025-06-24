@@ -1,9 +1,10 @@
 """Formatting proof for output"""
+
 import json
 import subprocess
+import xml.etree.ElementTree as et
 
 from .data import *
-from .proof import proof_has_failed
 
 lean_repl_path = r'/home/grandpaa/workspace/imply/imply/task/prop/old/propositional_logic/random_gen/lean-repl'
 
@@ -12,29 +13,32 @@ lean_repl_path = r'/home/grandpaa/workspace/imply/imply/task/prop/old/propositio
 #     return tactic_state
 
 
-def format_example(n_atoms: int, prop: Proposition, proof: Proof) -> str:
-    ctx = StateTrackingCtx(n_atoms, prop)
-    traverse_proof(ctx, proof, 0)
+def format_example(lean_proc, n_atoms: int, prop: Proposition, proof: Proof) -> str:
+    ctx = StateTrackingCtx(lean_proc, n_atoms, prop)
+    init_state = ctx.get_cur_tactic_state()
+
+    is_succ = traverse_proof(ctx, proof, 0)
     ret_text = "".join(ctx.result_buffer)
 
-    if not proof_has_failed(proof):
+    if is_succ:
         ret_text += "proof is complete\n"
     else:
         ret_text += "proof failed\n"
 
-    return ret_text
+    return init_state + '\n' + ret_text
 
 
 class StateTrackingCtx:
-    def __init__(self, num_vars: int, prop: Proposition, 
+    def __init__(self, lean_proc, num_vars: int, prop: Proposition, 
                  initial_indent:str = "  "):
+        self.lean_proc = lean_proc
         self.num_vars = num_vars
         self.prop = prop
         lean_text = to_lean_decl(num_vars, prop)
         self.states = [lean_text]
         self.cur_state_num = 0
         self.current_indent = initial_indent
-        self.result_buffer : List[str] = []
+        self.result_buffer : List[et.Element] = []
         self.state_current_choices : Dict[int, int] = {}
 
     def push_state(self, state: str) -> None:
@@ -58,18 +62,16 @@ class StateTrackingCtx:
         self.current_indent = self.current_indent[:-2]
     
     def get_cur_tactic_state(self) -> str:
-        return get_lean_tactic_state(self.get_cur_state_text() + "\n" + self.current_indent + "sorry")
+        return get_lean_tactic_state(self.lean_proc, self.get_cur_state_text() + "\n" + self.current_indent + "sorry")
 
 
-class ProofFailEscape(Exception): pass
-
-def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int):
+def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int) -> bool:
     result = ctx.result_buffer
     def recurse(p: Proof):
         return traverse_proof(ctx, p, 0)
     def show_tactic(tactic: str, tactic_num: int) -> None:
         to_append_tactic_text = f"state_{ctx.get_cur_state_num()}_tactic_{tactic_num}:\n"
-        assert to_append_tactic_text not in ctx.result_buffer
+        # assert to_append_tactic_text not in ctx.result_buffer
         result.append(to_append_tactic_text)
         result.append(tactic + "\n")
     def new_state_with_new_tactic(tactic: str) -> None:
@@ -94,24 +96,32 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int):
         repeat_previous_state()
         show_current_tactic_state()
 
-    def process_choices(choices: List[Proof]) -> None:
+    def process_choices(choices: List[Proof]) -> bool:
         cur_state_num = ctx.get_cur_state_num()
         if cur_state_num not in ctx.state_current_choices:
             ctx.state_current_choices[cur_state_num] = 0
 
         cur_indent = ctx.current_indent
-        for _, c in enumerate(choices):
+        for k, c in enumerate(choices):
+            # result.append(f'--- CHOICE: {c} of {choices} ------------------\n')
+            if len(choices) > 1:
+                result.append(f'choice {k+1} of {len(choices)} in state {cur_state_num}\n')  # TODO: devise choice encoding
+
             i = ctx.state_current_choices[cur_state_num]
-            try:
-                traverse_proof(ctx, c, i)
-                break
-            except ProofFailEscape:
-                result.append(f"no solution, return to state {cur_state_num} [that leads to state {ctx.get_cur_state_num()}]\n")
+
+            if traverse_proof(ctx, c, i):
+                return True
+            else:
+                result.append(f"no solution, return to state {cur_state_num}\n")
                 ctx.set_cur_state_num(cur_state_num)
                 ctx.current_indent = cur_indent # reset indent
                 show_current_tactic_state()
                 ctx.state_current_choices[cur_state_num] += 1
-                continue
+
+        if len(choices) > 1:
+            result.append("all choices exhausted\n")
+
+        return False
 
     top_level_tactics = to_lean_tactic("", proof)
     if len(top_level_tactics) == 0:
@@ -137,16 +147,13 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int):
             case DownshiftR(subproof):
                 return recurse(subproof)
             case ProofFailed():
-                raise ProofFailEscape()
+                return False
             case FocusChoice(choices):
-                process_choices(choices)
-                return
+                return process_choices(choices)
             case OrR_choice(l, r):
-                process_choices([l, r])
-                return
+                return process_choices([l, r])
             case NegAndL_choice(l, r):
-                process_choices([l, r])
-                return
+                return process_choices([l, r])
             case _:
                 raise ValueError(f"invalid proof: {proof}")
 
@@ -154,31 +161,29 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int):
         inversion_one_step(top_level_tactics[0], next_tactic_num)
         match proof:
             case ImpliesR((name, subproof)):
-                recurse(subproof)
+                return recurse(subproof)
             case NegAndR(left, right):
-                recurse(left)
-                recurse(right)
+                return (recurse(left) and recurse(right))
             case NegTrueR():
-                pass
+                return True
             case FalseL(name):
-                pass
+                return True
             case OrR_left(subproof):
-                recurse(subproof)
+                return recurse(subproof)
             case OrR_right(subproof):
-                recurse(subproof)
+                return recurse(subproof)
             case PosAndR(left, right):
-                recurse(left)
-                recurse(right)
+                return (recurse(left) and recurse(right))
             case PosTrueR():
-                pass
+                return True
             case PosAtomR(name):
-                pass
+                return True
             case NegAndL_left(name, (left_name, left_proof)):
-                recurse(left_proof)
+                return recurse(left_proof)
             case NegAndL_right(name, (right_name, right_proof)):
-                recurse(right_proof)
+                return recurse(right_proof)
             case NegAtomL(name):
-                pass
+                return True # TODO: check
             case _:
                 raise ValueError(f"invalid proof: {proof}")
     else:
@@ -186,50 +191,59 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int):
             case OrL(name, (left_name, left_proof), (right_name, right_proof)):
                 inversion_one_step(top_level_tactics[0], next_tactic_num)
                 one_step_with_increment(top_level_tactics[1], 0)
-                recurse(left_proof)
+                first_cond = recurse(left_proof)
                 decrement_and_repeat_previous_state()
                 one_step_with_increment(top_level_tactics[2], 0)
-                recurse(right_proof)
+                second_cond = recurse(right_proof)
                 decrement_and_repeat_previous_state()
+                return (first_cond and second_cond)
             case PosAndL(name, (left_name, right_name, subproof)):
                 inversion_one_step(top_level_tactics[0], next_tactic_num)
                 inversion_one_step(top_level_tactics[1], 0)
-                recurse(subproof)
+                return recurse(subproof)
             case ImpliesL(name, prop, left, (right_name, right_proof), additional_name):
                 one_step_with_increment(top_level_tactics[0], next_tactic_num)
-                recurse(left)
+                first_cond = recurse(left)
                 decrement_and_repeat_previous_state()
                 inversion_one_step(top_level_tactics[1], 0)
-                recurse(right_proof)
+                second_cond = recurse(right_proof)
+                return (first_cond and second_cond)
             case _:
                 raise ValueError(f"Invalid proof: {proof}")
 
 
-def get_lean_tactic_state(lean_text: str) -> str:
-    input_str = json.dumps({"cmd": lean_text})
+def start_lean(cwd=lean_repl_path):
     process = subprocess.Popen(["lake", "exec", "repl"], 
                                stdin=subprocess.PIPE, 
                                stdout=subprocess.PIPE, 
                                stderr=subprocess.PIPE, 
                                text=True, 
-                               cwd=lean_repl_path)
-    try:
-        stdout, _ = process.communicate(input_str)
-        output_json = json.loads(stdout)
+                               cwd=cwd)
+    return process
 
-        if 'sorries' not in output_json or len(output_json["sorries"]) == 0:
-            return "no goals"
-        elif len(output_json["sorries"]) == 1:
-            ret_text = output_json["sorries"][0]["goal"]
-            if ret_text == "unknown goal":
-                return "no goals"
-            else:
-                return ret_text
-        else:
-            raise ValueError(f"more than one goal: {output_json['sorries']}")
 
-    finally:
-        process.terminate()
+def get_lean_tactic_state(lean_proc, lean_text: str) -> str:
+    input_str = json.dumps({"cmd": lean_text})
+
+    lean_proc.stdin.write(input_str + '\n\n')
+    lean_proc.stdin.flush()
+
+    out = ''
+    line = lean_proc.stdout.readline()
+    while line != '\n':
+        out = out + line
+        line = lean_proc.stdout.readline()
+
+    output_json = json.loads(out)
+
+    if 'sorries' not in output_json or len(output_json["sorries"]) == 0:
+        return 'goal complete'  # TODO: introduce goal tracking
+    elif len(output_json["sorries"]) == 1:
+        ret_text = output_json["sorries"][0]["goal"]
+        assert ret_text != 'unknown goal'
+        return ret_text
+    else:
+        raise ValueError(f"more than one goal: {output_json['sorries']}")
 
 
 def to_lean_decl(n_atoms : int, prop: Proposition) -> str:
@@ -288,8 +302,8 @@ def to_lean_tactic(indent: str, proof: Proof) -> List[str]:
         case FalseL(name):
             return [f"{indent}apply False.elim {name}"]
         case PosAndL(name, (left_name, right_name, subproof)):
-            return [f"{indent}let {left_name} := {name}.left",
-                   f"{indent}let {right_name} := {name}.right"]
+            return [f"{indent}have {left_name} := {name}.left",
+                   f"{indent}have {right_name} := {name}.right"]
         case PosTrueL(name, subproof):
             return []
         case PosAtomL(name, subproof):
@@ -316,11 +330,11 @@ def to_lean_tactic(indent: str, proof: Proof) -> List[str]:
             return []
         case ImpliesL(name, prop, left, (right_name, right_proof), additional_name):
             return [f"{indent}have {additional_name} : {to_lean_theorem_text(prop)} := by",
-                   f"{indent}let {right_name} := {name} {additional_name}"]
+                   f"{indent}have {right_name} := {name} {additional_name}"]
         case NegAndL_left(name, (left_name, left_proof)):
-            return [f"{indent}let {left_name} := {name}.left"]
+            return [f"{indent}have {left_name} := {name}.left"]
         case NegAndL_right(name, (right_name, right_proof)):
-            return [f"{indent}let {right_name} := {name}.right"]
+            return [f"{indent}have {right_name} := {name}.right"]
         case NegAtomL(name):
             return [f"{indent}exact {name}"]
         case UpshiftL(name, subproof):

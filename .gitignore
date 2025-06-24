@@ -5,6 +5,7 @@ __pycache__/
 fig/
 task/dataset/
 old/
+*.backup
 
 # ignore slurm logging outputs
 *.err
