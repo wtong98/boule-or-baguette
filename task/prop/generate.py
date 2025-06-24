@@ -17,8 +17,8 @@ from util.proof import prove
 from util.out import format_example 
 from util.sample import gen_batch, n_combo
 
-n_atoms = 1
-max_nodes = 2
+n_atoms = 3
+max_nodes = 3
 
 all_ex = itertools.chain(*[gen_batch(4, n) for n in range(1, max_nodes + 1)])
 total_ex = sum(n_combo(4, n) for n in range(1, max_nodes + 1))
@@ -30,7 +30,7 @@ def write_example(prop):
     ex = format_example(n_atoms, prop, proof)
     pbar.update(1)
 
-    with open('tmp.jsonl', 'a') as fp:
+    with open('data.jsonl', 'a') as fp:
         json.dump(ex, fp)
         fp.write('\n')
     
@@ -43,18 +43,3 @@ with ThreadPoolExecutor(max_workers=16) as executor:
 
 pbar.close()
 print('done')
-
-        
-        
-        # for prop in tqdm(all_ex, total=total_ex):
-        #     proof = prove(prop, keep='until_success')
-        #     start, res, is_true = format_example(lean_proc, n_atoms, prop, proof)
-
-        #     ex = {
-        #         'input': et.tostring(start, encoding='utf-8').decode('utf-8'),
-        #         'is_true': is_true,
-        #         'proof': ''.join([et.tostring(r, encoding='utf-8').decode('utf-8') for r in res])
-        #     }
-
-        #     json.dump(ex, fp)
-        #     fp.write('\n')

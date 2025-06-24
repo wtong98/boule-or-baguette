@@ -9,10 +9,10 @@ from .data import *
 lean_repl_path = r'/home/grandpaa/workspace/imply/imply/task/prop/old/propositional_logic/random_gen/lean-repl'
 
 
-def format_example(lean_proc, n_atoms: int, prop: Proposition, proof: Proof):
-    ctx = StateTrackingCtx(lean_proc, n_atoms, prop)
+def format_example(n_atoms: int, prop: Proposition, proof: Proof):
+    ctx = StateTrackingCtx(n_atoms, prop)
 
-    init_state = build_state(ctx.get_cur_tactic_state, 0)
+    init_state = build_state(ctx.get_cur_tactic_state(), 0)
 
     is_succ = traverse_proof(ctx, proof, 0)
     result = ctx.result_buffer
@@ -22,10 +22,16 @@ def format_example(lean_proc, n_atoms: int, prop: Proposition, proof: Proof):
     else:
         result.append(et.Element('failure'))
     
+    
+    proof_length = max([int(e.get('id')) for e in result if e.tag == 'state'])
+    uniq_ops = set([standardize(e.text) for e in result if e.tag == 'tactic'])
+    
     ex = {
         'input': et.tostring(init_state, encoding='utf-8').decode('utf-8'),
         'is_true': is_succ,
-        'proof': ''.join([et.tostring(r, encoding='utf-8').decode('utf-8') for r in result])
+        'proof': ''.join([et.tostring(r, encoding='utf-8').decode('utf-8') for r in result]),
+        'length': proof_length,
+        'ops': list(uniq_ops)
     }
 
     return ex
@@ -44,9 +50,8 @@ def build_state(tactic_state, state_id):
 
 
 class StateTrackingCtx:
-    def __init__(self, lean_proc, num_vars: int, prop: Proposition, 
+    def __init__(self, num_vars: int, prop: Proposition, 
                  initial_indent:str = "  "):
-        self.lean_proc = lean_proc
         self.num_vars = num_vars
         self.prop = prop
         lean_text = to_lean_decl(num_vars, prop)
@@ -77,7 +82,7 @@ class StateTrackingCtx:
         self.current_indent = self.current_indent[:-2]
     
     def get_cur_tactic_state(self) -> str:
-        return get_lean_tactic_state(self.lean_proc, self.get_cur_state_text() + "\n" + self.current_indent + "sorry")
+        return get_lean_tactic_state(self.get_cur_state_text() + "\n" + self.current_indent + "sorry")
 
 
 def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int) -> bool:
@@ -250,7 +255,7 @@ def start_lean(cwd=lean_repl_path):
     return process
 
 
-def get_lean_tactic_state(lean_proc, lean_text: str) -> str:
+def get_lean_tactic_state(lean_text: str) -> str:
     input_str = json.dumps({"cmd": lean_text})
 
     with start_lean() as lean_proc:
@@ -378,3 +383,27 @@ def to_lean_tactic(indent: str, proof: Proof) -> List[str]:
             return []
         case _:
             raise ValueError(f"Invalid proof: {proof}")
+
+
+def standardize(tactic: str) -> str:
+    if tactic.startswith('intro'):
+        return 'intro h'
+    elif tactic == 'apply And.intro':
+        return 'apply And'
+    elif tactic == 'apply True.intro':
+        return 'apply True'
+    elif tactic.startswith('apply Or.'):
+        return 'apply Or'
+    elif tactic.startswith('case'):
+        return 'cases Or'
+    elif tactic.startswith('apply False.elim'):
+        return 'efq'
+    elif tactic.endswith('.left') or tactic.endswith('.right'):
+        return 'split And'
+    elif tactic.startswith('have'):
+        return 'split Imply'
+    elif tactic.startswith('exact'):
+        return 'exact'
+    else:
+        print(f'warn: unrecognized tactic: {tactic}')
+        return tactic
