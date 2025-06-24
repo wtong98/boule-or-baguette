@@ -8,24 +8,39 @@ from .data import *
 
 lean_repl_path = r'/home/grandpaa/workspace/imply/imply/task/prop/old/propositional_logic/random_gen/lean-repl'
 
-# def get_thm_initial_state(num_vars: int, prop: Proposition) -> str:
-#     tactic_state = StateTrackingCtx(num_vars, prop).get_cur_tactic_state()
-#     return tactic_state
 
-
-def format_example(lean_proc, n_atoms: int, prop: Proposition, proof: Proof) -> str:
+def format_example(lean_proc, n_atoms: int, prop: Proposition, proof: Proof):
     ctx = StateTrackingCtx(lean_proc, n_atoms, prop)
-    init_state = ctx.get_cur_tactic_state()
+
+    init_state = build_state(ctx.get_cur_tactic_state, 0)
 
     is_succ = traverse_proof(ctx, proof, 0)
-    ret_text = "".join(ctx.result_buffer)
+    result = ctx.result_buffer
 
     if is_succ:
-        ret_text += "proof is complete\n"
+        result.append(et.Element('success'))
     else:
-        ret_text += "proof failed\n"
+        result.append(et.Element('failure'))
+    
+    ex = {
+        'input': et.tostring(init_state, encoding='utf-8').decode('utf-8'),
+        'is_true': is_succ,
+        'proof': ''.join([et.tostring(r, encoding='utf-8').decode('utf-8') for r in result])
+    }
 
-    return init_state + '\n' + ret_text
+    return ex
+
+
+def build_state(tactic_state, state_id):
+    lines = tactic_state.split('\n')
+    state = et.Element('state', id=str(state_id))
+    for line in lines[:-1]:
+        if_elem = et.SubElement(state, 'if')
+        if_elem.text = line
+
+    then_elem = et.SubElement(state, 'then')
+    then_elem.text = lines[-1]
+    return state
 
 
 class StateTrackingCtx:
@@ -70,17 +85,28 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int) ->
     def recurse(p: Proof):
         return traverse_proof(ctx, p, 0)
     def show_tactic(tactic: str, tactic_num: int) -> None:
-        to_append_tactic_text = f"state_{ctx.get_cur_state_num()}_tactic_{tactic_num}:\n"
-        # assert to_append_tactic_text not in ctx.result_buffer
-        result.append(to_append_tactic_text)
-        result.append(tactic + "\n")
+        tac = et.Element('tactic')
+        tac.text = tactic
+        result.append(tac)
     def new_state_with_new_tactic(tactic: str) -> None:
         ctx.push_state(ctx.get_cur_state_text() + "\n" + ctx.current_indent + tactic)
     def repeat_previous_state() -> None:
         ctx.push_state(ctx.get_cur_state_text())
     def show_current_tactic_state() -> None:
-        result.append(f"state_{ctx.get_cur_state_num()}:\n")
-        result.append(ctx.get_cur_tactic_state() + "\n")
+        lines = ctx.get_cur_tactic_state().split('\n')
+        state = et.Element('state', id=str(ctx.get_cur_state_num()))
+        if len(lines) == 1 and lines[0] == 'goal complete':
+            et.SubElement(state, 'complete')
+        else:
+            for line in lines[:-1]:
+                if_elem = et.SubElement(state, 'if')
+                if_elem.text = line
+
+            then_elem = et.SubElement(state, 'then')
+            then_elem.text = lines[-1]
+
+        result.append(state)
+        
     
     def inversion_one_step(tactic: str, tactic_num: int) -> None:
         show_tactic(tactic, tactic_num)
@@ -104,22 +130,24 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int) ->
         cur_indent = ctx.current_indent
         for k, c in enumerate(choices):
             # result.append(f'--- CHOICE: {c} of {choices} ------------------\n')
-            if len(choices) > 1:
-                result.append(f'choice {k+1} of {len(choices)} in state {cur_state_num}\n')  # TODO: devise choice encoding
+            # if len(choices) > 1:
+            #     result.append(f'choice {k+1} of {len(choices)} in state {cur_state_num}\n')  # TODO: devise choice encoding
 
             i = ctx.state_current_choices[cur_state_num]
 
             if traverse_proof(ctx, c, i):
                 return True
             else:
-                result.append(f"no solution, return to state {cur_state_num}\n")
+                bt = et.Element('backtrack', to=str(cur_state_num))
+                result.append(bt)
+
                 ctx.set_cur_state_num(cur_state_num)
                 ctx.current_indent = cur_indent # reset indent
                 show_current_tactic_state()
                 ctx.state_current_choices[cur_state_num] += 1
 
-        if len(choices) > 1:
-            result.append("all choices exhausted\n")
+        # if len(choices) > 1:
+        #     result.append("all choices exhausted\n")
 
         return False
 
@@ -225,19 +253,20 @@ def start_lean(cwd=lean_repl_path):
 def get_lean_tactic_state(lean_proc, lean_text: str) -> str:
     input_str = json.dumps({"cmd": lean_text})
 
-    lean_proc.stdin.write(input_str + '\n\n')
-    lean_proc.stdin.flush()
+    with start_lean() as lean_proc:
+        lean_proc.stdin.write(input_str + '\n\n')
+        lean_proc.stdin.flush()
 
-    out = ''
-    line = lean_proc.stdout.readline()
-    while line != '\n':
-        out = out + line
+        out = ''
         line = lean_proc.stdout.readline()
+        while line != '\n':
+            out = out + line
+            line = lean_proc.stdout.readline()
 
     output_json = json.loads(out)
 
     if 'sorries' not in output_json or len(output_json["sorries"]) == 0:
-        return 'goal complete'  # TODO: introduce goal tracking
+        return 'goal complete'
     elif len(output_json["sorries"]) == 1:
         ret_text = output_json["sorries"][0]["goal"]
         assert ret_text != 'unknown goal'

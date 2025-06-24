@@ -1,11 +1,9 @@
 """Enumerate new propositions"""
 
-# <codecell>
 import itertools as it
 import math
 
-# from .data import *
-from data import *
+from .data import *
 
 ops = [And, Or, Implies]
 
