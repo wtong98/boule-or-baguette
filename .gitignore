@@ -6,7 +6,8 @@ fig/
 task/dataset/
 old/
 *.backup
-*.jsonl
+*.json
+data/
 
 # ignore slurm logging outputs
 *.err

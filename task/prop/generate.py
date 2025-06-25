@@ -17,8 +17,8 @@ from util.proof import prove
 from util.out import format_example 
 from util.sample import gen_batch, n_combo
 
-n_atoms = 3
-max_nodes = 3
+n_atoms = 1
+max_nodes = 1
 
 all_ex = itertools.chain(*[gen_batch(4, n) for n in range(1, max_nodes + 1)])
 total_ex = sum(n_combo(4, n) for n in range(1, max_nodes + 1))
@@ -30,16 +30,13 @@ def write_example(prop):
     ex = format_example(n_atoms, prop, proof)
     pbar.update(1)
 
-    with open('data.jsonl', 'a') as fp:
+    with open('data.json', 'a') as fp:
         json.dump(ex, fp)
         fp.write('\n')
-    
-    
 
 with ThreadPoolExecutor(max_workers=16) as executor:
     itr = all_ex
     executor.map(write_example, itr)
-
 
 pbar.close()
 print('done')
