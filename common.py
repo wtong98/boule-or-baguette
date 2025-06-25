@@ -104,14 +104,14 @@ def merge_dicts(dicts):
 
 
 def gen1(state, xs, **kwargs):
-    return _generate(state, xs, idx=1, **kwargs)
+    return generate(state, xs, idx=1, **kwargs)
 
 
 def gen2(state, xs, **kwargs):
-    return _generate(state, xs, idx=2, **kwargs)
+    return generate(state, xs, idx=2, **kwargs)
 
 
-def _generate(state, xs, idx, beta=1, seed=None):
+def generate(state, xs, idx, beta=1, seed=None):
     if seed is None:
         seed = new_seed()
 

@@ -38,11 +38,10 @@ class TransformerConfig:
     n_out: int = 1
     max_len: int = 1024
     pos_emb: bool = True
-    use_last_index_output: bool = False
     layer_norm: bool = True
     residual_connections: bool = True
     n_mlp_layers: int = 2
-    return_final_logits_only: bool = True
+    return_format: str = 'final_logit'
     as_rf_model: bool = False
     use_simple_att: bool = False
     freeze_emb: bool = False
@@ -227,15 +226,21 @@ class Transformer(nn.Module):
             name = f'transformer_block_{i}_freeze' if self.config.as_rf_model else None
             y = TransformerBlock(config=config, name=name)(y, decoder_mask=decoder_mask)
         
-        if config.use_last_index_output:
-            return y[:,-1,-1]
 
         logits = nn.Dense(config.n_out, use_bias=self.config.use_bias)(y)
-        if config.return_final_logits_only:
-            logits = logits[:,-1,:]
 
-            if config.n_out == 1:
-                logits = logits.flatten()
+        if config.return_format is None:
+            pass
+        elif config.return_format == 'final_logit':
+            logits = logits[:,-1]
+        elif config.return_format == 'final_logit_up_to_pad':
+            pred_idx = jnp.sum(inputs != 0, axis=1) - 1
+            logits = logits[jnp.arange(logits.shape[0]), pred_idx]
+        else:
+            raise ValueError(f'unrecognized return format: {config.return_format}')
+
+        if self.config.n_out == 1:
+            logits = logits.squeeze()
 
         return logits
 
