@@ -6,7 +6,7 @@ import xml.etree.ElementTree as et
 
 from .data import *
 
-lean_repl_path = r'/home/grandpaa/workspace/imply/imply/task/prop/old/propositional_logic/random_gen/lean-repl'
+lean_repl_path = r'/home/grandpaa/workspace/imply/imply/task/prop_gen/old/propositional_logic/random_gen/lean-repl'
 
 
 def format_example(n_atoms: int, prop: Proposition, proof: Proof):
@@ -23,7 +23,8 @@ def format_example(n_atoms: int, prop: Proposition, proof: Proof):
         result.append(et.Element('failure'))
     
     
-    proof_length = max([int(e.get('id')) for e in result if e.tag == 'state'])
+    proof_states = [int(e.get('id')) for e in result if e.tag == 'state']
+    proof_length = max(proof_states) if len(proof_states) > 0 else 0
     uniq_ops = set([standardize(e.text) for e in result if e.tag == 'tactic'])
     
     ex = {

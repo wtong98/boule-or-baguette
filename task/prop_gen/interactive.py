@@ -16,7 +16,9 @@ from util.out import format_example, start_lean
 # prop = decode_prop(1001, 3)
 # prop = Implies(Atom('p3'), Implies(Or(Atom('p1'), Or(Atom('p2'), Atom('p3'))), Or(Atom('p1'), Atom('p3'))))
 # prop = Implies(Atom('p3'), Or(Or(Atom('p1'), Atom('p2')), Atom('p3')))
-prop = Implies(Implies(Atom('p1'), And(Atom('p2'), Atom('p1'))), Implies(Atom('p1'), And(Atom('p2'), Atom('p2'))))
+
+# prop = Implies(Implies(Atom('p1'), And(Atom('p2'), Atom('p1'))), Implies(Atom('p1'), And(Atom('p2'), Atom('p2'))))
+prop = Atom('p1')
 # prop = Implies(And(Atom('p1'), And(Atom('p2'), Atom('p2'))), And(Atom('p2'), And(Atom('p1'), Atom('p1'))))
 # prop = Implies(Or(Atom('p1'), Atom('p1')), Atom('p1'))
 
