@@ -1,5 +1,6 @@
 """Format generated examples into HuggingFace datasets"""
 
+# <codecell>
 from collections import defaultdict
 
 from datasets import load_dataset, DatasetDict
@@ -8,7 +9,7 @@ from transformers import AutoTokenizer
 
 def get_tokenizer():
     tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
-    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.pad_token = '!'
     return tokenizer
 
 
@@ -40,23 +41,29 @@ def count_ops(dataset):
 
 if __name__ == '__main__':
     dataset = load_dataset('json', data_files='data.json', split='train', keep_in_memory=True)
+    
+    lens = count_lens(dataset)
+    max_len = max(lens.keys())
+    
+    all_lds = {}
+    for i in range(1, max_len + 1):
+        for t in True, False:
+            lds = dataset.filter(lambda ex: ex['length'] == i and ex['is_true'] == t)
+            all_lds[f'{t}_{i}'] = lds
+
+    ds = DatasetDict(all_lds)
+
     tokenizer = get_tokenizer()
 
     def to_toks(ex):
-        inp_toks = tokenizer(ex['input'])
-        inp_and_proof_toks = tokenizer(ex['input'] + ex['proof'])
+        inp_toks = tokenizer(ex['input'], return_attention_mask=False)
+        inp_and_proof_toks = tokenizer(ex['input'] + ex['proof'], return_attention_mask=False)
         return {
             'input_ids': inp_toks['input_ids'],
-            'input_att_mask': inp_toks['attention_mask'],
             'full_ids': inp_and_proof_toks['input_ids'],
-            'full_mask': inp_and_proof_toks['attention_mask']
         }
 
-    ds = dataset.map(to_toks, batched=False)
+    ds = ds.map(to_toks, batched=False)
     ds = ds.remove_columns(['input', 'proof'])
 
-    ds_true = ds.filter(lambda ex: ex['is_true'])
-    ds_false = ds.filter(lambda ex: not ex['is_true'])
-
-    ds = DatasetDict(true=ds_true, false=ds_false)
-    ds.save_to_disk('data/hf/prop')
+    ds.save_to_disk('data/hf')
