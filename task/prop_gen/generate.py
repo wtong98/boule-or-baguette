@@ -50,3 +50,5 @@ with ThreadPoolExecutor(max_workers=n_cores) as executor:
 
 pbar.close()
 print('done')
+
+# TODO: fix paths and install lean <-- STOPPED HERE

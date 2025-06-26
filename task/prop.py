@@ -6,10 +6,11 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from transformers import DataCollatorWithPadding
+from tqdm import tqdm
 
 import sys
 sys.path.append('../')
-from common import generate
+from common import generate, new_seed
 
 try:
     from .prop_gen.to_dataset import get_tokenizer
@@ -20,7 +21,10 @@ except ImportError:
 ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 
 class PropTask:
+    n_vocab = 50257
+
     def __init__(self, depth, split='train', cot=False, batch_size=128) -> None:
+        assert batch_size > 1, f'require batch_size={batch_size} > 1'
         self.depth = depth
         self.split = split
         self.cot = cot
@@ -98,42 +102,52 @@ class PropTask:
         return self
 
 
-# yes_id = 13138
-# no_id = 32165
-# state_id = 5219
-
-# task = PropTask(depth=3, batch_size=4, cot=True)
-# xs, _ = next(task)
-
-# def gen_acc_cot_prop(batch):
-#     pass
-
-# yes_id = 13138
-# no_id = 32165
-# state_id = 5219
-
-# def score(state, xs):
-#     start_idx = jnp.argmax((xs[2:] == state_id)) + 4
-#     is_true = jnp.argmax(xs == yes_id) > 0
-
-#     preds = generate(state, xs, idx=start_idx)
-#     pred_is_true = jnp.argmax(preds == yes_id) > 0
-
-#     return is_true == pred_is_true
-    
-
-# score(xs)
-# jnp.argmax(no_id == xs[0])
-
 # <codecell>
 
-# def extract_pred(traj):
-    # # assumes no/yes classification offset by 1 for padding
-    # no_occ = jnp.argmax(traj == 1, axis=1)
-    # no_occ = jnp.where(no_occ == 0, jnp.inf, no_occ)
-    # yes_occ = jnp.argmax(traj == 2, axis=1)
-    # yes_occ = jnp.where(yes_occ == 0, jnp.inf, yes_occ)
+yes_id = 13138
+no_id = 32165
+state_id = 5219
 
-    # preds = jnp.argmin(jnp.stack((no_occ, yes_occ), axis=1), axis=1) + 1
-    # preds = jnp.where(no_occ != yes_occ, preds, jnp.inf)
-    # return preds
+# NOTE: un-optimized and very expensive to run
+def gen_acc_cot_prop(state, batch, loss=None):
+    tot_correct = 0
+    all_exs = batch[0]
+
+    for xs in tqdm(all_exs):
+        start_idx = jnp.argmax((xs[2:] == state_id)) + 4
+        preds = generate(state, xs, idx=start_idx)
+        tot_correct += score(xs, preds)
+    
+    return {'gen_acc': tot_correct / len(batch)}
+        
+
+@jax.jit
+def score(xs, preds):
+    is_true = jnp.argmax(xs == yes_id) > 0
+    pred_is_true = jnp.argmax(preds == yes_id) > 0
+    pred_is_false = jnp.argmax(preds == no_id) > 0
+
+    return is_true * pred_is_true + (1 - is_true) * pred_is_false
+
+
+def generate(state, xs, idx, beta=1, seed=None):
+    if seed is None:
+        seed = new_seed()
+
+    xs = xs[None]
+    source = jax.random.key(seed)
+    while idx < xs.shape[1] - 1:
+        key, source = jax.random.split(source)
+        xs = _gen_pass(key, state, xs, idx, beta)
+        idx += 1
+    
+    return xs.squeeze()
+
+
+@jax.jit
+def _gen_pass(key, state, xs, idx, beta):
+    logits = state.apply_fn({'params': state.params}, xs)
+    pred = jax.random.categorical(key, beta * logits[0,idx])
+    xs = xs.at[0,idx+1].set(pred)
+    return xs
+

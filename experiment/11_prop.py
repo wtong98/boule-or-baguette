@@ -70,46 +70,4 @@ state, hist = train(config,
                     )
 
 # <codecell>
-yes_id = 13138
-no_id = 32165
-state_id = 5219
 
-def score(state, xs):
-    start_idx = jnp.argmax((xs[2:] == state_id)) + 4
-    is_true = jnp.argmax(xs == yes_id) > 0
-
-    preds = generate(state, xs, idx=start_idx)
-    pred_is_true = jnp.argmax(preds == yes_id) > 0
-    pred_is_false = jnp.argmax(preds == no_id) > 0
-
-    if pred_is_true == pred_is_false == False:
-        return False
-
-    return is_true == pred_is_true
-
-def generate(state, xs, idx, beta=1, seed=None):
-    if seed is None:
-        seed = new_seed()
-
-    xs = xs[None]
-    source = jax.random.key(seed)
-    while idx < xs.shape[1] - 1:
-        key, source = jax.random.split(source)
-        xs = _gen_pass(key, state, xs, idx, beta)
-        idx += 1
-    
-    return xs.squeeze()
-
-@jax.jit
-def _gen_pass(key, state, xs, idx, beta):
-    logits = state.apply_fn({'params': state.params}, xs)
-    preds = jax.random.categorical(key, beta * logits)
-    # xs = xs.at[:,idx+1].set(preds[:,idx])
-    xs = xs.at[:,idx+1].set(preds[idx])
-    return xs
-
-
-xs = jnp.array(xs)
-score(state, xs[2])
-
-# TODO: instrument correctly and submit <-- STOPPED HERE
