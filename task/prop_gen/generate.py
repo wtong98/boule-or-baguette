@@ -19,15 +19,15 @@ from util.sample import gen_batch, n_combo
 
 n_atoms = 3
 max_nodes = 5
-n_cores = 112
+n_cores = 48 * 4
 
 out_path = '/scratch/data.json'
 
 ### START TEST CONFIG
 # out_path = 'data.json'
 # n_cores = 16
-n_atoms = 1
-max_nodes = 1
+# n_atoms = 1
+# max_nodes = 1
 ### END TEST CONFIG
 
 all_ex = itertools.chain(*[gen_batch(n_atoms, n) for n in range(1, max_nodes + 1)])

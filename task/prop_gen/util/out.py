@@ -6,7 +6,8 @@ import xml.etree.ElementTree as et
 
 from .data import *
 
-lean_repl_path = r'/home/grandpaa/workspace/imply/imply/task/prop_gen/old/propositional_logic/random_gen/lean-repl'
+# lean_repl_path = r'/home/grandpaa/workspace/imply/imply/task/prop_gen/old/propositional_logic/random_gen/lean-repl'
+lean_repl_path = r'util/repl'
 
 
 def format_example(n_atoms: int, prop: Proposition, proof: Proof):
