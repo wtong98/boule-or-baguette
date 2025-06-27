@@ -8,6 +8,7 @@ old/
 *.backup
 *.json
 data/
+repl/
 
 # ignore slurm logging outputs
 *.err

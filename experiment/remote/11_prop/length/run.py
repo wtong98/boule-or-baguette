@@ -22,7 +22,7 @@ print('RUN ID', run_id)
 run_split = 8
 
 train_iters = 100_000
-batch_size = 128
+batch_size = 128  # TODO: need gradient accumulation to handle large batch sizes
 eval_batch_size = 50
 
 n_hops = [2, 3, 4, 5]
@@ -35,25 +35,24 @@ save_dir = Path('~/scratch/prop_weights')
 
 
 ### START TEST CONFIGS
-# run_split = 1
+run_split = 1
 
-# train_iters = 5
-# batch_size = 4
-# eval_batch_size = 2
+train_iters = 3
+batch_size = 4
+eval_batch_size = 2
 
-# n_hops = [2]
+n_hops = [2]
 
-# n_hidden = 100
-# n_layer = 1
-# n_head = 1
+n_hidden = 100
+n_layer = 1
+n_head = 1
 
-# save_dir = Path('.').parent
+save_dir = Path('.').parent
 ### END TEST CONFIGS
 
 all_cases = []
 
 for n_hop in n_hops:
-    print('N_HOP', n_hop)
     n_vocab = PropTask.n_vocab
 
     model_args = {
@@ -86,22 +85,22 @@ for n_hop in n_hops:
     
 
     all_cases.extend([
-        Case('Zero',
-                TransformerConfig(n_heads=n_head,
-                                  n_out=1,
-                                  n_layers=n_layer,
-                                  pos_emb=True, 
-                                  return_format='final_logit_up_to_pad',
-                                  n_mlp_layers=2,
-                                  layer_norm=True,
-                                  residual_connections=True,
-                                  mup_scale=True,
-                                  linear_att=False,
-                                  **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False, split='train', batch_size=batch_size),
-                test_task=make_chain(cot=False, split='test', batch_size=batch_size)
-        ), 
+        # Case('Zero',
+        #         TransformerConfig(n_heads=n_head,
+        #                           n_out=1,
+        #                           n_layers=n_layer,
+        #                           pos_emb=True, 
+        #                           return_format='final_logit_up_to_pad',
+        #                           n_mlp_layers=2,
+        #                           layer_norm=True,
+        #                           residual_connections=True,
+        #                           mup_scale=True,
+        #                           linear_att=False,
+        #                           **model_args),
+        #         train_args=make_train_args('bce'),
+        #         train_task=make_chain(cot=False, split='train', batch_size=batch_size),
+        #         test_task=make_chain(cot=False, split='test', batch_size=batch_size)
+        # ), 
 
         Case('AR full',
                 TransformerConfig(n_heads=n_head, 
@@ -127,8 +126,8 @@ all_cases = split_cases(all_cases, run_split)
 print('CASES', all_cases)
 
 for case in tqdm(all_cases):
-    print('RUNNING', case.name)
     case.run()
+    case.state.params['Dense_0']['kernel'].block_until_ready()
 
     if case.train_task.cot == True:
         case.train_args['eval_fns'].append(gen_acc_cot_prop)
