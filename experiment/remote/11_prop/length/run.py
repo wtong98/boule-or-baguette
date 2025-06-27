@@ -7,6 +7,7 @@ from pathlib import Path
 import pickle
 
 import pandas as pd
+import optax
 from tqdm import tqdm
 
 import sys
@@ -19,11 +20,13 @@ from task.prop import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 8
+run_split = 12
 
-train_iters = 100_000
-batch_size = 128  # TODO: need gradient accumulation to handle large batch sizes
-eval_batch_size = 50
+batch_size = 32
+multistep_k = 4
+train_iters = multistep_k * 100_000
+warmup_iters = multistep_k * 2000
+eval_batch_size = 100
 
 n_hops = [2, 3, 4, 5]
 
@@ -37,9 +40,11 @@ save_dir = Path('~/scratch/prop_weights')
 ### START TEST CONFIGS
 run_split = 1
 
-train_iters = 3
+train_iters = 2
+warmup_iters = 1
 batch_size = 4
 eval_batch_size = 2
+multistep_k = 2
 
 n_hops = [2]
 
@@ -68,6 +73,14 @@ for n_hop in n_hops:
             'test_every': 1_000,
             'test_iters': 1,
             'train_iters': train_iters,
+            'k': multistep_k,
+            'lr': optax.schedules.warmup_cosine_decay_schedule(
+                init_value=1e-4,
+                peak_value=5e-4,
+                warmup_steps=warmup_iters,
+                decay_steps=train_iters,
+                end_value=5e-5
+            )
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -85,22 +98,39 @@ for n_hop in n_hops:
     
 
     all_cases.extend([
-        # Case('Zero',
-        #         TransformerConfig(n_heads=n_head,
-        #                           n_out=1,
-        #                           n_layers=n_layer,
-        #                           pos_emb=True, 
-        #                           return_format='final_logit_up_to_pad',
-        #                           n_mlp_layers=2,
-        #                           layer_norm=True,
-        #                           residual_connections=True,
-        #                           mup_scale=True,
-        #                           linear_att=False,
-        #                           **model_args),
-        #         train_args=make_train_args('bce'),
-        #         train_task=make_chain(cot=False, split='train', batch_size=batch_size),
-        #         test_task=make_chain(cot=False, split='test', batch_size=batch_size)
-        # ), 
+        Case('Zero',
+                TransformerConfig(n_heads=n_head,
+                                  n_out=1,
+                                  n_layers=n_layer,
+                                  pos_emb=True, 
+                                  return_format='final_logit_up_to_pad',
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('bce'),
+                train_task=make_chain(cot=False, split='train', batch_size=batch_size),
+                test_task=make_chain(cot=False, split='test', batch_size=batch_size)
+        ), 
+
+        Case('Zero (small)',
+                TransformerConfig(n_heads=1,
+                                  n_out=1,
+                                  n_layers=2,
+                                  pos_emb=True, 
+                                  return_format='final_logit_up_to_pad',
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('bce'),
+                train_task=make_chain(cot=False, split='train', batch_size=batch_size),
+                test_task=make_chain(cot=False, split='test', batch_size=batch_size)
+        ), 
 
         Case('AR full',
                 TransformerConfig(n_heads=n_head, 
@@ -127,7 +157,6 @@ print('CASES', all_cases)
 
 for case in tqdm(all_cases):
     case.run()
-    case.state.params['Dense_0']['kernel'].block_until_ready()
 
     if case.train_task.cot == True:
         case.train_args['eval_fns'].append(gen_acc_cot_prop)

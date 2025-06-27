@@ -16,9 +16,9 @@ from task.prop import *
 
 # <codecell>
 n_hidden = 512
-batch_size = 4
+batch_size = 128
 
-cot = True
+cot = False
 depth = 3
 
 train_task = PropTask(depth, split='train', cot=cot, batch_size=batch_size)
@@ -61,13 +61,41 @@ state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     loss='ce_mask' if cot else 'bce',
-                    test_every=10,
-                    test_iters=0,
-                    train_iters=0,
+                    test_every=1000,
+                    test_iters=1,
+                    train_iters=100_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot] if cot else None,
                     print_fn=print_gen if cot else None,
                     )
 
-# <codecell>
 
+# <codecell>
+df = collate_dfs('remote/11_prop/length', show_progress=True)
+df
+
+# %%
+def extract_plot_vals(row):
+    return pd.Series([
+        row['name'],
+        row['info'],
+    ], index=['name', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df

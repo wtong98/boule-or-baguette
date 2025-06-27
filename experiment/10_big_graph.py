@@ -15,7 +15,7 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 1024
+n_hidden = 512
 batch_size = 128
 
 cot = False
@@ -57,7 +57,8 @@ config = TransformerConfig(n_layers=2,
                            residual_connections=True,
                            freeze_emb=True,
                            use_bias=False,
-                           return_final_logits_only=False if cot else True,
+                        #    return_final_logits_only=False if cot else True,
+                           return_format=None if cot else 'final_logit',
                            mup_scale=True,
                            linear_att=False
                            )

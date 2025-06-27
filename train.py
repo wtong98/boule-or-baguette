@@ -20,7 +20,15 @@ from tqdm import tqdm
 from common import new_seed, merge_dicts, gen1, gen2
 
 
-def create_train_state(rng=None, model=None, dummy_input=None, params=None, gamma=None, lr=1e-4, optim=optax.adamw, **opt_kwargs):
+def create_train_state(rng=None, 
+                       model=None, 
+                       dummy_input=None, 
+                       params=None, 
+                       gamma=None, 
+                       lr=1e-4, 
+                       optim=optax.adamw, 
+                       with_multistep_k=None,
+                       **opt_kwargs):
     if params is None:
         params = model.init(rng, dummy_input)['params']
 
@@ -31,6 +39,9 @@ def create_train_state(rng=None, model=None, dummy_input=None, params=None, gamm
          'freeze': optax.set_to_zero()},
          traverse_util.path_aware_map(lambda path, _: 'freeze' if np.any([s.endswith('freeze') for s in path]) else 'learn', params)
     )
+
+    if with_multistep_k is not None:
+        tx_with_freeze = optax.MultiSteps(tx_with_freeze, every_k_schedule=with_multistep_k)
 
     def apply_fn(variables, *args, **kwargs):
         logits = model.apply(variables, *args, **kwargs)
@@ -185,7 +196,7 @@ def train(config, train_iter,
           summary_fn=None,
           train_iters=10_000, test_iters=10, test_every=1_000, save_params=False,
           early_stop_n=None, early_stop_key='loss', early_stop_decision='min' ,
-          optim=optax.adamw,
+          optim=optax.adamw, k=None,
           seed=None, use_tqdm=False,
           **opt_kwargs):
 
@@ -208,7 +219,7 @@ def train(config, train_iter,
         model = config.to_model()
 
         samp_x, _ = next(train_iter)
-        state = create_train_state(init_rng, model, samp_x, gamma=gamma, optim=optim, **opt_kwargs)
+        state = create_train_state(init_rng, model, samp_x, gamma=gamma, optim=optim, with_multistep_k=k, **opt_kwargs)
 
     hist = {
         'train': [],

@@ -118,7 +118,7 @@ def gen_acc_cot_prop(state, batch, loss=None):
         preds = generate(state, xs, idx=start_idx)
         tot_correct += score(xs, preds)
     
-    return {'gen_acc': tot_correct / len(batch)}
+    return {'gen_acc': tot_correct / len(all_exs)}
         
 
 @jax.jit

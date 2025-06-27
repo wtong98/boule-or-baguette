@@ -11,5 +11,5 @@
 #SBATCH --account=pehlevan_lab
 
 source ../../../venv_imply/bin/activate
-python generate.py
+python generate.py ${SLURM_ARRAY_TASK_ID}
 mv /scratch/prop ~/scratch/data

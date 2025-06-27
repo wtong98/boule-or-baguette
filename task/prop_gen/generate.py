@@ -33,11 +33,8 @@ def split(it, run_split):
 
     for i, item in enumerate(it):
         if i % run_split == div:
-            print('yield', item)
             yield item
-        else:
-            print('skip', item)
-    
+
 
 run_id = uuid.uuid4()
 
@@ -57,7 +54,7 @@ out_dir = Path('/scratch/prop')
 ### END TEST CONFIG
 
 if not out_dir.exists():
-    out_dir.mkdir(parents=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
 out_path = out_dir / f'{run_id}.json'
 
