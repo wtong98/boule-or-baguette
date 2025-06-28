@@ -88,7 +88,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                          rand_pos_emb=True,
                          n_out=1,
                          n_hidden=n_hidden, 
-                         return_final_logits_only=True),
+                         return_format='final_logit'),
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False)
         ),
@@ -100,7 +100,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                          big_pe=True,
                          n_out=1,
                          n_hidden=n_hidden, 
-                         return_final_logits_only=True),
+                         return_format='final_logit'),
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False)
         ),
@@ -110,7 +110,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                                   n_out=n_vocab,
                                   n_layers=1,
                                   pos_emb=False, 
-                                  return_final_logits_only=False,
+                                  return_format=None,
                                   n_mlp_layers=0,
                                   layer_norm=False,
                                   residual_connections=False,

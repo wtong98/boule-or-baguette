@@ -37,7 +37,7 @@ print(ys[:3])
 #                   big_pe=False,
 #                   n_out=n_vocab if cot else 1,
 #                   n_hidden=n_hidden, 
-#                   return_final_logits_only=False if cot else True)
+#                   return_format=None if cot else True)
 
 config = TransformerConfig(n_layers=2,
                            n_vocab=n_vocab,

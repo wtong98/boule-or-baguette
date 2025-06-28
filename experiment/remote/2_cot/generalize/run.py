@@ -102,7 +102,7 @@ for use_bias, freeze_emb, train_len in itertools.product(use_biases, freeze_embs
         # ),
         
         Case('Transformer',
-                TransformerConfig(n_layers=3, n_heads=2, pos_emb=False, return_final_logits_only=False, **model_args),
+                TransformerConfig(n_layers=3, n_heads=2, pos_emb=False, return_format=None, **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(unwrap=False),
                 test_task=make_test(unwrap=False)

@@ -96,7 +96,7 @@ for train_len_idx, mup, ttr, n_hidden, n_layer, train_iters \
         Case('Transformer',
                 TransformerConfig(n_heads=1, 
                                   pos_emb=False, 
-                                  return_final_logits_only=False, 
+                                  return_format=None, 
                                   n_mlp_layers=0,
                                   layer_norm=False,
                                   residual_connections=False,

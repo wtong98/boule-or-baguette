@@ -104,7 +104,7 @@ test_task = StarfishTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=c
 #                            use_simple_att=False,
 #                            freeze_emb=True,
 #                            use_bias=False,
-#                            return_final_logits_only=True,
+#                            return_format='final_logit',
 #                            mup_scale=True
 #                            )
 
@@ -120,7 +120,7 @@ config = TransformerConfig(n_layers=n_layers,
                            residual_connections=False,
                            freeze_emb=True,
                            use_bias=False,
-                           return_final_logits_only=False,
+                           return_format=None,
                            mup_scale=True,
                            linear_att=True
                            )

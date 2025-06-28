@@ -147,7 +147,7 @@ config = TransformerConfig(n_layers=2,
                            use_simple_att=False,
                            freeze_emb=True,
                            use_bias=False,
-                           return_final_logits_only=False,
+                           return_format=None,
                            )
 
 

@@ -138,7 +138,7 @@ config = TransformerConfig(n_layers=3,
                            use_simple_att=False,
                            freeze_emb=False,
                            use_bias=True,
-                           return_final_logits_only=False,
+                           return_format=None,
                            )
 
 state, hist = train(config,

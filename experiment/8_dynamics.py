@@ -105,7 +105,7 @@ config = TrConfig(n_vocab=n_vocab,
                   pos_emb=False,
                   n_out=n_vocab if cot else 1,
                   n_hidden=n_hidden, 
-                  return_final_logits_only=False if cot else True)
+                  return_format=None if cot else True)
 
 # <codecell>
 state, hist = train(config,

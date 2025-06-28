@@ -41,7 +41,7 @@ test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(n_hop + 1, test_
 #                   big_pe=False,
 #                   n_out=n_vocab if cot else 1,
 #                   n_hidden=n_hidden, 
-#                   return_final_logits_only=False if cot else True)
+#                   return_format=None if cot else True)
 
 config = TransformerConfig(n_layers=2,
                            n_vocab=n_vocab,
@@ -57,7 +57,7 @@ config = TransformerConfig(n_layers=2,
                            residual_connections=True,
                            freeze_emb=True,
                            use_bias=False,
-                        #    return_final_logits_only=False if cot else True,
+                        #    return_format=None if cot else True,
                            return_format=None if cot else 'final_logit',
                            mup_scale=True,
                            linear_att=False

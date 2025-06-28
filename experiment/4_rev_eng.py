@@ -54,7 +54,7 @@ config = TransformerConfig(n_layers=n_layers,
                            use_simple_att=False,
                            freeze_emb=True,
                            use_bias=False,
-                           return_final_logits_only=False,
+                           return_format=None,
                            mup_scale=False
                            )
 

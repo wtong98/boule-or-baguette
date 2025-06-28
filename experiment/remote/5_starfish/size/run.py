@@ -82,7 +82,7 @@ for mup_scale, layer_norm, depth, n_hidden, n_mlp_layer \
         Case('Transformer',
                 TransformerConfig(n_heads=1, 
                                   pos_emb=False, 
-                                  return_final_logits_only=False,
+                                  return_format=None,
                                   n_mlp_layers=n_mlp_layer,
                                   layer_norm=layer_norm,
                                   residual_connections=False,

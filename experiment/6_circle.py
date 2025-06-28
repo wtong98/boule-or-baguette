@@ -54,7 +54,7 @@ test_task = CircleTask(depth=depth, samp_dist=15, batch_size=batch_size, cot=cot
 #                            use_simple_att=False,
 #                            freeze_emb=True,
 #                            use_bias=False,
-#                            return_final_logits_only=True,
+#                            return_format='final_logit',
 #                            mup_scale=True
 #                            )
 
@@ -71,7 +71,7 @@ config = TransformerConfig(n_layers=n_layers,
                            use_simple_att=False,
                            freeze_emb=True,
                            use_bias=False,
-                           return_final_logits_only=False,
+                           return_format=None,
                            mup_scale=True
                            )
 

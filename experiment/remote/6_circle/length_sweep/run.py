@@ -107,7 +107,7 @@ for n_hop in n_hops:
                                     n_out=n_vocab,
                                     n_layers=n_layer,
                                     pos_emb=False, 
-                                    return_final_logits_only=False,
+                                    return_format=None,
                                     n_mlp_layers=mlp_layers,
                                     layer_norm=layer_norm,
                                     residual_connections=resid,

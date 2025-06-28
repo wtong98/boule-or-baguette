@@ -43,7 +43,7 @@ test_task = StarfishTask(depth=depth, samp_dist=5, batch_size=batch_size, cot=co
 #                            residual_connections=False,
 #                            freeze_emb=True,
 #                            use_bias=False,
-#                            return_final_logits_only=False if cot else True,
+#                            return_format=None if cot else True,
 #                            mup_scale=True,
 #                            linear_att=True
 #                            )
@@ -53,13 +53,13 @@ test_task = StarfishTask(depth=depth, samp_dist=5, batch_size=batch_size, cot=co
 #                         n_out=n_vocab if cot else 1,
 #                         n_hidden=n_hidden, 
 #                         flatten=False,
-#                         return_final_logits_only=False if cot else True)
+#                         return_format=None if cot else True)
 
 config = TrConfig(n_vocab=n_vocab, 
                   pos_emb=False,
                   n_out=n_vocab if cot else 1,
                   n_hidden=n_hidden, 
-                  return_final_logits_only=False if cot else True)
+                  return_format=None if cot else True)
 
 # xs, ys = next(train_task)
 
@@ -294,7 +294,7 @@ params = {
     'Dense_1': {'kernel': W}
 }
 
-config = TrConfig(n_vocab=n_vocab, n_hidden=n_hidden, return_final_logits_only=True)
+config = TrConfig(n_vocab=n_vocab, n_hidden=n_hidden, return_format='final_logit')
 m = config.to_model()
 m.apply({'params': params}, xs).squeeze()
 

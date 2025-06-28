@@ -18,7 +18,7 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-train_iters = 100_000
+train_iters = 50_000
 
 depth = 10
 n_hop = 5
@@ -58,6 +58,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
+            'lr': 1e-2
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -74,7 +75,6 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
             'depth': depth,
             'samp_dist': (1, n_hop),
             'n_arms': n_arm,
-            'lr': 1e-2
         }
 
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)
@@ -86,7 +86,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                                   n_out=1,
                                   n_layers=1,
                                   pos_emb=False, 
-                                  return_final_logits_only=True,
+                                  return_format='final_logit',
                                   n_mlp_layers=2,
                                   layer_norm=False,
                                   residual_connections=False,
@@ -102,7 +102,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                                   n_out=1,
                                   n_layers=2,
                                   pos_emb=False, 
-                                  return_final_logits_only=True,
+                                  return_format='final_logit',
                                   n_mlp_layers=2,
                                   layer_norm=True,
                                   residual_connections=True,
@@ -118,7 +118,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                                   n_out=1,
                                   n_layers=2,
                                   pos_emb=True, 
-                                  return_final_logits_only=True,
+                                  return_format='final_logit',
                                   n_mlp_layers=2,
                                   layer_norm=True,
                                   residual_connections=True,
@@ -134,7 +134,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                                   n_out=n_vocab,
                                   n_layers=2,
                                   pos_emb=False, 
-                                  return_final_logits_only=False,
+                                  return_format=None,
                                   n_mlp_layers=2,
                                   layer_norm=True,
                                   residual_connections=True,
@@ -150,7 +150,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                                   n_out=n_vocab,
                                   n_layers=2,
                                   pos_emb=False, 
-                                  return_final_logits_only=False,
+                                  return_format=None,
                                   n_mlp_layers=2,
                                   layer_norm=True,
                                   residual_connections=True,
