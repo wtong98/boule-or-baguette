@@ -34,7 +34,7 @@ n_hidden = 768
 n_layer = 12
 n_head = 12
 
-save_dir = Path('~/scratch/prop_weights')
+save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights') 
 
 
 ### START TEST CONFIGS

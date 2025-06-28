@@ -118,7 +118,7 @@ class SimpleSelfAttention(nn.Module):
     # NOTE: muP scale implemented only for single head case
 
     @nn.compact
-    def __call__(self, inputs, mask=None):
+    def __call__(self, inputs, mask=None, is_first=False):
         self.sow('intermediates', 'inputs', inputs)
         
         n_feats = inputs.shape[-1]
@@ -126,28 +126,44 @@ class SimpleSelfAttention(nn.Module):
         assert n_feats % n_heads == 0
 
         head_dim = n_feats // n_heads
+
+        if self.config.mup_scale:
+            kernel_init = nn.initializers.normal(1)
+            prefac = 1 / np.sqrt(head_dim)
+        else:
+            kernel_init = nn.initializers.truncated_normal(1 / np.sqrt(head_dim))
+            prefac = 1
         
-        query = nn.DenseGeneral(features=(n_heads, head_dim), name='query', use_bias=False)(inputs)
-        key = nn.DenseGeneral(features=(n_heads, head_dim), name='key', use_bias=False)(inputs)
+        query = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='query', use_bias=False, kernel_init=kernel_init)(inputs)
+        key = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='key', use_bias=False, kernel_init=kernel_init)(inputs)
         # key = jnp.expand_dims(inputs, axis=2)
-        value = nn.DenseGeneral(features=(n_heads, head_dim), name='value', use_bias=False)(inputs)
+        value = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='value', use_bias=False, kernel_init=kernel_init)(inputs)
         # value = jnp.expand_dims(inputs, axis=2)
 
-        attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key)
+        fac = head_dim if self.config.mup_scale else np.sqrt(head_dim)
+        attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key) / fac
+        self.sow('intermediates', 'attention_logits', attn_weights)
 
         if mask is not None:
             if self.config.linear_att:
                 attn_weights = jnp.where(mask, attn_weights, 0)
             else:
                 attn_weights = jnp.where(mask, attn_weights, -jnp.inf)
-                attn_weights = jax.nn.softmax(attn_weights / head_dim, axis=-1)
+                attn_weights = jax.nn.softmax(attn_weights, axis=-1)
                 # attn_weights = jax.nn.softmax(attn_weights / np.sqrt(head_dim), axis=-1)
 
 
         self.sow('intermediates', 'attention_weights', attn_weights)
-
         out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
-        out = nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False, name='out')(out)
+
+        if self.config.mup_scale:
+            kernel_init = nn.initializers.normal(1)
+            prefac = 1 / np.sqrt(self.config.n_hidden)
+        else:
+            kernel_init = nn.initializers.truncated_normal(1 / np.sqrt(self.config.n_hidden))
+            prefac = 1
+
+        out = prefac * nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False, name='out', kernel_init=kernel_init)(out)
         # out = out.squeeze()
         return out
 
@@ -158,16 +174,12 @@ class TransformerBlock(nn.Module):
     @nn.compact
     def __call__(self,
                 inputs,
-                decoder_mask=None):
+                decoder_mask=None,
+                is_first=False):
 
         assert inputs.ndim == 3
 
-        if self.config.use_simple_att or self.config.mup_scale or self.linear_att:
-            x = SimpleSelfAttention(config=self.config)(inputs, mask=decoder_mask)
-        else:
-            x = nn.MultiHeadDotProductAttention(num_heads=self.config.n_heads, 
-                                                qkv_features=self.config.n_hidden,
-                                                use_bias=self.config.use_bias)(inputs_q=inputs, inputs_kv=inputs, mask=decoder_mask, sow_weights=True)
+        x = SimpleSelfAttention(config=self.config)(inputs, mask=decoder_mask, is_first=is_first)
 
         if self.config.residual_connections:
             if self.config.remove_att:
@@ -178,15 +190,24 @@ class TransformerBlock(nn.Module):
         if self.config.layer_norm:
             x = nn.LayerNorm()(x)
         
+        if self.config.mup_scale:
+            kernel_init = nn.initializers.normal(1)
+            prefac = 1 / np.sqrt(self.config.n_hidden)
+        else:
+            kernel_init = nn.initializers.truncated_normal(1 / np.sqrt(self.config.n_hidden))
+            prefac = 1
+
+        
         if self.config.n_mlp_layers > 0:
-            # NOTE: muP scale not implemented for MLP layers
             pre_mlp_x = x
             for i in range(self.config.n_mlp_layers):
                 if i == 0:
-                    x = nn.Dense(features=self.config.n_hidden, use_bias=self.config.use_bias)(pre_mlp_x)
+                    x = prefac * nn.Dense(features=self.config.n_hidden, use_bias=self.config.use_bias, kernel_init=kernel_init)(pre_mlp_x)
                 else:
                     x = nn.gelu(x)
-                    x = nn.Dense(features=self.config.n_hidden, use_bias=self.config.use_bias)(x)
+                    x = prefac * nn.Dense(features=self.config.n_hidden, use_bias=self.config.use_bias, kernel_init=kernel_init)(x)
+                
+                self.sow('intermediates', f'layer_{i}', x)
             
             if self.config.residual_connections:
                 x = x + pre_mlp_x
@@ -224,10 +245,15 @@ class Transformer(nn.Module):
         
         for i in range(config.n_layers):
             name = f'transformer_block_{i}_freeze' if self.config.as_rf_model else None
-            y = TransformerBlock(config=config, name=name)(y, decoder_mask=decoder_mask)
+            y = TransformerBlock(config=config, name=name)(y, decoder_mask=decoder_mask, is_first=(i == 0))
         
 
-        logits = nn.Dense(config.n_out, use_bias=self.config.use_bias)(y)
+        if self.config.mup_scale:
+            kernel_init = nn.initializers.normal(1)
+            prefac = 1 / self.config.n_hidden
+            logits = prefac * nn.Dense(config.n_out, use_bias=self.config.use_bias, kernel_init=kernel_init)(y)
+        else:
+            logits = nn.Dense(config.n_out, use_bias=self.config.use_bias)(y)
 
         if config.return_format is None:
             pass
@@ -391,68 +417,85 @@ class Tr(nn.Module):
 # from train import *
 
 
-# base_lr = 0.01
-# depth = 5
-# n_vocab = 2**depth + 4
+# base_lr = 1e-2
+# depth = 10
+# n_vocab = 2 * depth + 4
 
-# train_task = Chain(
-#     BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=True, cot=True),
-#     BinaryTreeTiTask(depth=depth, samp_dist=(1), on_branch=False, fill_gaps=False, cot=True))
+# train_task = StarfishTask(depth=depth, n_arms=2)
 
 # xs_init, _ = next(train_task)
+
+# state = None
 
 # all_norms = []
 # for n_steps in tqdm([1]):
 #     curr_norms = []
-#     for n_hidden in [128, 256, 512, 1024, 2048]:
-#         gamma0 = 1
-#         gamma = gamma0 * np.sqrt(n_hidden)
-#         lr = gamma0**2 * base_lr
+#     curr_norms_att = []
+
+#     for n_hidden in [64, 128, 256, 512, 1024]:
+#         # gamma0 = 1
+#         # gamma = gamma0 * np.sqrt(n_hidden)
+#         # lr = gamma0**2 * base_lr
+#         lr = base_lr
 
 
 #         config = TransformerConfig(n_vocab=n_vocab,
 #                                 n_layers=2,
 #                                 n_hidden=n_hidden,
-#                                 n_heads=1,
-#                                 n_out=n_vocab,
+#                                 n_heads=2,
+#                                 n_out=1,
 #                                 pos_emb=False,
 #                                 layer_norm=False,
-#                                 residual_connections=False,
-#                                 n_mlp_layers=0,
-#                                 return_final_logits_only=False,
+#                                 residual_connections=True,
+#                                 n_mlp_layers=2,
+#                                 return_format='final_logit',
 #                                 use_bias=False,
 #                                 freeze_emb=True,
-#                                 mup_scale=False)
+#                                 mup_scale=True)
 
 
 #         state = create_train_state(jax.random.key(new_seed()),
 #                                 model=config.to_model(),
 #                                 dummy_input=xs_init,
-#                                 optim=optax.sgd,
-#                                 # gamma=gamma,
-#                                 lr=lr)
+#                                 lr=lr,
+#                                 optim=optax.adamw)
 
-#         logits_init = state.apply_fn({'params': state.params}, xs_init)
+#         # logits_init = state.apply_fn({'params': state.params}, xs_init)
+#         logits_init, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
+#         att_init = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
+#         w_init = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
         
 
 #         state, hist = train(state,
 #                             train_iter=iter(train_task), 
-#                             loss='ce_mask',
-#                             # gamma=gamma,
+#                             loss='bce',
 #                             test_every=1000,
 #                             train_iters=n_steps, 
-#                             optim=optax.sgd,
-#                             lr=lr,
+#                             test_iters=1,
 #                             seed=None)
 
-#         logits = state.apply_fn({'params': state.params}, xs_init)
-#         # norm = np.mean(np.linalg.norm(logits, axis=(-1, -2)))
+#         logits, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
+#         att = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
+#         w = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
+
 #         norm = np.std(logits - logits_init).item()
-#         curr_norms.append(norm)
+#         norm_att = np.std(att - att_init).item()
+#         norm_w = np.std(w - w_init).item()
+
+#         curr_norms.append((norm, norm_att, norm_w))
+#         # curr_norms_att.append(norm_att)
 #         del state
     
 #     all_norms.append(curr_norms)
 
+# # <codecell>
 # for norms in all_norms:
-#     plt.plot(norms, 'o--')
+#     norms = np.array(norms)
+#     plt.plot(norms[:,0], 'o--')
+#     plt.plot(norms[:,1], 'o--')
+#     plt.plot(norms[:,2], 'o--')
+#     # plt.yscale('log')
 
+
+# # <codecell>
+# # plt.plot(curr_norms_att, 'o--')

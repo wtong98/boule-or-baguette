@@ -73,7 +73,8 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
         task_args = {
             'depth': depth,
             'samp_dist': (1, n_hop),
-            'n_arms': n_arm
+            'n_arms': n_arm,
+            'lr': 1e-2
         }
 
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)

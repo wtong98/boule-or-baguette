@@ -15,13 +15,13 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 512
+n_hidden = 256
 batch_size = 128
 
 cot = False
 ttr = False
 nouveau = False
-n_arms = 84
+n_arms = 100
 n_hop = 5
 test_n_hop = 7
 
@@ -48,7 +48,7 @@ config = TransformerConfig(n_layers=2,
                            n_out=n_vocab if cot else 1,
                            n_hidden=n_hidden,
                         #    pos_emb=not cot,
-                           pos_emb=True,
+                           pos_emb=False,
                         #    max_len=100,
                            n_mlp_layers=2,
                            n_heads=1,
@@ -74,8 +74,8 @@ state, hist = train(config,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot] if cot else None,
                     print_fn=print_gen if cot else None,
+                    lr=1e-2,
                     # lr=3e-5,
-                    # lr=1e-3
                     # lr=1,
                     # optim=optax.sgd,
                     )
@@ -267,8 +267,8 @@ plot_df
 # <codecell>
 mdf = plot_df.copy()
 
-# name = 'Zero (LN+resid)'
-name = 'AR'
+name = 'Zero (LN+resid)'
+# name = 'AR'
 
 mdf = mdf[
     (mdf['test_n_hop'] == 7)
@@ -294,7 +294,7 @@ g.set_xlabel('n_hidden')
 
 # TODO: x-axis name chopped off
 g.set_title(name)
-plt.savefig(f'fig/{name}_mlp_arms_v_size.png', bbox_inches='tight')
+# plt.savefig(f'fig/{name}_mlp_arms_v_size.png', bbox_inches='tight')
 
 
 # <codecell>
