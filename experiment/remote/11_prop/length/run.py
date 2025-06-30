@@ -38,21 +38,21 @@ save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights')
 
 
 ### START TEST CONFIGS
-run_split = 1
+# run_split = 1
 
-train_iters = 2
-warmup_iters = 1
-batch_size = 4
-eval_batch_size = 2
-multistep_k = 2
+# train_iters = 2
+# warmup_iters = 1
+# batch_size = 4
+# eval_batch_size = 2
+# multistep_k = 2
 
-n_hops = [2]
+# n_hops = [2]
 
-n_hidden = 100
-n_layer = 1
-n_head = 1
+# n_hidden = 100
+# n_layer = 1
+# n_head = 1
 
-save_dir = Path('.').parent
+# save_dir = Path('.').parent
 ### END TEST CONFIGS
 
 all_cases = []
@@ -161,6 +161,7 @@ for case in tqdm(all_cases):
     if case.train_task.cot == True:
         case.train_args['eval_fns'].append(gen_acc_cot_prop)
 
+    n_hop = case.test_task.depth
     case.test_task.batch_size = eval_batch_size
     case.eval(case.test_task, eval_fns=case.train_args['eval_fns'], prefix=n_hop, n_iters=1)
 

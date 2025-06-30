@@ -421,7 +421,7 @@ class Tr(nn.Module):
 # depth = 10
 # n_vocab = 2 * depth + 4
 
-# train_task = StarfishTask(depth=depth, n_arms=2)
+# train_task = StarfishTask(depth=depth, n_arms=2, batch_size=4)
 
 # xs_init, _ = next(train_task)
 

@@ -268,7 +268,8 @@ plot_df
 mdf = plot_df.copy()
 
 name = 'Zero (LN+resid)'
-# name = 'AR'
+# name = 'Zero (base)'
+# name = 'AR full'
 
 mdf = mdf[
     (mdf['test_n_hop'] == 7)
@@ -283,8 +284,8 @@ mdf = mdf.iloc[::-1]
 
 g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
-# xs = 2**np.linspace(-5, 8)
-# g.plot(xs, 34 - 1 * xs, color='black', linestyle='dashed')
+xs = 2**np.linspace(-5, 8)
+g.plot(xs, 34 - 1 * xs, color='black', linestyle='dashed')
 
 # xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
@@ -292,9 +293,8 @@ g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 g.set_ylabel('n_arms')
 g.set_xlabel('n_hidden')
 
-# TODO: x-axis name chopped off
 g.set_title(name)
-# plt.savefig(f'fig/{name}_mlp_arms_v_size.png', bbox_inches='tight')
+plt.savefig(f'fig/{name}_mlp_arms_v_size_debug.png', bbox_inches='tight')
 
 
 # <codecell>

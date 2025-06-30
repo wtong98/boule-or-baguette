@@ -99,3 +99,10 @@ bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
+
+# <codecell>
+g = sns.barplot(plot_df, x='name', y='acc')
+g.set_ylim(0.4, 1)
+g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
+
+plt.savefig('fig/prop_task_debug.png')
