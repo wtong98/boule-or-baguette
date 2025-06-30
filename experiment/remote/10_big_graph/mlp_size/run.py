@@ -19,6 +19,7 @@ print('RUN ID', run_id)
 run_split = 12
 
 train_iters = 50_000
+warmup_iters = 2000
 
 depth = 10
 n_hop = 5
@@ -30,6 +31,7 @@ n_widths = (2**np.linspace(5, 9, num=20)).astype(int) * 2
 ### START TEST CONFIGS
 # run_split = 1
 # train_iters = 1000
+# warmup_iters = 100
 
 # depth = 10
 # n_hop = 5
@@ -58,7 +60,13 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': 1e-2
+            'lr': optax.schedules.warmup_cosine_decay_schedule(
+                init_value=1e-4,
+                peak_value=1e-2,
+                warmup_steps=warmup_iters,
+                decay_steps=train_iters,
+                end_value=1e-4
+            )
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -182,6 +190,7 @@ for case in tqdm(all_cases):
 
     case.state = None
     case.train_args['eval_fns'] = None
+    case.train_args['lr'] = None
 
 
 df = pd.DataFrame(all_cases)

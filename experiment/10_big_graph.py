@@ -15,7 +15,7 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 256
+n_hidden = 512
 batch_size = 128
 
 cot = False
@@ -43,7 +43,7 @@ test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(n_hop + 1, test_
 #                   n_hidden=n_hidden, 
 #                   return_format=None if cot else True)
 
-config = TransformerConfig(n_layers=2,
+config = TransformerConfig(n_layers=1,
                            n_vocab=n_vocab,
                            n_out=n_vocab if cot else 1,
                            n_hidden=n_hidden,
@@ -52,9 +52,9 @@ config = TransformerConfig(n_layers=2,
                         #    max_len=100,
                            n_mlp_layers=2,
                            n_heads=1,
-                           layer_norm=True,
+                           layer_norm=False,
                            as_rf_model=False,
-                           residual_connections=True,
+                           residual_connections=False,
                            freeze_emb=True,
                            use_bias=False,
                         #    return_format=None if cot else True,
@@ -70,7 +70,7 @@ state, hist = train(config,
                     test_iters=1,
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=100_000,
+                    train_iters=50_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot] if cot else None,
                     print_fn=print_gen if cot else None,
@@ -78,6 +78,13 @@ state, hist = train(config,
                     # lr=3e-5,
                     # lr=1,
                     # optim=optax.sgd,
+                    # lr=optax.schedules.warmup_cosine_decay_schedule(
+                    #     init_value=1e-4,
+                    #     peak_value=1e-2,
+                    #     warmup_steps=2000,
+                    #     decay_steps=50_000,
+                    #     end_value=1e-4
+                    # )
                     )
 
 # <codecell>

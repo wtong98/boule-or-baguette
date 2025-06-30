@@ -445,7 +445,7 @@ class Tr(nn.Module):
 #                                 n_heads=2,
 #                                 n_out=1,
 #                                 pos_emb=False,
-#                                 layer_norm=False,
+#                                 layer_norm=True,
 #                                 residual_connections=True,
 #                                 n_mlp_layers=2,
 #                                 return_format='final_logit',
