@@ -247,7 +247,6 @@ class Transformer(nn.Module):
             name = f'transformer_block_{i}_freeze' if self.config.as_rf_model else None
             y = TransformerBlock(config=config, name=name)(y, decoder_mask=decoder_mask, is_first=(i == 0))
         
-
         if self.config.mup_scale:
             kernel_init = nn.initializers.normal(1)
             prefac = 1 / self.config.n_hidden

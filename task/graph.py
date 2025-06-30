@@ -513,13 +513,14 @@ def _star_samp_off(key, depth, n_arms, samp_dist, batch_size):
     return jnp.stack((parents, children), axis=1)
 
 
-@functools.partial(jax.jit, static_argnums=(1,2,3,4,5))
+# @functools.partial(jax.jit, static_argnums=(1,2,3,4,5))
 def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True, nouveau=False):
     parents, children = xs.T
 
-    diffs = n_arms * np.arange(depth + 2)
+    diffs = n_arms * np.arange(depth + 3)
     chain = children[:,None] - diffs
-    chain = chain + (chain == 0)           # connect to root
+    root_pos = (0 >= chain) & (chain > -n_arms)
+    chain = chain + root_pos * (1 - chain)
 
     target_idx = jnp.sum(parents[:,None] < chain, axis=1)
     target_val = chain[jnp.arange(batch_size),target_idx]
@@ -553,6 +554,15 @@ def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True, nouveau=
         ), axis=-1)
 
     return xs
+
+
+# task = StarfishTask(n_arms=100, depth=10, samp_dist=8, batch_size=4, cot=True, trace_to_start=True, nouveau=True)
+# xs, ys = next(task)
+
+# print(xs)
+# print(ys)
+
+# <codecell>
 
 
 class CircleTask:
@@ -678,12 +688,6 @@ def _circle_add_chain(xs, depth, batch_size, trace_to_start=True):
 
     return xs
 
-    
-# task = StarfishTask(n_arms=3, depth=10, samp_dist=1, batch_size=10, cot=True, trace_to_start=False, nouveau=True)
-# xs, ys = next(task)
-
-# print(xs)
-# print(ys)
 
 
 # %%

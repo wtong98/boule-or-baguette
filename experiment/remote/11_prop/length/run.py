@@ -172,6 +172,7 @@ for case in tqdm(all_cases):
 
     case.state = None
     case.train_args['eval_fns'] = None
+    case.train_args['lr'] = None
     case.train_task = None
     case.test_task = None
 

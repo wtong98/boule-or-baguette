@@ -150,14 +150,26 @@ def loss_and_acc(state, batch, loss='bce'):
 
 
 @partial(jax.jit, static_argnames=('loss'))
-def gen_acc_cot(state, batch, loss=None):
+def gen_acc_cot2(state, batch, loss=None):
     xs, ys = batch
     ys = ys[:,2:]
     ans_idx = jnp.sum(ys != 0, axis=-1) - 1
     ans = ys[jnp.arange(len(ys)), ans_idx]
 
-    # TODO: in-place rough change
-    traj = gen2(state, xs)  # TODO: consider moving generate to state
+    traj = gen2(state, xs)  # TODO: consider unifying in task / move to state
+    preds = extract_pred(traj)
+
+    return {'gen_acc': jnp.mean(preds == ans)}
+
+
+@partial(jax.jit, static_argnames=('loss'))
+def gen_acc_cot1(state, batch, loss=None):
+    xs, ys = batch
+    ys = ys[:,2:]
+    ans_idx = jnp.sum(ys != 0, axis=-1) - 1
+    ans = ys[jnp.arange(len(ys)), ans_idx]
+
+    traj = gen1(state, xs)
     preds = extract_pred(traj)
 
     return {'gen_acc': jnp.mean(preds == ans)}

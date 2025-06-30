@@ -18,10 +18,10 @@ depth = 10
 n_hidden = 512
 batch_size = 128
 
-cot = False
-ttr = False
-nouveau = False
-n_arms = 100
+cot = True
+ttr = True
+nouveau = True
+n_arms = 20
 n_hop = 5
 test_n_hop = 7
 
@@ -31,8 +31,8 @@ train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch
 test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(n_hop + 1, test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
 
 # xs, ys = next(train_task)
-# print(xs[:3])
-# print(ys[:3])
+# print(xs[-3:])
+# print(ys[-3:])
 
 # <codecell>
 # config = TrConfig(n_vocab=n_vocab, 
@@ -54,7 +54,7 @@ config = TransformerConfig(n_layers=1,
                            n_heads=1,
                            layer_norm=False,
                            as_rf_model=False,
-                           residual_connections=False,
+                           residual_connections=True,
                            freeze_emb=True,
                            use_bias=False,
                         #    return_format=None if cot else True,
@@ -70,16 +70,13 @@ state, hist = train(config,
                     test_iters=1,
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=50_000,
+                    train_iters=10_000,
                     use_tqdm=True,
-                    eval_fns=[loss_and_acc, gen_acc_cot] if cot else None,
+                    eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     print_fn=print_gen if cot else None,
-                    lr=1e-2,
-                    # lr=3e-5,
-                    # lr=1,
-                    # optim=optax.sgd,
+                    lr=1e-2
                     # lr=optax.schedules.warmup_cosine_decay_schedule(
-                    #     init_value=1e-4,
+                    #     init_value=1e-3,
                     #     peak_value=1e-2,
                     #     warmup_steps=2000,
                     #     decay_steps=50_000,
@@ -88,8 +85,89 @@ state, hist = train(config,
                     )
 
 # <codecell>
+# xs = jnp.array([[305, 600, 500, 400, 300, 200, 100, 4]])
+xs = jnp.array([[25, 75]])
+
+logits = state.apply_fn({'params': state.params}, xs)
+preds = logits.argmax(-1)
+print(preds)
+
+plt.plot(logits[0,-1])
+
+
+# <codecell>
+batch = next(test_task)
+xs, _ = batch
+traj = gen1(state, xs)
+preds = extract_pred(traj)
+print(traj[:10])
+
+
+# <codecell>
 jax.tree.map(np.shape, state.params)
 
+# <codecell>
+W = state.params['Dense_0']['kernel'] / n_hidden
+emb = state.params['Embed_freeze']['embedding']
+
+M1 = state.params['TransformerBlock_0']['Dense_0']['kernel'] / np.sqrt(n_hidden)
+M2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
+
+K = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['key']['kernel'].squeeze() / np.sqrt(n_hidden)
+Q = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['query']['kernel'].squeeze() / np.sqrt(n_hidden)
+V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / np.sqrt(n_hidden)
+O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / np.sqrt(n_hidden)
+
+# <codecell>
+xs = jnp.array([[15, 70]])
+logits_orig, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+logits_orig
+# intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights']
+# intm['intermediates']
+
+# <codecell>
+xs_emb = emb[xs]
+k = xs_emb @ K
+q = xs_emb @ Q
+
+att = q @ t(k) / n_hidden
+att = jnp.tril(att, k=0)
+att = att.at[att == 0].set(-jnp.inf)
+
+att = jax.nn.softmax(att, axis=-1)
+
+xs_att = att @ xs_emb @ V @ O
+xs_mlp = jax.nn.gelu(xs_emb @ V @ O @ M1) @ M2
+xs_att_mlp = jax.nn.gelu(xs_att @ M1) @ M2
+
+# TODO: trace source of discrepancy <-- STOPPED HERE
+logits = (xs_emb + xs_att + xs_mlp + xs_att_mlp) @ W / np.sqrt(n_hidden)
+logits / logits_orig
+
+
+
+
+
+# <codecell>
+
+preds_mlp = jax.nn.relu(emb @ V @ O @ M1) @ M2 @ W
+plt.imshow(preds_mlp)
+plt.colorbar()
+
+preds_mlp.argmax(-1)
+
+preds_mlp[4]
+
+
+# <codecell>
+preds_w = emb @ W
+plt.imshow(preds_w)
+plt.colorbar()
+preds_w.argmax(-1)
+
+
+
+# <codecell>
 A = state.params['Dense_0']['kernel']
 w = state.params['Dense_1']['kernel']
 
@@ -135,7 +213,6 @@ print('a1', a1)
 print('w1', w1)
 print('a2', a2)
 print('w2', w2)
-
 
 print(pred)
 print(out)
