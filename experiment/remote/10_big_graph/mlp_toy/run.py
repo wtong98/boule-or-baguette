@@ -25,7 +25,7 @@ depth = 10
 n_hop = 5
 n_hops_test = [5, 6, 7, 8, 9]
 
-all_depths = [1, 2]
+all_n_layer = [1, 2]
 switch = [False, True]  # resid, CoT
 
 n_arms = (2**np.linspace(5, 9, num=20)).astype(int) * 2
@@ -40,8 +40,8 @@ n_widths = (2**np.linspace(5, 9, num=20)).astype(int) * 2
 # n_hop = 5
 # n_hops_test = [6]
 
-# all_depths = [1]
-# switch = [False]
+# all_n_layer = [1]
+# switch = [True]
 # n_arms = [3]
 # n_widths = [128]
 ### END TEST CONFIGS
@@ -94,12 +94,12 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)
     
 
-    for resid, depth, cot in itertools.product(switch, all_depths, switch):
+    for resid, n_layers, cot in itertools.product(switch, all_n_layer, switch):
         all_cases.extend([
-            Case(f'(cot={cot},depth={depth},resid={resid})',
+            Case(f'(cot={cot},n_layers={n_layers},resid={resid})',
                     TransformerConfig(n_heads=1,
-                                    n_out=1,
-                                    n_layers=depth,
+                                    n_out=n_vocab if cot else 1,
+                                    n_layers=n_layers,
                                     pos_emb=False, 
                                     return_format=None if cot else 'final_logit',
                                     n_mlp_layers=2,
@@ -113,12 +113,12 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
             ), 
         ])
 
-        if depth == 1:
+        if n_layers == 1:
             all_cases.extend([
-                Case(f'(cot={cot},depth={depth},resid={resid},mlp_layers=4)',
+                Case(f'(cot={cot},n_layers={n_layers},resid={resid},mlp_layers=4)',
                         TransformerConfig(n_heads=1,
-                                        n_out=1,
-                                        n_layers=depth,
+                                        n_out=n_vocab if cot else 1,
+                                        n_layers=n_layers,
                                         pos_emb=False, 
                                         return_format=None if cot else 'final_logit',
                                         n_mlp_layers=4,
@@ -144,7 +144,7 @@ for case in tqdm(all_cases):
 
     for n_hop in n_hops_test:
         tt = case.train_task
-        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start)
+        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau)
 
         case.eval(
             test_task,
