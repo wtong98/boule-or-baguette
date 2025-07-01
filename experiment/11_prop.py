@@ -65,7 +65,7 @@ state, hist = train(config,
                     test_iters=1,
                     train_iters=100_000,
                     use_tqdm=True,
-                    eval_fns=[loss_and_acc, gen_acc_cot] if cot else None,
+                    eval_fns=[loss_and_acc, gen_acc_cot_prop] if cot else None,
                     print_fn=print_gen if cot else None,
                     )
 
@@ -101,8 +101,9 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-g = sns.barplot(plot_df, x='name', y='acc')
+g = sns.barplot(plot_df, x='test_n_hop', y='acc', hue='name', hue_order=['Zero', 'Zero (small)', 'AR full'])
 g.set_ylim(0.4, 1)
 g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
+g.set_title('Full dataset')
 
-plt.savefig('fig/prop_task_debug.png')
+plt.savefig('fig/prop_task_full.png')

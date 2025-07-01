@@ -26,13 +26,11 @@ def count_lens(dataset):
     
 
 def count_ops(dataset):
-    ds_ops = dataset.remove_columns(['input', 'proof', 'length'])
-
     def make_entry(): return {True: 0, False: 0}
 
     counts = defaultdict(make_entry)
 
-    for ex in ds_ops:
+    for ex in dataset:
         ops = frozenset(ex['ops'])
         counts[ops][ex['is_true']] += 1
 
@@ -41,17 +39,15 @@ def count_ops(dataset):
 
 if __name__ == '__main__':
     dataset = load_dataset('json', data_files='data.json', split='train', keep_in_memory=True)
-    
+
     lens = count_lens(dataset)
     max_len = max(lens.keys())
-    
+
     all_lds = {}
     for i in range(1, max_len + 1):
         for t in True, False:
             lds = dataset.filter(lambda ex: ex['length'] == i and ex['is_true'] == t)
             all_lds[f'{t}_{i}'] = lds
-
-    ds = DatasetDict(all_lds)
 
     tokenizer = get_tokenizer()
 
@@ -63,7 +59,7 @@ if __name__ == '__main__':
             'full_ids': inp_and_proof_toks['input_ids'],
         }
 
-    ds = ds.map(to_toks, batched=False)
+    ds = dataset.map(to_toks, batched=False)
     ds = ds.remove_columns(['input', 'proof'])
 
     ds.save_to_disk('data/hf')
