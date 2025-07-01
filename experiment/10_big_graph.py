@@ -15,13 +15,13 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 512
+n_hidden = 1024
 batch_size = 128
 
 cot = True
 ttr = True
 nouveau = True
-n_arms = 20
+n_arms = 100
 n_hop = 5
 test_n_hop = 7
 
@@ -70,7 +70,7 @@ state, hist = train(config,
                     test_iters=1,
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=10_000,
+                    train_iters=50_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     print_fn=print_gen if cot else None,
@@ -119,11 +119,22 @@ V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel
 O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / np.sqrt(n_hidden)
 
 # <codecell>
-xs = jnp.array([[15, 70]])
-logits_orig, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
-logits_orig
+xs = jnp.array([[10, 60, 50, 40, 30, 20, 10, 4]])
+m = config.replace(remove_att=True).to_model()
+
+# logits_orig, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+logits_orig, intm = m.apply({'params': state.params}, xs, mutable='intermediates')
+logits_orig.argmax(-1)
 # intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights']
 # intm['intermediates']
+
+# <codecell>
+att0 = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
+# att1 = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
+plt.imshow(att0)
+# plt.imshow(att1)
+print(att0)
+
 
 # <codecell>
 xs_emb = emb[xs]
@@ -135,15 +146,31 @@ att = jnp.tril(att, k=0)
 att = att.at[att == 0].set(-jnp.inf)
 
 att = jax.nn.softmax(att, axis=-1)
+plt.imshow(att.squeeze())
 
 xs_att = att @ xs_emb @ V @ O
-xs_mlp = jax.nn.gelu(xs_emb @ V @ O @ M1) @ M2
+
+xs_out = xs_att + xs_emb
+xs_out = jax.nn.gelu(xs_out @ M1) @ M2
+xs_mlp_comb = jax.nn.gelu((xs_att + xs_emb) @ M1) @ M2
+
 xs_att_mlp = jax.nn.gelu(xs_att @ M1) @ M2
+xs_mlp = jax.nn.gelu(xs_emb @ M1) @ M2
 
-# TODO: trace source of discrepancy <-- STOPPED HERE
-logits = (xs_emb + xs_att + xs_mlp + xs_att_mlp) @ W / np.sqrt(n_hidden)
-logits / logits_orig
+xs_out = (xs_mlp_comb + xs_att + xs_emb) @ W
 
+np.mean((xs_out - logits_orig)**2) / np.mean(logits_orig**2)
+# xs_out / logits_orig
+
+
+# xs_mlp = jax.nn.gelu(xs_emb @ V @ O @ M1) @ M2
+# xs_att_mlp = jax.nn.gelu(xs_att @ M1) @ M2
+
+# # TODO: trace source of discrepancy <-- STOPPED HERE
+# logits = (xs_emb + xs_att + xs_mlp + xs_att_mlp) @ W
+# logits
+
+# logits / logits_orig
 
 
 
@@ -349,36 +376,33 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-mdf = plot_df.copy()
+for name in ['Zero (base)', 'Zero (LN+resid)', 'Zero (PE+LN+resid)', 'AR', 'AR full']:
+    mdf = plot_df.copy()
+    mdf = mdf[
+        (mdf['test_n_hop'] == 5)
+        & (mdf['name'] == name)
+        ]
 
-name = 'Zero (LN+resid)'
-# name = 'Zero (base)'
-# name = 'AR full'
+    mdf = mdf[['n_arms', 'n_hidden', 'acc']]
+    mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).max()
+    mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
-mdf = mdf[
-    (mdf['test_n_hop'] == 7)
-    & (mdf['name'] == name)
-    ]
+    mdf = mdf.iloc[::-1]
 
-mdf = mdf[['n_arms', 'n_hidden', 'acc']]
-mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).max()
-mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
+    g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
-mdf = mdf.iloc[::-1]
+    xs = 2**np.linspace(-5, 8)
+    g.plot(xs, 30 - 1 * xs, color='black', linestyle='dashed')
 
-g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+    # xs = 2**np.linspace(-5, 8)
+    # g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
 
-xs = 2**np.linspace(-5, 8)
-g.plot(xs, 34 - 1 * xs, color='black', linestyle='dashed')
+    g.set_ylabel('n_arms')
+    g.set_xlabel('n_hidden')
 
-# xs = 2**np.linspace(-5, 8)
-# g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
-
-g.set_ylabel('n_arms')
-g.set_xlabel('n_hidden')
-
-g.set_title(name)
-plt.savefig(f'fig/{name}_mlp_arms_v_size_debug.png', bbox_inches='tight')
+    g.set_title(name)
+    plt.savefig(f'fig/{name}_mlp_arms_v_size_train.png', bbox_inches='tight')
+    plt.show()
 
 
 # <codecell>

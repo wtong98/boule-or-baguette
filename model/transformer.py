@@ -142,7 +142,6 @@ class SimpleSelfAttention(nn.Module):
 
         fac = head_dim if self.config.mup_scale else np.sqrt(head_dim)
         attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key) / fac
-        self.sow('intermediates', 'attention_logits', attn_weights)
 
         if mask is not None:
             if self.config.linear_att:
@@ -150,7 +149,6 @@ class SimpleSelfAttention(nn.Module):
             else:
                 attn_weights = jnp.where(mask, attn_weights, -jnp.inf)
                 attn_weights = jax.nn.softmax(attn_weights, axis=-1)
-                # attn_weights = jax.nn.softmax(attn_weights / np.sqrt(head_dim), axis=-1)
 
 
         self.sow('intermediates', 'attention_weights', attn_weights)
@@ -165,6 +163,8 @@ class SimpleSelfAttention(nn.Module):
 
         out = prefac * nn.DenseGeneral(features=n_feats, axis=(-2, -1), use_bias=False, name='out', kernel_init=kernel_init)(out)
         # out = out.squeeze()
+
+        self.sow('intermediates', 'attention_out', out)
         return out
 
 
