@@ -37,6 +37,7 @@ def split(it, run_split):
 
 
 run_id = uuid.uuid4()
+print('RUN_ID', run_id)
 
 n_atoms = 3
 max_nodes = 5
@@ -44,7 +45,7 @@ n_cores = 16 * 16
 
 run_split = 12
 
-out_dir = Path('/scratch/prop')
+out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/extra')
 
 ### START TEST CONFIG
 # out_dir = Path('test_data')
