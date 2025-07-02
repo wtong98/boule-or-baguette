@@ -18,7 +18,7 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-train_iters = 50_000
+train_iters = 25_000
 warmup_iters = 2000
 
 depth = 10
@@ -26,7 +26,7 @@ n_hop = 5
 n_hops_test = [5, 6, 7, 8, 9]
 
 all_n_layer = [1, 2]
-switch = [False, True]  # resid, CoT
+switch = [False, True]  # resid, CoT, LN
 
 n_arms = (2**np.linspace(5, 9, num=20)).astype(int) * 2
 n_widths = (2**np.linspace(5, 9, num=20)).astype(int) * 2
@@ -65,13 +65,14 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': optax.schedules.warmup_cosine_decay_schedule(
-                init_value=1e-3,
-                peak_value=1e-2,
-                warmup_steps=warmup_iters,
-                decay_steps=train_iters,
-                end_value=1e-4
-            )
+            'lr': 1e-2
+            # 'lr': optax.schedules.warmup_cosine_decay_schedule(
+            #     init_value=1e-3,
+            #     peak_value=1e-2,
+            #     warmup_steps=warmup_iters,
+            #     decay_steps=train_iters,
+            #     end_value=1e-4
+            # )
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -94,9 +95,9 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)
     
 
-    for resid, n_layers, cot in itertools.product(switch, all_n_layer, switch):
+    for layer_norm, resid, n_layers, cot in itertools.product(switch, switch, all_n_layer, switch):
         all_cases.extend([
-            Case(f'(cot={cot},n_layers={n_layers},resid={resid})',
+            Case(f'(cot={cot},n_layers={n_layers},resid={resid},LN={layer_norm})',
                     TransformerConfig(n_heads=1,
                                     n_out=n_vocab if cot else 1,
                                     n_layers=n_layers,
@@ -113,15 +114,15 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
             ), 
         ])
 
-        if n_layers == 1:
+        if n_layers == 1 and resid == True and cot == True:
             all_cases.extend([
-                Case(f'(cot={cot},n_layers={n_layers},resid={resid},mlp_layers=4)',
+                Case(f'(cot={cot},n_layers={n_layers},resid={resid},LN={layer_norm},unif_att)',
                         TransformerConfig(n_heads=1,
                                         n_out=n_vocab if cot else 1,
                                         n_layers=n_layers,
                                         pos_emb=False, 
                                         return_format=None if cot else 'final_logit',
-                                        n_mlp_layers=4,
+                                        n_mlp_layers=2,
                                         layer_norm=False,
                                         residual_connections=resid,
                                         mup_scale=True,

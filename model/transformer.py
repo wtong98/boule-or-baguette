@@ -49,6 +49,7 @@ class TransformerConfig:
     mup_scale: bool = False
     linear_att: bool = False
     remove_att: bool = False
+    unif_att: bool = False
 
     def to_model(self):
         return Transformer(self)
@@ -134,14 +135,15 @@ class SimpleSelfAttention(nn.Module):
             kernel_init = nn.initializers.truncated_normal(1 / np.sqrt(head_dim))
             prefac = 1
         
-        query = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='query', use_bias=False, kernel_init=kernel_init)(inputs)
-        key = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='key', use_bias=False, kernel_init=kernel_init)(inputs)
-        # key = jnp.expand_dims(inputs, axis=2)
         value = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='value', use_bias=False, kernel_init=kernel_init)(inputs)
-        # value = jnp.expand_dims(inputs, axis=2)
 
-        fac = head_dim if self.config.mup_scale else np.sqrt(head_dim)
-        attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key) / fac
+        if self.config.unif_att:
+            attn_weights = jnp.ones((1, inputs.shape[1], inputs.shape[1]))
+        else:
+            query = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='query', use_bias=False, kernel_init=kernel_init)(inputs)
+            key = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='key', use_bias=False, kernel_init=kernel_init)(inputs)
+            fac = head_dim if self.config.mup_scale else np.sqrt(head_dim)
+            attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key) / fac
 
         if mask is not None:
             if self.config.linear_att:

@@ -15,7 +15,7 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 1024
+n_hidden = 512
 batch_size = 128
 
 cot = True
@@ -60,7 +60,7 @@ config = TransformerConfig(n_layers=1,
                         #    return_format=None if cot else True,
                            return_format=None if cot else 'final_logit',
                            mup_scale=True,
-                           linear_att=False
+                           unif_att=True
                            )
 
 # <codecell>
@@ -70,11 +70,11 @@ state, hist = train(config,
                     test_iters=1,
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=50_000,
+                    train_iters=25_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     print_fn=print_gen if cot else None,
-                    lr=1e-2
+                    lr=1e-2,
                     # lr=optax.schedules.warmup_cosine_decay_schedule(
                     #     init_value=1e-3,
                     #     peak_value=1e-2,
@@ -119,12 +119,17 @@ V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel
 O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / np.sqrt(n_hidden)
 
 # <codecell>
-xs = jnp.array([[10, 60, 50, 40, 30, 20, 10, 4]])
+xs, _ = next(test_task)
+print(xs[:3])
+
+xs = jnp.array([xs[0,:-np.sum(xs[0] == 0) - 1]])
+print('XS', xs)
 m = config.replace(remove_att=True).to_model()
+# m = config.to_model()
 
 # logits_orig, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 logits_orig, intm = m.apply({'params': state.params}, xs, mutable='intermediates')
-logits_orig.argmax(-1)
+print(logits_orig.argmax(-1))
 # intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights']
 # intm['intermediates']
 
@@ -345,7 +350,8 @@ for linear_att, cot in itertools.product([True, False], [True, False]):
 
 
 # <codecell>
-df = collate_dfs('remote/10_big_graph/mlp_size', show_progress=True)
+# df = collate_dfs('remote/10_big_graph/mlp_size', show_progress=True)
+df = collate_dfs('remote/10_big_graph/mlp_toy', show_progress=True)
 df
 
 # %%
@@ -371,12 +377,14 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-for name in ['Zero (base)', 'Zero (LN+resid)', 'Zero (PE+LN+resid)', 'AR', 'AR full']:
+for name in np.unique(plot_df['name']):
     mdf = plot_df.copy()
     mdf = mdf[
         (mdf['test_n_hop'] == 5)
@@ -401,7 +409,7 @@ for name in ['Zero (base)', 'Zero (LN+resid)', 'Zero (PE+LN+resid)', 'AR', 'AR f
     g.set_xlabel('n_hidden')
 
     g.set_title(name)
-    plt.savefig(f'fig/{name}_mlp_arms_v_size_train.png', bbox_inches='tight')
+    # plt.savefig(f'fig/{name}_mlp_arms_v_size_test.png', bbox_inches='tight')
     plt.show()
 
 
