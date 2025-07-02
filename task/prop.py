@@ -72,7 +72,7 @@ class PropTask:
         self.max_false = len(self.false_ds)
 
         if self.max_true == 0 or self.max_false == 0:
-            raise ValueError(f'insufficient examples: max_true={self.max_true} and max_false={self.max_false}')
+            print(f'warn: insufficient examples: max_true={self.max_true} and max_false={self.max_false}')
 
         if self.cot:
             self.true_ds = self.true_ds.remove_columns(['input_ids']) \
@@ -96,8 +96,15 @@ class PropTask:
         if self.true_ds is None or self.false_ds is None:
             self.load_ds()
         
-        true_idxs = np.random.randint(1, self.max_true, size=self.batch_size // 2)
-        false_idxs = np.random.randint(1, self.max_false, size=self.batch_size - len(true_idxs))
+        true_idxs = []
+        false_idxs = []
+        if self.max_true == 0:
+            false_idxs = np.random.randint(1, self.max_false, size=self.batch_size)
+        elif self.max_false == 0:
+            true_idxs = np.random.randint(1, self.max_true, size=self.batch_size)
+        else:
+            true_idxs = np.random.randint(1, self.max_true, size=self.batch_size // 2)
+            false_idxs = np.random.randint(1, self.max_false, size=self.batch_size - len(true_idxs))
 
         true_batch = self.true_ds[true_idxs]
         false_batch = self.false_ds[false_idxs]
@@ -118,13 +125,9 @@ class PropTask:
     def __iter__(self):
         return self
 
-# <codecell>
-# task = PropTask(depth=3, batch_size=5, split='train',filter_ops=PropTask.or_ops)
-# task_test = PropTask(depth=3, batch_size=5, split='test', filter_ops=PropTask.or_ops)
-# task.load_ds()
-# task_test.load_ds()
+# task_test = PropTask(depth=4, batch_size=5, split='test', filter_ops=PropTask.or_ops)
+# next(task_test)
 
-# count_ops(task.true_ds)
 # count_ops(task_test.true_ds)
 
 
