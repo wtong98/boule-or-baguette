@@ -15,7 +15,7 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 512
+n_hidden = 256
 batch_size = 128
 
 cot = True
@@ -387,7 +387,7 @@ plot_df
 for name in np.unique(plot_df['name']):
     mdf = plot_df.copy()
     mdf = mdf[
-        (mdf['test_n_hop'] == 5)
+        (mdf['test_n_hop'] == 7)
         & (mdf['name'] == name)
         ]
 

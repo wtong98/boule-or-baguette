@@ -18,7 +18,7 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-train_iters = 25_000
+train_iters = 30_000
 warmup_iters = 2000
 
 depth = 10
@@ -33,17 +33,17 @@ n_widths = (2**np.linspace(5, 9, num=20)).astype(int) * 2
 
 ### START TEST CONFIGS
 # run_split = 1
-# train_iters = 1000
+# train_iters = 25_000
 # warmup_iters = 100
 
 # depth = 10
 # n_hop = 5
-# n_hops_test = [6]
+# n_hops_test = [7]
 
-# all_n_layer = [1]
+# all_n_layer = [2]
 # switch = [True]
-# n_arms = [3]
-# n_widths = [128]
+# n_arms = [100]
+# n_widths = [256]
 ### END TEST CONFIGS
 
 all_cases = []
@@ -104,7 +104,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                                     pos_emb=False, 
                                     return_format=None if cot else 'final_logit',
                                     n_mlp_layers=2,
-                                    layer_norm=False,
+                                    layer_norm=layer_norm,
                                     residual_connections=resid,
                                     mup_scale=True,
                                     linear_att=False,
@@ -123,10 +123,11 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
                                         pos_emb=False, 
                                         return_format=None if cot else 'final_logit',
                                         n_mlp_layers=2,
-                                        layer_norm=False,
+                                        layer_norm=layer_norm,
                                         residual_connections=resid,
                                         mup_scale=True,
                                         linear_att=False,
+                                        unif_att=True,
                                         **model_args),
                         train_args=make_train_args('ce_mask' if cot else 'bce'),
                         train_task=make_chain(cot=cot, ttr=True)
