@@ -21,7 +21,7 @@ batch_size = 128
 cot = True
 ttr = True
 nouveau = True
-n_arms = 100
+n_arms = 10
 n_hop = 5
 test_n_hop = 7
 
@@ -70,7 +70,7 @@ state, hist = train(config,
                     test_iters=1,
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=25_000,
+                    train_iters=10_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     print_fn=print_gen if cot else None,
@@ -123,7 +123,7 @@ O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel']
 xs, _ = next(test_task)
 # print(xs[:3])
 
-xs = jnp.array([[201, 800, 700, 600, 500, 400, 300, 200, 100, 4, 2]])
+xs = jnp.array([[20, 80, 70, 60, 50, 40, 30, 20, 10, 4, 2]])
 xs = jnp.array([xs[0,:-np.sum(xs[0] == 0) - 1]])
 print('XS', xs)
 # m = config.replace(remove_att=True).to_model()
@@ -163,26 +163,42 @@ xs_mlp_comb = jax.nn.gelu((xs_att + xs_emb) @ M1) @ M2
 # xs_mlp = jax.nn.gelu(xs_emb @ M1) @ M2
 
 xs_out = (xs_mlp_comb + xs_att + xs_emb) @ W
-# xs_out = (xs_mlp_comb + xs_emb) @ W
+xs_red = (xs_mlp_comb) @ W
 
-np.mean((xs_out - logits_orig)**2) / np.mean(logits_orig**2)
+
+np.mean((xs_red - logits_orig)**2) / np.mean(logits_orig**2)
 # xs_out / logits_orig
 
 # <codecell>
 xs_mlp_comb = jax.nn.gelu((xs_att) @ M1) @ M2 @ W
 print(logits_orig[0][-1][2])
 print(xs_mlp_comb[0][-1][2])
-# plt.plot(xs_mlp_comb[0][-2][:100])
-# plt.plot(logits_orig[0][-2][:100])
+plt.plot(xs_mlp_comb[0][-1])
+plt.plot(logits_orig[0][-1])
 
 # <codecell>
-# root = np.array([emb[312]])
-z = emb @ V @ O @ M1
-z = z[:300]
-# plt.hist(z.flatten())
-plt.imshow(z @ z.T, cmap='bwr')
+z = emb @ M1
+
+# plt.imshow(z @ z.T, cmap='bwr', vmin=-50, vmax=50)
+plt.imshow(z, cmap='bwr')
 plt.colorbar()
 
+# vs = np.linspace(0, 100)
+# plt.plot(vs, vs)
+
+# <codecell>
+z = emb @ V @ O @ M1
+
+# plt.imshow(z @ z.T, cmap='bwr', vmin=-40_000, vmax=40_000)
+plt.imshow(z, cmap='bwr')
+plt.colorbar()
+
+# <codecell>
+a = M2 @ W
+# plt.imshow(a, cmap='bwr', vmin=-1, vmax=1)
+# plt.colorbar()
+
+plt.plot(a[:,1], alpha=0.7)
 
 
 
@@ -391,33 +407,42 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-for name in np.unique(plot_df['name']):
-    mdf = plot_df.copy()
-    mdf = mdf[
-        (mdf['test_n_hop'] == 7)
-        & (mdf['name'] == name)
-        ]
+# for name in np.unique(plot_df['name']):
+name = '(cot=True,n_layers=1,resid=True,LN=False,unif_att)'
+mdf = plot_df.copy()
+mdf = mdf[
+    (mdf['test_n_hop'] == 5)
+    & (mdf['name'] == name)
+    ]
 
-    mdf = mdf[['n_arms', 'n_hidden', 'acc']]
-    mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
-    mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
+mdf = mdf[['n_arms', 'n_hidden', 'acc']]
+mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
+mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
-    mdf = mdf.iloc[::-1]
+mdf = mdf.iloc[::-1]
 
-    g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
-    xs = 2**np.linspace(-5, 8)
-    g.plot(xs, 30 - 1 * xs, color='black', linestyle='dashed')
+xs = 2**np.linspace(-5, 8)
+g.plot(xs, 14 - 0.5 * xs, color='black', linestyle='dashed')
+g.plot(xs, 14 - xs, color='black', linestyle='dashed')
 
-    # xs = 2**np.linspace(-5, 8)
-    # g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
+# xs = 2**np.linspace(-5, 8)
+# g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
 
-    g.set_ylabel('n_arms')
-    g.set_xlabel('n_hidden')
+g.set_ylabel('n_arms')
+g.set_xlabel('n_hidden')
 
-    g.set_title(name)
-    # plt.savefig(f'fig/{name}_mlp_arms_v_size_test.png', bbox_inches='tight')
-    plt.show()
+g.set_title(name)
+# plt.savefig(f'fig/{name}_mlp_arms_v_size_test.png', bbox_inches='tight')
+plt.show()
+
+# <codecell>
+acc = mdf.T[236]
+vals = mdf.keys()
+
+plt.loglog(vals, acc, '--o')
+plt.loglog(vals, 0.01 * np.sqrt(vals))
 
 
 # <codecell>
