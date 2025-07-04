@@ -26,7 +26,6 @@ class PropTask:
 
     def __init__(self, depth, split='train', filter_ops=None, cot=False, batch_size=128) -> None:
         assert batch_size > 1, f'require batch_size={batch_size} > 1'
-        assert type(filter_ops) is set, f'filter_ops must be a set, got {type(filter_ops)}'
         
         self.depth = depth
         self.split = split
@@ -45,23 +44,35 @@ class PropTask:
         self.collate = DataCollatorWithPadding(self.tokenizer, return_tensors='np')
     
 
+    def _slice_dataset(self, prefix, start, stop):
+        all_ds = []
+        for i in range(start, stop):
+            key = f'{prefix}_{i}'
+            if key in self.ds:
+                all_ds.append(self.ds[key])
+
+        return concatenate_datasets(all_ds)
+    
+
     def load_ds(self):
         self.ds = DatasetDict.load_from_disk(ds_path)
 
         max_len = len(self.ds.keys()) // 2
         if self.split == 'train':
-            self.true_ds = concatenate_datasets([self.ds[f'True_{i}'] for i in range(1, self.depth+1)])
-            self.false_ds = concatenate_datasets([self.ds[f'False_{i}'] for i in range(1, self.depth+1)])
+            self.true_ds = self._slice_dataset(True, 1, self.depth + 1)
+            self.false_ds = self._slice_dataset(False, 1, self.depth + 1)
         elif self.split == 'test':
-            self.true_ds = concatenate_datasets([self.ds[f'True_{i}'] for i in range(self.depth+1, max_len + 1)])
-            self.false_ds = concatenate_datasets([self.ds[f'False_{i}'] for i in range(self.depth+1, max_len + 1)])
-        elif self.split == 'single':
-            self.true_ds = self.ds[f'True_{self.depth}']
-            self.false_ds = self.ds[f'False_{self.depth}']
+            self.true_ds = self._slice_dataset(True, self.depth + 1, max_len + 1)
+            self.false_ds = self._slice_dataset(False, self.depth + 1, max_len + 1)
+        elif self.split == 'range':
+            self.true_ds = self._slice_dataset(True, self.depth[0], self.depth[1])
+            self.false_ds = self._slice_dataset(False, self.depth[0], self.depth[1])
         else:
             raise ValueError(f'unrecognized split: {self.split}')
         
         if self.filter_ops is not None:
+            assert type(self.filter_ops) is set, f'filter_ops must be a set, got {type(self.filter_ops)}'
+
             def matches_ops(ex):
                 return set(ex['ops']).issubset(self.filter_ops)
 
@@ -125,7 +136,7 @@ class PropTask:
     def __iter__(self):
         return self
 
-# task_test = PropTask(depth=4, batch_size=5, split='test', filter_ops=PropTask.or_ops)
+# task_test = PropTask(depth=4, batch_size=5, split='test', filter_ops=None)
 # next(task_test)
 
 # count_ops(task_test.true_ds)

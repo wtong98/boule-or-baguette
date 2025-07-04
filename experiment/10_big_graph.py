@@ -399,7 +399,7 @@ for name in np.unique(plot_df['name']):
         ]
 
     mdf = mdf[['n_arms', 'n_hidden', 'acc']]
-    mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).max()
+    mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
     mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
     mdf = mdf.iloc[::-1]
