@@ -3,9 +3,11 @@
 # <codecell>
 from collections import defaultdict
 
-from datasets import load_dataset, DatasetDict
+from datasets import load_dataset, DatasetDict, Dataset
 from transformers import AutoTokenizer
+from tqdm import tqdm
 
+# <codecell>
 
 def get_tokenizer():
     tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
@@ -13,16 +15,21 @@ def get_tokenizer():
     return tokenizer
 
 
-def count_lens(dataset):
-    ds_lens = dataset.remove_columns(['input', 'proof', 'ops'])
+def split_by_len(dataset):
+    def make_entry(): return {True: [], False: []}
 
-    def make_entry(): return {True: 0, False: 0}
+    splits = defaultdict(make_entry)
+    print('info: splitting by length')
+    for ex in tqdm(dataset):
+        splits[ex['length']][ex['is_true']].append(ex)
 
-    counts = defaultdict(make_entry)
-    for ex in ds_lens:
-        counts[ex['length']][ex['is_true']] += 1
+    ds = {}
+    print('info: assembling datasets')
+    for key in tqdm(splits.keys()):
+        for switch in [True, False]:
+            ds[f'{switch}_{key}'] = Dataset.from_list(splits[key][switch])
 
-    return counts
+    return DatasetDict(ds)
     
 
 def count_ops(dataset):
@@ -38,17 +45,9 @@ def count_ops(dataset):
 
 
 if __name__ == '__main__':
-    dataset = load_dataset('json', data_files='data.json', split='train', keep_in_memory=True)
+    dataset = load_dataset('json', data_dir='data/raw', split='train', keep_in_memory=True)
 
-    lens = count_lens(dataset)
-    max_len = max(lens.keys())
-
-    all_lds = {}
-    for i in range(1, max_len + 1):
-        for t in True, False:
-            lds = dataset.filter(lambda ex: ex['length'] == i and ex['is_true'] == t)
-            all_lds[f'{t}_{i}'] = lds
-
+    ds = split_by_len(dataset)
     tokenizer = get_tokenizer()
 
     def to_toks(ex):
@@ -59,7 +58,14 @@ if __name__ == '__main__':
             'full_ids': inp_and_proof_toks['input_ids'],
         }
 
-    ds = dataset.map(to_toks, batched=False)
-    ds = ds.remove_columns(['input', 'proof'])
+    ds = ds.map(to_toks, batched=False)
+    ds = DatasetDict({k: dataset.remove_columns(column_names=['proof', 'input']) for k, dataset in ds.items() if len(dataset) > 0})
 
-    ds.save_to_disk('data/hf')
+    ds.save_to_disk('data/hf_full')
+
+# # <codecell>
+#     ds = DatasetDict.load_from_disk('data/hf_full')
+
+# # <codecell>
+#     ds
+

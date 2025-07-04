@@ -18,7 +18,7 @@ except ImportError:
     from prop_gen.to_dataset import get_tokenizer, count_ops
 
 
-ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
+ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
 
 class PropTask:
     or_ops = {'apply Or', 'intro h', 'exact', 'apply True', 'efq'}

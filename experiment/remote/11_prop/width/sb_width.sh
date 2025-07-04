@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -c 16
-#SBATCH -t 1-00:00:00
-#SBATCH -p kempner,kempner_h100,kempner_h200
+#SBATCH -t 3-00:00:00
+#SBATCH -p kempner_requeue
 #SBATCH --gres=gpu:1
 #SBATCH --mem=32000
 #SBATCH -o log.%A.%a.out

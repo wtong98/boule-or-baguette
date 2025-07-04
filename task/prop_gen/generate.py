@@ -39,6 +39,7 @@ def split(it, run_split):
 run_id = uuid.uuid4()
 print('RUN_ID', run_id)
 
+# total number of tokens with this configuration is 1559127906 (about 1.6 billion)
 n_atoms = 3
 max_nodes = 5
 n_cores = 16 * 16

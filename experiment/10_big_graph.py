@@ -101,6 +101,7 @@ xs, _ = batch
 traj = gen1(state, xs)
 preds = extract_pred(traj)
 print(traj[:10])
+print(preds)
 
 
 # <codecell>
@@ -113,23 +114,24 @@ emb = state.params['Embed_freeze']['embedding']
 M1 = state.params['TransformerBlock_0']['Dense_0']['kernel'] / np.sqrt(n_hidden)
 M2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
 
-K = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['key']['kernel'].squeeze() / np.sqrt(n_hidden)
-Q = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['query']['kernel'].squeeze() / np.sqrt(n_hidden)
+# K = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['key']['kernel'].squeeze() / np.sqrt(n_hidden)
+# Q = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['query']['kernel'].squeeze() / np.sqrt(n_hidden)
 V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / np.sqrt(n_hidden)
 O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / np.sqrt(n_hidden)
 
 # <codecell>
 xs, _ = next(test_task)
-print(xs[:3])
+# print(xs[:3])
 
+xs = jnp.array([[201, 800, 700, 600, 500, 400, 300, 200, 100, 4, 2]])
 xs = jnp.array([xs[0,:-np.sum(xs[0] == 0) - 1]])
 print('XS', xs)
-m = config.replace(remove_att=True).to_model()
-# m = config.to_model()
+# m = config.replace(remove_att=True).to_model()
+m = config.to_model()
 
 # logits_orig, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 logits_orig, intm = m.apply({'params': state.params}, xs, mutable='intermediates')
-print(logits_orig.argmax(-1))
+print('PS', logits_orig.argmax(-1))
 # intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights']
 # intm['intermediates']
 
@@ -143,39 +145,44 @@ print(att0)
 
 # <codecell>
 xs_emb = emb[xs]
-k = xs_emb @ K
-q = xs_emb @ Q
+# k = xs_emb @ K
+# q = xs_emb @ Q
 
-att = q @ t(k) / n_hidden
+# att = q @ t(k) / n_hidden
+att = jnp.ones((xs_emb.shape[1], xs_emb.shape[1]))
 att = jnp.tril(att, k=0)
 att = att.at[att == 0].set(-jnp.inf)
 
 att = jax.nn.softmax(att, axis=-1)
-plt.imshow(att.squeeze())
+# plt.imshow(att.squeeze())
 
 xs_att = att @ xs_emb @ V @ O
-
-xs_out = xs_att + xs_emb
-xs_out = jax.nn.gelu(xs_out @ M1) @ M2
 xs_mlp_comb = jax.nn.gelu((xs_att + xs_emb) @ M1) @ M2
 
-xs_att_mlp = jax.nn.gelu(xs_att @ M1) @ M2
-xs_mlp = jax.nn.gelu(xs_emb @ M1) @ M2
+# xs_att_mlp = jax.nn.gelu(xs_att @ M1) @ M2
+# xs_mlp = jax.nn.gelu(xs_emb @ M1) @ M2
 
 xs_out = (xs_mlp_comb + xs_att + xs_emb) @ W
+# xs_out = (xs_mlp_comb + xs_emb) @ W
 
 np.mean((xs_out - logits_orig)**2) / np.mean(logits_orig**2)
 # xs_out / logits_orig
 
+# <codecell>
+xs_mlp_comb = jax.nn.gelu((xs_att) @ M1) @ M2 @ W
+print(logits_orig[0][-1][2])
+print(xs_mlp_comb[0][-1][2])
+# plt.plot(xs_mlp_comb[0][-2][:100])
+# plt.plot(logits_orig[0][-2][:100])
 
-# xs_mlp = jax.nn.gelu(xs_emb @ V @ O @ M1) @ M2
-# xs_att_mlp = jax.nn.gelu(xs_att @ M1) @ M2
+# <codecell>
+# root = np.array([emb[312]])
+z = emb @ V @ O @ M1
+z = z[:300]
+# plt.hist(z.flatten())
+plt.imshow(z @ z.T, cmap='bwr')
+plt.colorbar()
 
-# # TODO: trace source of discrepancy <-- STOPPED HERE
-# logits = (xs_emb + xs_att + xs_mlp + xs_att_mlp) @ W
-# logits
-
-# logits / logits_orig
 
 
 
