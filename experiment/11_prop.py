@@ -71,8 +71,8 @@ state, hist = train(config,
 
 
 # <codecell>
-# df = collate_dfs('remote/11_prop/length', show_progress=True)
-df = collate_dfs('remote/11_prop/width', show_progress=True)
+df = collate_dfs('remote/11_prop/length', show_progress=True)
+# df = collate_dfs('remote/11_prop/width', show_progress=True)
 df
 
 # %%
@@ -105,6 +105,6 @@ plot_df
 g = sns.barplot(plot_df, x='test_n_hop', y='acc', hue='name', hue_order=['Zero', 'Zero (small)', 'AR full'])
 g.set_ylim(0.4, 1)
 g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
-g.set_title('Or dataset')
+g.set_title('Full dataset')
 
-plt.savefig('fig/prop_task_or.png')
+plt.savefig('fig/prop_task_full.png')

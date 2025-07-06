@@ -22,13 +22,13 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-batch_size = 16
-multistep_k = 8
+batch_size = 8
+multistep_k = 16
 train_iters = multistep_k * 100_000
 warmup_iters = multistep_k * 2000
 eval_batch_size = 100
 
-n_hops = [2, 3, 4, 5]
+n_hops = [3, 10, 20, 50]
 
 n_hidden = 768
 n_layer = 12

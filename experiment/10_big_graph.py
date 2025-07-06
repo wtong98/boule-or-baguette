@@ -15,13 +15,13 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 256
+n_hidden = 16
 batch_size = 128
 
 cot = True
 ttr = True
 nouveau = True
-n_arms = 10
+n_arms = 100
 n_hop = 5
 test_n_hop = 7
 
@@ -96,7 +96,7 @@ plt.plot(logits[0,-1])
 
 
 # <codecell>
-batch = next(test_task)
+batch = next(train_task)
 xs, _ = batch
 traj = gen1(state, xs)
 preds = extract_pred(traj)
@@ -423,9 +423,9 @@ mdf = mdf.iloc[::-1]
 
 g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
-xs = 2**np.linspace(-5, 8)
-g.plot(xs, 14 - 0.5 * xs, color='black', linestyle='dashed')
-g.plot(xs, 14 - xs, color='black', linestyle='dashed')
+xs = 2**np.linspace(-5, 3.8)
+# g.plot(xs, 14 - 0.5 * xs, color='black', linestyle='dashed')
+g.plot(xs, 32 - 1.5 * xs, color='cyan', linestyle='dashed')
 
 # xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
@@ -438,12 +438,26 @@ g.set_title(name)
 plt.show()
 
 # <codecell>
-acc = mdf.T[236]
+acc = mdf.T[64]
 vals = mdf.keys()
 
-plt.loglog(vals, acc, '--o')
-plt.loglog(vals, 0.01 * np.sqrt(vals))
+cs = plt.cm.plasma(np.linspace(0, 1, len(mdf.T)))
+for line, c in zip(np.array(mdf), cs):
+    plt.plot(vals, line, alpha=0.5, color=c)
 
+vals = vals[:len(vals)//4]
+plt.plot(vals, 0.16 * np.sqrt(vals), color='black', linestyle='dashed')
+
+plt.xscale('log', base=2)
+plt.yscale('log')
+
+plt.xlabel('n_hidden')
+plt.ylabel('accuracy')
+
+
+# <codecell>
+mdf
+np.array(mdf)
 
 # <codecell>
 df = collate_dfs('remote/10_big_graph/tf_size', show_progress=True)
