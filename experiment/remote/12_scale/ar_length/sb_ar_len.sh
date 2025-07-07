@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -c 8
-#SBATCH -t 1-00:00:00
+#SBATCH -t 2-00:00:00
 #SBATCH -p kempner_requeue
 #SBATCH --gres=gpu:1
 #SBATCH --mem=64000
@@ -9,7 +9,7 @@
 #SBATCH --array=1-36
 #SBATCH --mail-type=END
 #SBATCH --mail-user=wtong@g.harvard.edu
-#SBATCH --account=kempner_grads
+#SBATCH --account=kempner_pehlevan_lab
 #SBATCH --exclude=holygpu8a19604
 
 source ../../../../../venv_imply/bin/activate

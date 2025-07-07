@@ -21,7 +21,7 @@ except ImportError:
 ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
 
 class PropTask:
-    or_ops = {'apply Or', 'intro h', 'exact', 'apply True', 'efq'}
+    or_ops = {'apply Or', 'cases Or', 'intro h', 'exact', 'apply True', 'efq'}
     n_vocab = 50257
 
     def __init__(self, depth, split='train', filter_ops=None, cot=False, batch_size=128) -> None:
@@ -136,10 +136,59 @@ class PropTask:
     def __iter__(self):
         return self
 
-# task_test = PropTask(depth=4, batch_size=5, split='test', filter_ops=None)
+# task_test = PropTask(depth=20, batch_size=5, split='test', filter_ops=PropTask.or_ops)
 # next(task_test)
 
-# count_ops(task_test.true_ds)
+# # <codecell>
+# count_ops(task_test.false_ds)
+
+# # <codecell>
+# t_vals = []
+# f_vals = []
+
+# for k, v in task_test.ds.items():
+#     name, num = k.split('_')
+
+#     if name == 'True':
+#         t_vals.append((int(num), len(v)))
+#     else:
+#         f_vals.append((int(num), len(v)))
+        
+# # <codecell>
+# t_idx, t_lens = np.array(t_vals).T
+# f_idx, f_lens = np.array(f_vals).T
+# plt.scatter(t_idx, t_lens)
+# plt.scatter(f_idx, f_lens)
+
+# plt.xscale('log')
+# plt.yscale('log')
+
+# # <codecell>
+# t_sort_idx = np.argsort(t_idx)
+# t_cum = np.cumsum(t_lens[t_sort_idx]) / np.sum(t_lens)
+
+# f_sort_idx = np.argsort(f_idx)
+# f_cum = np.cumsum(f_lens[f_sort_idx]) / np.sum(f_lens)
+
+# plt.plot(t_cum)
+# plt.plot(f_cum)
+
+# props = [0.25, 0.5, 0.75, 0.95]
+
+# idxs = []
+# for p in props:
+#     idx = np.sum(t_cum < p) - 1
+#     idxs.append(t_idx[t_sort_idx][idx].item())
+
+# idxs
+
+# # final indices: [3, 5, 7, 12]
+
+# # <codecell>
+# import matplotlib.pyplot as plt
+# plt.hist(t_vals, bins=20)
+# plt.hist(f_vals, alpha=0.5, bins=20)
+    
 
 
 # <codecell>
@@ -149,6 +198,7 @@ no_id = 32165
 state_id = 5219
 
 # NOTE: un-optimized and very expensive to run
+# TODO: give extra buffer for x
 def gen_acc_cot_prop(state, batch, loss=None):
     tot_correct = 0
     all_exs = batch[0]

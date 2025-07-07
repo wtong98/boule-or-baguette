@@ -27,14 +27,14 @@ n_hops_test = [5, 6, 7, 8, 9]
 
 all_n_layer = [1]
 # switch = [False, True]  # resid, CoT, LN
-switch = [True]  # resid, CoT
+switch = [True]  # resid
 
 n_arms = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 
 ### START TEST CONFIGS
 # run_split = 1
-# train_iters = 25_000
+# train_iters = 500
 # warmup_iters = 100
 
 # depth = 10
@@ -96,45 +96,43 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)
     
 
-    for resid, n_layers, cot in itertools.product(switch, all_n_layer, switch):
-        layer_norm = False
-        # all_cases.extend([
-        #     Case(f'(cot={cot},n_layers={n_layers},resid={resid},LN={layer_norm})',
-        #             TransformerConfig(n_heads=1,
-        #                             n_out=n_vocab if cot else 1,
-        #                             n_layers=n_layers,
-        #                             pos_emb=False, 
-        #                             return_format=None if cot else 'final_logit',
-        #                             n_mlp_layers=2,
-        #                             layer_norm=layer_norm,
-        #                             residual_connections=resid,
-        #                             mup_scale=True,
-        #                             linear_att=False,
-        #                             **model_args),
-        #             train_args=make_train_args('ce_mask' if cot else 'bce'),
-        #             train_task=make_chain(cot=cot, ttr=True)
-        #     ), 
-        # ])
+    all_cases.extend([
+        Case(f'Zero',
+                TransformerConfig(n_heads=1,
+                                n_out=1,
+                                n_layers=1,
+                                pos_emb=False, 
+                                return_format='final_logit',
+                                n_mlp_layers=2,
+                                layer_norm=False,
+                                residual_connections=True,
+                                mup_scale=True,
+                                linear_att=False,
+                                **model_args),
+                train_args=make_train_args('bce'),
+                train_task=make_chain(cot=False)
+        ), 
+    ])
 
-        if n_layers == 1 and resid == True and cot == True:
-            all_cases.extend([
-                Case(f'(cot={cot},n_layers={n_layers},resid={resid},LN={layer_norm},unif_att)',
-                        TransformerConfig(n_heads=1,
-                                        n_out=n_vocab if cot else 1,
-                                        n_layers=n_layers,
-                                        pos_emb=False, 
-                                        return_format=None if cot else 'final_logit',
-                                        n_mlp_layers=2,
-                                        layer_norm=layer_norm,
-                                        residual_connections=resid,
-                                        mup_scale=True,
-                                        linear_att=False,
-                                        unif_att=True,
-                                        **model_args),
-                        train_args=make_train_args('ce_mask' if cot else 'bce'),
-                        train_task=make_chain(cot=cot, ttr=True)
-                ), 
-            ])
+        # if n_layers == 1 and resid == True and cot == True:
+        #     all_cases.extend([
+        #         Case(f'(cot={cot},n_layers={n_layers},resid={resid},LN={layer_norm},unif_att)',
+        #                 TransformerConfig(n_heads=1,
+        #                                 n_out=n_vocab if cot else 1,
+        #                                 n_layers=n_layers,
+        #                                 pos_emb=False, 
+        #                                 return_format=None if cot else 'final_logit',
+        #                                 n_mlp_layers=2,
+        #                                 layer_norm=layer_norm,
+        #                                 residual_connections=resid,
+        #                                 mup_scale=True,
+        #                                 linear_att=False,
+        #                                 unif_att=True,
+        #                                 **model_args),
+        #                 train_args=make_train_args('ce_mask' if cot else 'bce'),
+        #                 train_task=make_chain(cot=cot, ttr=True)
+        #         ), 
+        #     ])
     
     
     

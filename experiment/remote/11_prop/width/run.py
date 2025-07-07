@@ -26,9 +26,9 @@ batch_size = 8
 multistep_k = 16
 train_iters = multistep_k * 100_000
 warmup_iters = multistep_k * 2000
-eval_batch_size = 100
+eval_k = 12
 
-n_hops = [3, 10, 20, 50]
+n_hops = [3, 5, 7, 12]
 
 n_hidden = 768
 n_layer = 12
@@ -43,7 +43,7 @@ save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights')
 # train_iters = 2
 # warmup_iters = 1
 # batch_size = 4
-# eval_batch_size = 2
+# eval_k = 1
 # multistep_k = 2
 
 # n_hops = [2]
@@ -164,8 +164,7 @@ for case in tqdm(all_cases):
         case.train_args['eval_fns'].append(gen_acc_cot_prop)
 
     n_hop = case.test_task.depth
-    case.test_task.batch_size = eval_batch_size
-    case.eval(case.test_task, eval_fns=case.train_args['eval_fns'], prefix=n_hop, n_iters=1)
+    case.eval(case.test_task, eval_fns=case.train_args['eval_fns'], prefix=n_hop, n_iters=eval_k)
 
     save_name = f'{case.name}_{n_hop}_filterOr_weights.pkl'
 
