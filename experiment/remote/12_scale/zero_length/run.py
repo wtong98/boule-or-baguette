@@ -94,31 +94,11 @@ for n_hop_prop, depth, n_hidden in itertools.product(n_hop_props, n_depths, n_wi
                                 linear_att=False,
                                 **model_args),
                 train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False)
+                train_task=make_chain(cot=False),
+                info={'n_hop_prop': n_hop_prop}
         ), 
     ])
 
-        # if n_layers == 1 and resid == True and cot == True:
-        #     all_cases.extend([
-        #         Case(f'(cot={cot},n_layers={n_layers},resid={resid},LN={layer_norm},unif_att)',
-        #                 TransformerConfig(n_heads=1,
-        #                                 n_out=n_vocab if cot else 1,
-        #                                 n_layers=n_layers,
-        #                                 pos_emb=False, 
-        #                                 return_format=None if cot else 'final_logit',
-        #                                 n_mlp_layers=2,
-        #                                 layer_norm=layer_norm,
-        #                                 residual_connections=resid,
-        #                                 mup_scale=True,
-        #                                 linear_att=False,
-        #                                 unif_att=True,
-        #                                 **model_args),
-        #                 train_args=make_train_args('ce_mask' if cot else 'bce'),
-        #                 train_task=make_chain(cot=cot, ttr=True)
-        #         ), 
-        #     ])
-    
-    
     
 all_cases = split_cases(all_cases, run_split)
 print('CASES', all_cases)
