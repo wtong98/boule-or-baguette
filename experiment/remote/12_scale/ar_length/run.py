@@ -16,7 +16,7 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 36
 
 train_iters = 50_000
 
@@ -24,17 +24,17 @@ n_arm = 10
 n_depths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
 
-n_hop_props = [0.25, 0.5, 0.7, 0.95]
+n_hop_props = [0.25, 0.5, 0.7]
 
 ### START TEST CONFIGS
 # run_split = 1
-# train_iters = 500
+# train_iters = 50_000
 
-# n_arm = 2
-# n_depths = [10]
-# n_widths = [128]
+# n_arm = 10
+# n_depths = [22]
+# n_widths = [256]
 
-# n_hop_props = [0.5]
+# n_hop_props = [0.25]
 ### END TEST CONFIGS
 
 all_cases = []
@@ -111,7 +111,7 @@ for case in tqdm(all_cases):
 
     for n_hop_prop in n_hop_props:
         tt = case.train_task
-        n_hop = tt.depth * n_hop_prop
+        n_hop = np.round(tt.depth * n_hop_prop).astype(int)
         test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau)
 
         case.eval(

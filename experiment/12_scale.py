@@ -14,38 +14,35 @@ from train import *
 from model.transformer import *
 from task.graph import *
 
-depth = 10
-n_hidden = 16
+depth = 22
+n_hidden = 256
 batch_size = 128
 
-cot = True
+cot = False
 ttr = True
 nouveau = True
-n_arms = 2
-n_hop = 5
-test_n_hop = 7
+n_arms = 10
+n_hop = 6
+test_n_hop = 6
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
 train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
-test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(n_hop + 1, test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
+test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
 
 # <codecell>
 config = TransformerConfig(n_layers=1,
                            n_vocab=n_vocab,
                            n_out=n_vocab if cot else 1,
                            n_hidden=n_hidden,
-                        #    pos_emb=not cot,
                            pos_emb=False,
-                        #    max_len=100,
                            n_mlp_layers=2,
                            n_heads=1,
                            layer_norm=False,
                            as_rf_model=False,
-                           residual_connections=True,
+                           residual_connections=False,
                            freeze_emb=True,
                            use_bias=False,
-                        #    return_format=None if cot else True,
                            return_format=None if cot else 'final_logit',
                            mup_scale=True,
                            unif_att=True
@@ -58,14 +55,75 @@ state, hist = train(config,
                     test_iters=1,
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=10_000,
+                    train_iters=50_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     print_fn=print_gen if cot else None,
                     lr=1e-2,
                     )
 
+
 # <codecell>
+### ANALYSIS OF ZERO MODEL
+# xs = jnp.array([[305, 600, 500, 400, 300, 200, 100, 4]])
+xs = jnp.array([[38, 75]])
+
+logits = state.apply_fn({'params': state.params}, xs)
+logits
+
+# <codecell>
+jax.tree.map(np.shape, state.params)
+
+emb = state.params['Embed_freeze']['embedding']
+a = state.params['Dense_0']['kernel'] / n_hidden
+V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / np.sqrt(n_hidden)
+O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / np.sqrt(n_hidden)
+W1 = state.params['TransformerBlock_0']['Dense_0']['kernel'] / np.sqrt(n_hidden)
+W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
+
+xs = next(test_task)[0]
+xs_emb = emb[xs]
+W = V @ O @ W1
+a = W2 @ a
+
+xs_emb = 0.5 * (xs_emb[:,0] + xs_emb[:,1])
+
+pred = jax.nn.gelu(xs_emb @ W) @ a
+logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+
+np.mean((pred.flatten() - logits)**2) / np.mean(logits**2)
+
+# <codecell>
+sort_idxs = np.argsort(a.flatten())
+proj = emb @ W
+proj = proj[:,sort_idxs]
+
+plt.gcf().set_size_inches(20, 12)
+bound = max(np.max(proj), np.min(proj)) * 0.5
+im = plt.imshow(proj, cmap='BrBG', vmin=-bound, vmax=bound)
+plt.colorbar(im, shrink=0.2)
+plt.tight_layout()
+
+# plt.savefig('fig/zero_mlp_coeffs.svg')
+
+# <codecell>
+plt.plot(a.flatten()[sort_idxs])
+
+# <codecell>
+sort_idxs = np.argsort(a.flatten())
+idx = sort_idxs[4]
+plt.plot(proj[:,sort_idxs[0]])
+plt.plot(proj[:,sort_idxs[-1]])
+# plt.plot(proj[:,448])
+# plt.plot(proj[:,200])
+plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
+a[sort_idxs[-200]]
+
+
+
+
+# <codecell>
+### ANALYSIS OF COT MODEL
 # xs = jnp.array([[305, 600, 500, 400, 300, 200, 100, 4]])
 xs = jnp.array([[25, 75]])
 
@@ -335,13 +393,16 @@ for ex in df['hist'].iloc[rand_idxs]:
 
 # %%
 def extract_plot_vals(row):
+    n_hop_prop = row['info']['n_hop_prop']
+    del row['info']['n_hop_prop']
     return pd.Series([
         row['name'],
         row['train_task'].depth,
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
+        n_hop_prop,
         row['info'],
-    ], index=['name', 'depth', 'n_hop', 'n_hidden', 'info'])
+    ], index=['name', 'depth', 'n_hop', 'n_hidden', 'n_hop_prop', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -363,17 +424,11 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-np.unique(np.round(plot_df['n_hop'] / plot_df['depth'], decimals=1))
-
-# <codecell>
-plot_df['n_hop_prop'] = np.round(plot_df['n_hop'] / plot_df['depth'], decimals=1)
-plot_df['n_hop_prop']
-# <codecell>
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['test_n_hop'] == 0.75)
-    & ((mdf['n_hop_prop'] == 0.7) | (mdf['n_hop_prop'] == 0.7))
+    (mdf['test_n_hop'] == 0.25)
+    & (mdf['n_hop_prop'] == 0.25)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc']]
@@ -395,5 +450,5 @@ g.set_ylabel('depth')
 g.set_xlabel('n_hidden')
 
 plt.title('Zero')
-# plt.savefig(f'fig/zero_mlp_arms_v_size.png', bbox_inches='tight')
+plt.savefig(f'fig/zero_mlp_depth_v_size_debug.png', bbox_inches='tight')
 plt.show()
