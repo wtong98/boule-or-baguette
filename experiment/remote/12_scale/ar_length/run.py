@@ -18,7 +18,10 @@ print('RUN ID', run_id)
 
 run_split = 36
 
-train_iters = 50_000
+batch_size = 8
+accum_k = 16
+
+train_iters = 25_000 * accum_k
 
 n_arm = 10
 n_depths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
@@ -28,11 +31,13 @@ n_hop_props = [0.25, 0.5, 0.7]
 
 ### START TEST CONFIGS
 # run_split = 1
-# train_iters = 50_000
+# train_iters = 1_000
+# batch_size = 10
+# accum_k = 10
 
 # n_arm = 10
-# n_depths = [22]
-# n_widths = [256]
+# n_depths = [100]
+# n_widths = [32]
 
 # n_hop_props = [0.25]
 ### END TEST CONFIGS
@@ -57,7 +62,8 @@ for n_hop_prop, depth, n_hidden in itertools.product(n_hop_props, n_depths, n_wi
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': 1e-2
+            'lr': 1e-2,
+            'k': accum_k
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -74,7 +80,8 @@ for n_hop_prop, depth, n_hidden in itertools.product(n_hop_props, n_depths, n_wi
             'depth': depth,
             'samp_dist': (1, n_hop),
             'n_arms': n_arm,
-            'nouveau': True
+            'nouveau': True,
+            'batch_size': batch_size
         }
 
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)
@@ -112,12 +119,13 @@ for case in tqdm(all_cases):
     for n_hop_prop in n_hop_props:
         tt = case.train_task
         n_hop = np.round(tt.depth * n_hop_prop).astype(int)
-        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau)
+        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau, batch_size=tt.batch_size)
 
         case.eval(
             test_task,
             eval_fns=case.train_args['eval_fns'],
-            prefix=n_hop_prop
+            prefix=n_hop_prop,
+            n_iters=accum_k
         )
 
     case.state = None
@@ -130,4 +138,13 @@ df.to_pickle(f'res.{run_id}.pkl')
 
 print('done!')
 
-# %%
+# # %%
+# tt = case.train_task
+# batch = next(tt)
+# tt.depth
+
+# case.eval(tt, eval_fns=eval_fns, prefix='test')
+ 
+
+# # %%
+# case.info

@@ -14,16 +14,16 @@ from train import *
 from model.transformer import *
 from task.graph import *
 
-depth = 22
-n_hidden = 256
-batch_size = 128
+depth = 400
+n_hidden = 512
+batch_size = 64
 
-cot = False
+cot = True
 ttr = True
 nouveau = True
 n_arms = 10
-n_hop = 6
-test_n_hop = 6
+n_hop = 250
+test_n_hop = 300
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -40,7 +40,7 @@ config = TransformerConfig(n_layers=1,
                            n_heads=1,
                            layer_norm=False,
                            as_rf_model=False,
-                           residual_connections=False,
+                           residual_connections=True if cot else False,
                            freeze_emb=True,
                            use_bias=False,
                            return_format=None if cot else 'final_logit',
@@ -55,7 +55,7 @@ state, hist = train(config,
                     test_iters=1,
                     loss='ce_mask' if cot else 'bce',
                     test_every=1000,
-                    train_iters=50_000,
+                    train_iters=25_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     print_fn=print_gen if cot else None,
@@ -66,7 +66,7 @@ state, hist = train(config,
 # <codecell>
 ### ANALYSIS OF ZERO MODEL
 # xs = jnp.array([[305, 600, 500, 400, 300, 200, 100, 4]])
-xs = jnp.array([[38, 75]])
+xs = jnp.array([[65, 75]])
 
 logits = state.apply_fn({'params': state.params}, xs)
 logits
@@ -113,12 +113,16 @@ plt.plot(a.flatten()[sort_idxs])
 sort_idxs = np.argsort(a.flatten())
 idx = sort_idxs[4]
 plt.plot(proj[:,sort_idxs[0]])
-plt.plot(proj[:,sort_idxs[-1]])
+plt.plot(proj[:,sort_idxs[-10]])
 # plt.plot(proj[:,448])
 # plt.plot(proj[:,200])
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
-a[sort_idxs[-200]]
+a[sort_idxs[-100]]
 
+plt.xlim((200, 300))
+
+# <codecell>
+np.mean(proj[:,-5:] > 0)
 
 
 
@@ -427,8 +431,8 @@ plot_df
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['test_n_hop'] == 0.25)
-    & (mdf['n_hop_prop'] == 0.25)
+    (mdf['test_n_hop'] == 0.5)
+    & (mdf['n_hop_prop'] == 0.5)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc']]
@@ -440,15 +444,101 @@ mdf = mdf.iloc[::-1]
 g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 40 - 1.5 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 35 - 1 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs + np.log(xs), 40 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 37 - 0.67 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
 
-g.plot(xs, 70 - 2 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('depth')
 g.set_xlabel('n_hidden')
 
 plt.title('Zero')
-plt.savefig(f'fig/zero_mlp_depth_v_size_debug.png', bbox_inches='tight')
+# plt.savefig(f'fig/zero_mlp_depth_v_size_debug.png', bbox_inches='tight')
+plt.show()
+
+# <codecell>
+df = collate_dfs('remote/12_scale/ar_length', show_progress=True)
+df
+
+# <codecell>
+rand_idxs = np.random.choice(len(df), size=100, replace=False)
+for ex in df['hist'].iloc[rand_idxs]:
+    vals = [p['loss'] for p in ex['test']]
+    plt.plot(vals, color='C0', alpha=0.1)
+
+# df['hist'].iloc[0]['train']
+    
+
+# %%
+def extract_plot_vals(row):
+    if 'n_hop_prop' in row['info']:
+        n_hop_prop = row['info']['n_hop_prop']
+        del row['info']['n_hop_prop']
+    else:
+        n_hop_prop = row['train_task'].samp_dist[1] / row['train_task'].depth
+        props = np.array([0.25, 0.5, 0.7])
+        dists = np.abs(n_hop_prop - props)
+        n_hop_prop = props[np.argmin(dists)]
+
+    return pd.Series([
+        row['name'],
+        row['train_task'].depth,
+        row['train_task'].samp_dist[1],
+        row['config']['n_hidden'],
+        n_hop_prop,
+        row['info'],
+    ], index=['name', 'depth', 'n_hop', 'n_hidden', 'n_hop_prop', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+# <codecell>
+# for name in np.unique(plot_df['name']):
+mdf = plot_df.copy()
+mdf = mdf[
+    (mdf['test_n_hop'] == 0.7)
+    & (mdf['n_hop_prop'] == 0.7)
+    ]
+
+mdf = mdf[['depth', 'n_hidden', 'acc']]
+mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).mean()
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
+
+mdf = mdf.iloc[::-1]
+
+g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+
+xs = 2**np.linspace(-5, 8)
+# g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 15 - 0.67 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 10 - 0.5 * xs, color='cyan', linestyle='dashed')
+
+# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
+
+g.set_ylabel('depth')
+g.set_xlabel('n_hidden')
+
+plt.title('AR full')
+# plt.savefig(f'fig/zero_mlp_depth_v_size_debug.png', bbox_inches='tight')
 plt.show()

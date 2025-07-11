@@ -244,6 +244,8 @@ class Transformer(nn.Module):
             y = AddPositionEmbs(config=config)(y)
         
         decoder_mask = nn.make_causal_mask(jnp.zeros(inputs.shape[:2]))
+
+        # y = nn.Dense(self.config.n_hidden, use_bias=False)(y)
         
         for i in range(config.n_layers):
             name = f'transformer_block_{i}_freeze' if self.config.as_rf_model else None
