@@ -16,16 +16,16 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 36
+run_split = 108
 
 batch_size = 8
 accum_k = 16
 
-train_iters = 25_000 * accum_k
+train_iters = 20_000 * accum_k
 
 n_arm = 10
-n_depths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
-n_widths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
+n_depths = (2**np.linspace(3, 8, num=20)).astype(int) * 2
+n_widths = (2**np.linspace(3, 8, num=20)).astype(int) * 2
 
 n_hop_props = [0.25, 0.5, 0.7]
 
@@ -46,7 +46,7 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
 
-for n_hop_prop, depth, n_hidden in itertools.product(n_hop_props, n_depths, n_widths):
+for n_hop_prop, n_hidden, depth in itertools.product(n_hop_props, n_widths, n_depths):
     n_hop = np.round(n_hop_prop * depth).astype(int)
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
 

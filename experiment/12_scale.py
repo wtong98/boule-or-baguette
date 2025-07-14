@@ -456,7 +456,7 @@ g.set_ylabel('depth')
 g.set_xlabel('n_hidden')
 
 plt.title('Zero')
-# plt.savefig(f'fig/zero_mlp_depth_v_size_debug.png', bbox_inches='tight')
+plt.savefig(f'fig/zero_mlp_depth_v_size.png', bbox_inches='tight')
 plt.show()
 
 # <codecell>
@@ -515,8 +515,8 @@ plot_df
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['test_n_hop'] == 0.7)
-    & (mdf['n_hop_prop'] == 0.7)
+    (mdf['test_n_hop'] == 0.25)
+    & (mdf['n_hop_prop'] == 0.25)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc']]

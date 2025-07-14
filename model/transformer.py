@@ -155,6 +155,7 @@ class SimpleSelfAttention(nn.Module):
 
         self.sow('intermediates', 'attention_weights', attn_weights)
         out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
+        self.sow('intermediates', 'attention_logits', attn_weights)
 
         if self.config.mup_scale:
             kernel_init = nn.initializers.normal(1)
@@ -254,6 +255,7 @@ class Transformer(nn.Module):
         if self.config.mup_scale:
             kernel_init = nn.initializers.normal(1)
             prefac = 1 / self.config.n_hidden
+            # prefac = 1 / np.sqrt(self.config.n_hidden)
             logits = prefac * nn.Dense(config.n_out, use_bias=self.config.use_bias, kernel_init=kernel_init)(y)
         else:
             logits = nn.Dense(config.n_out, use_bias=self.config.use_bias)(y)
@@ -424,18 +426,18 @@ class Tr(nn.Module):
 # depth = 10
 # n_vocab = 2 * depth + 4
 
-# train_task = StarfishTask(depth=depth, n_arms=2, batch_size=4)
+# train_task = StarfishTask(depth=depth, n_arms=2, batch_size=512)
 
 # xs_init, _ = next(train_task)
 
 # state = None
 
 # all_norms = []
-# for n_steps in tqdm([1]):
+# for n_steps in tqdm([3]):
 #     curr_norms = []
 #     curr_norms_att = []
 
-#     for n_hidden in [64, 128, 256, 512, 1024]:
+#     for n_hidden in [64, 128, 256, 512, 1024, 2048]:
 #         # gamma0 = 1
 #         # gamma = gamma0 * np.sqrt(n_hidden)
 #         # lr = gamma0**2 * base_lr
@@ -443,29 +445,30 @@ class Tr(nn.Module):
 
 
 #         config = TransformerConfig(n_vocab=n_vocab,
-#                                 n_layers=2,
+#                                 n_layers=1,
 #                                 n_hidden=n_hidden,
 #                                 n_heads=2,
 #                                 n_out=1,
 #                                 pos_emb=False,
-#                                 layer_norm=True,
-#                                 residual_connections=True,
+#                                 layer_norm=False,
+#                                 residual_connections=False,
 #                                 n_mlp_layers=2,
 #                                 return_format='final_logit',
 #                                 use_bias=False,
 #                                 freeze_emb=True,
-#                                 mup_scale=True)
+#                                 mup_scale=True,
+#                                 unif_att=True)
 
 
 #         state = create_train_state(jax.random.key(new_seed()),
 #                                 model=config.to_model(),
 #                                 dummy_input=xs_init,
 #                                 lr=lr,
-#                                 optim=optax.adamw)
+#                                 optim=optax.sign_sgd)
 
 #         # logits_init = state.apply_fn({'params': state.params}, xs_init)
 #         logits_init, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
-#         att_init = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
+#         # att_init = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
 #         w_init = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
         
 
@@ -478,11 +481,12 @@ class Tr(nn.Module):
 #                             seed=None)
 
 #         logits, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
-#         att = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
+#         # att = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
 #         w = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
 
 #         norm = np.std(logits - logits_init).item()
-#         norm_att = np.std(att - att_init).item()
+#         # norm_att = np.std(att - att_init).item()
+#         norm_att = 0
 #         norm_w = np.std(w - w_init).item()
 
 #         curr_norms.append((norm, norm_att, norm_w))

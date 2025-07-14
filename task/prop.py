@@ -20,6 +20,8 @@ except ImportError:
 
 ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
 
+# TODO: investigate OR theorems; investigate IMPLY theorems <-- STOPPED HERE
+
 class PropTask:
     or_ops = {'apply Or', 'cases Or', 'intro h', 'exact', 'apply True', 'efq'}
     n_vocab = 50257
@@ -136,7 +138,7 @@ class PropTask:
     def __iter__(self):
         return self
 
-# task_test = PropTask(depth=20, batch_size=5, split='test', filter_ops=PropTask.or_ops)
+# task_test = PropTask(depth=3, batch_size=5, split='test', filter_ops=PropTask.or_ops)
 # next(task_test)
 
 # # <codecell>
