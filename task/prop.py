@@ -20,10 +20,10 @@ except ImportError:
 
 ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
 
-# TODO: investigate OR theorems; investigate IMPLY theorems <-- STOPPED HERE
 
 class PropTask:
     or_ops = {'apply Or', 'cases Or', 'intro h', 'exact', 'apply True', 'efq'}
+    imply_ops = {'split Imply', 'intro h', 'exact', 'apply True', 'efq'}
     n_vocab = 50257
 
     def __init__(self, depth, split='train', filter_ops=None, cot=False, batch_size=128) -> None:
@@ -138,60 +138,71 @@ class PropTask:
     def __iter__(self):
         return self
 
-# task_test = PropTask(depth=3, batch_size=5, split='test', filter_ops=PropTask.or_ops)
-# next(task_test)
+task_test = PropTask(depth=3, batch_size=5, split='test', cot=True, filter_ops=PropTask.imply_ops)
+xs, ys = next(task_test)
 
-# # <codecell>
-# count_ops(task_test.false_ds)
+# <codecell>
+tok = get_tokenizer()
+tok.decode(xs[0])
 
-# # <codecell>
-# t_vals = []
-# f_vals = []
+# <codecell>
+# tok.decode(task_test.true_ds[10000]['input_ids'])
+task_test.true_ds[10000]['ops']
 
-# for k, v in task_test.ds.items():
-#     name, num = k.split('_')
+# <codecell>
+count_ops(task_test.false_ds)
 
-#     if name == 'True':
-#         t_vals.append((int(num), len(v)))
-#     else:
-#         f_vals.append((int(num), len(v)))
+# <codecell>
+def matches_ops(ex):
+    return set(ex['ops']).issubset(PropTask.imply_ops)
+
+filt_ds = task_test.ds.filter(matches_ops)
+
+# <codecell>
+t_vals = []
+f_vals = []
+
+for k, v in filt_ds.items():
+    name, num = k.split('_')
+
+    if name == 'True':
+        t_vals.append((int(num), len(v)))
+    else:
+        f_vals.append((int(num), len(v)))
         
-# # <codecell>
-# t_idx, t_lens = np.array(t_vals).T
-# f_idx, f_lens = np.array(f_vals).T
-# plt.scatter(t_idx, t_lens)
-# plt.scatter(f_idx, f_lens)
+# <codecell>
+import matplotlib.pyplot as plt
 
-# plt.xscale('log')
-# plt.yscale('log')
+t_idx, t_lens = np.array(t_vals).T
+f_idx, f_lens = np.array(f_vals).T
+plt.scatter(t_idx, t_lens)
+plt.scatter(f_idx, f_lens)
 
-# # <codecell>
-# t_sort_idx = np.argsort(t_idx)
-# t_cum = np.cumsum(t_lens[t_sort_idx]) / np.sum(t_lens)
+plt.xscale('log')
+plt.yscale('log')
 
-# f_sort_idx = np.argsort(f_idx)
-# f_cum = np.cumsum(f_lens[f_sort_idx]) / np.sum(f_lens)
+# <codecell>
+t_sort_idx = np.argsort(t_idx)
+t_cum = np.cumsum(t_lens[t_sort_idx]) / np.sum(t_lens)
 
-# plt.plot(t_cum)
-# plt.plot(f_cum)
+f_sort_idx = np.argsort(f_idx)
+f_cum = np.cumsum(f_lens[f_sort_idx]) / np.sum(f_lens)
 
-# props = [0.25, 0.5, 0.75, 0.95]
+plt.plot(t_cum)
+plt.plot(f_cum)
 
-# idxs = []
-# for p in props:
-#     idx = np.sum(t_cum < p) - 1
-#     idxs.append(t_idx[t_sort_idx][idx].item())
+props = [0.25, 0.5, 0.75, 0.95]
 
-# idxs
+idxs = []
+for p in props:
+    # idx = np.sum(t_cum < p) - 1
+    # idxs.append(t_idx[t_sort_idx][idx].item())
+    idx = np.sum(f_cum < p) - 1
+    idxs.append(f_idx[f_sort_idx][idx].item())
 
-# # final indices: [3, 5, 7, 12]
+idxs
 
-# # <codecell>
-# import matplotlib.pyplot as plt
-# plt.hist(t_vals, bins=20)
-# plt.hist(f_vals, alpha=0.5, bins=20)
-    
-
+# final indices: [3, 5, 7, 12]
 
 # <codecell>
 

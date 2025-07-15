@@ -28,7 +28,7 @@ train_iters = multistep_k * 100_000
 warmup_iters = multistep_k * 2000
 eval_k = 12
 
-n_hops = [3, 5, 7, 12]
+n_hops = [4, 8, 12, 20]
 
 n_hidden = 768
 n_layer = 12
@@ -93,7 +93,7 @@ for n_hop in n_hops:
             'depth': n_hop,
             'split': split,
             'batch_size': batch_size,
-            'filter_ops': PropTask.or_ops
+            'filter_ops': PropTask.imply_ops
         }
 
         return PropTask(cot=cot, **task_args)

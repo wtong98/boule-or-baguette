@@ -14,16 +14,16 @@ from train import *
 from model.transformer import *
 from task.graph import *
 
-depth = 400
+depth = 10
 n_hidden = 512
-batch_size = 64
+batch_size = 128
 
-cot = True
+cot = False
 ttr = True
 nouveau = True
-n_arms = 10
-n_hop = 250
-test_n_hop = 300
+n_arms = 50
+n_hop = 5
+test_n_hop = 7
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -88,7 +88,7 @@ a = W2 @ a
 
 xs_emb = 0.5 * (xs_emb[:,0] + xs_emb[:,1])
 
-pred = jax.nn.gelu(xs_emb @ W) @ a
+pred = jax.nn.relu(xs_emb @ W) @ a
 logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 
 np.mean((pred.flatten() - logits)**2) / np.mean(logits**2)
@@ -112,18 +112,20 @@ plt.plot(a.flatten()[sort_idxs])
 # <codecell>
 sort_idxs = np.argsort(a.flatten())
 idx = sort_idxs[4]
-plt.plot(proj[:,sort_idxs[0]])
-plt.plot(proj[:,sort_idxs[-10]])
+plt.plot(proj[:,0])
+plt.plot(proj[:,-12])
 # plt.plot(proj[:,448])
 # plt.plot(proj[:,200])
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
-a[sort_idxs[-100]]
+a[sort_idxs[0]]
 
 plt.xlim((200, 300))
 
 # <codecell>
 np.mean(proj[:,-5:] > 0)
 
+# <codecell>
+plt.hist(proj[:,-4], bins=50)
 
 
 # <codecell>
@@ -515,8 +517,8 @@ plot_df
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['test_n_hop'] == 0.25)
-    & (mdf['n_hop_prop'] == 0.25)
+    (mdf['test_n_hop'] == 0.5)
+    & (mdf['n_hop_prop'] == 0.5)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc']]

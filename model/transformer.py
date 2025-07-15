@@ -207,7 +207,7 @@ class TransformerBlock(nn.Module):
                 if i == 0:
                     x = prefac * nn.Dense(features=self.config.n_hidden, use_bias=self.config.use_bias, kernel_init=kernel_init)(pre_mlp_x)
                 else:
-                    x = nn.gelu(x)
+                    x = nn.relu(x)
                     x = prefac * nn.Dense(features=self.config.n_hidden, use_bias=self.config.use_bias, kernel_init=kernel_init)(x)
                 
                 self.sow('intermediates', f'layer_{i}', x)
@@ -239,6 +239,7 @@ class Transformer(nn.Module):
             y = nn.Embed(
                 num_embeddings=self.config.n_vocab,
                 features=self.config.n_hidden,
+                # features=64,
                 name=name)(y)
 
         if config.pos_emb:

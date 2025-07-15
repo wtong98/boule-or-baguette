@@ -18,7 +18,7 @@ from util.out import format_example, start_lean
 # prop = Implies(Atom('p3'), Or(Or(Atom('p1'), Atom('p2')), Atom('p3')))
 
 # prop = Implies(Implies(Atom('p1'), And(Atom('p2'), Atom('p1'))), Implies(Atom('p1'), And(Atom('p2'), Atom('p2'))))
-prop = Atom('p1')
+prop = Implies(Atom('p1'), Implies(PTrue(), PTrue()))
 # prop = Implies(And(Atom('p1'), And(Atom('p2'), Atom('p2'))), And(Atom('p2'), And(Atom('p1'), Atom('p1'))))
 # prop = Implies(Or(Atom('p1'), Atom('p1')), Atom('p1'))
 
@@ -29,4 +29,4 @@ print('PROOF', proof)
 
 ex = format_example(3, prop, proof)
 
-json.dumps(ex)
+ex
