@@ -21,13 +21,14 @@ run_split = 108
 batch_size = 8
 accum_k = 16
 
-train_iters = 20_000 * accum_k
+train_iters = 10_000 * accum_k
 
 n_arm = 10
-n_depths = (2**np.linspace(3, 8, num=20)).astype(int) * 2
-n_widths = (2**np.linspace(3, 8, num=20)).astype(int) * 2
+n_depths = (2**np.linspace(3, 8.5, num=40)).astype(int) * 2
+n_widths = (2**np.linspace(3, 8.5, num=40)).astype(int) * 2
 
-n_hop_props = [0.25, 0.5, 0.7]
+# n_hop_props = [0.25, 0.5, 0.7]
+n_hop_props = [0.5]
 
 ### START TEST CONFIGS
 # run_split = 1
