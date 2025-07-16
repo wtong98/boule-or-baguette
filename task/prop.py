@@ -138,69 +138,69 @@ class PropTask:
     def __iter__(self):
         return self
 
-task_test = PropTask(depth=3, batch_size=5, split='test', cot=True, filter_ops=PropTask.imply_ops)
-xs, ys = next(task_test)
+# task_test = PropTask(depth=3, batch_size=5, split='test', cot=True, filter_ops=PropTask.imply_ops)
+# xs, ys = next(task_test)
 
-# <codecell>
-tok = get_tokenizer()
-tok.decode(xs[0])
+# # <codecell>
+# tok = get_tokenizer()
+# tok.decode(xs[0])
 
-# <codecell>
-# tok.decode(task_test.true_ds[10000]['input_ids'])
-task_test.true_ds[10000]['ops']
+# # <codecell>
+# # tok.decode(task_test.true_ds[10000]['input_ids'])
+# task_test.true_ds[10000]['ops']
 
-# <codecell>
-count_ops(task_test.false_ds)
+# # <codecell>
+# count_ops(task_test.false_ds)
 
-# <codecell>
-def matches_ops(ex):
-    return set(ex['ops']).issubset(PropTask.imply_ops)
+# # <codecell>
+# def matches_ops(ex):
+#     return set(ex['ops']).issubset(PropTask.imply_ops)
 
-filt_ds = task_test.ds.filter(matches_ops)
+# filt_ds = task_test.ds.filter(matches_ops)
 
-# <codecell>
-t_vals = []
-f_vals = []
+# # <codecell>
+# t_vals = []
+# f_vals = []
 
-for k, v in filt_ds.items():
-    name, num = k.split('_')
+# for k, v in filt_ds.items():
+#     name, num = k.split('_')
 
-    if name == 'True':
-        t_vals.append((int(num), len(v)))
-    else:
-        f_vals.append((int(num), len(v)))
+#     if name == 'True':
+#         t_vals.append((int(num), len(v)))
+#     else:
+#         f_vals.append((int(num), len(v)))
         
-# <codecell>
-import matplotlib.pyplot as plt
+# # <codecell>
+# import matplotlib.pyplot as plt
 
-t_idx, t_lens = np.array(t_vals).T
-f_idx, f_lens = np.array(f_vals).T
-plt.scatter(t_idx, t_lens)
-plt.scatter(f_idx, f_lens)
+# t_idx, t_lens = np.array(t_vals).T
+# f_idx, f_lens = np.array(f_vals).T
+# plt.scatter(t_idx, t_lens)
+# plt.scatter(f_idx, f_lens)
 
-plt.xscale('log')
-plt.yscale('log')
+# plt.xscale('log')
+# plt.yscale('log')
 
-# <codecell>
-t_sort_idx = np.argsort(t_idx)
-t_cum = np.cumsum(t_lens[t_sort_idx]) / np.sum(t_lens)
+# # <codecell>
+# t_sort_idx = np.argsort(t_idx)
+# t_cum = np.cumsum(t_lens[t_sort_idx]) / np.sum(t_lens)
 
-f_sort_idx = np.argsort(f_idx)
-f_cum = np.cumsum(f_lens[f_sort_idx]) / np.sum(f_lens)
+# f_sort_idx = np.argsort(f_idx)
+# f_cum = np.cumsum(f_lens[f_sort_idx]) / np.sum(f_lens)
 
-plt.plot(t_cum)
-plt.plot(f_cum)
+# plt.plot(t_cum)
+# plt.plot(f_cum)
 
-props = [0.25, 0.5, 0.75, 0.95]
+# props = [0.25, 0.5, 0.75, 0.95]
 
-idxs = []
-for p in props:
-    # idx = np.sum(t_cum < p) - 1
-    # idxs.append(t_idx[t_sort_idx][idx].item())
-    idx = np.sum(f_cum < p) - 1
-    idxs.append(f_idx[f_sort_idx][idx].item())
+# idxs = []
+# for p in props:
+#     # idx = np.sum(t_cum < p) - 1
+#     # idxs.append(t_idx[t_sort_idx][idx].item())
+#     idx = np.sum(f_cum < p) - 1
+#     idxs.append(f_idx[f_sort_idx][idx].item())
 
-idxs
+# idxs
 
 # final indices: [3, 5, 7, 12]
 

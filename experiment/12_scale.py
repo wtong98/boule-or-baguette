@@ -14,16 +14,16 @@ from train import *
 from model.transformer import *
 from task.graph import *
 
-depth = 10
+depth = 150
 n_hidden = 512
 batch_size = 128
 
-cot = False
+cot = True
 ttr = True
 nouveau = True
-n_arms = 50
-n_hop = 5
-test_n_hop = 7
+n_arms = 10
+n_hop = 75
+test_n_hop = 80
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -532,9 +532,9 @@ g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 15 - 0.67 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 10 - 0.5 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 20 - 0.67 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 20 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 
