@@ -107,4 +107,4 @@ g.set_ylim(0.4, 1)
 g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
 g.set_title('Or-only dataset')
 
-plt.savefig('fig/prop_task_or_only.png')
+# plt.savefig('fig/prop_task_or_only.png')

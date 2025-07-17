@@ -20,17 +20,18 @@ run_split = 12
 
 train_iters = 50_000
 
-n_arm = 10
+n_arms = [2, 5, 10, 50]
 n_depths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 
-n_hop_props = [0.25, 0.5, 0.7, 0.95]
+# n_hop_props = [0.25, 0.5, 0.7, 0.95]
+n_hop_props = [0.5]
 
 ### START TEST CONFIGS
 # run_split = 1
 # train_iters = 50_000
 
-# n_arm = 10
+# n_arms = [10]
 # n_depths = [22]
 # n_widths = [256]
 
@@ -41,7 +42,7 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
 
-for n_hop_prop, depth, n_hidden in itertools.product(n_hop_props, n_depths, n_widths):
+for n_hop_prop, n_arm, depth, n_hidden in itertools.product(n_hop_props, n_arms, n_depths, n_widths):
     n_hop = np.round(n_hop_prop * depth).astype(int)
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
 

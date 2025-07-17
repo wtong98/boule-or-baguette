@@ -14,21 +14,41 @@ from train import *
 from model.transformer import *
 from task.graph import *
 
-depth = 150
+depth = 3
 n_hidden = 512
 batch_size = 128
 
-cot = True
+cot = False
 ttr = True
 nouveau = True
 n_arms = 10
-n_hop = 75
-test_n_hop = 80
+n_hop = 1
+test_n_hop = 1
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
 train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
 test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
+
+# <codecell>
+train_task.batch_size = 4096
+xs, ys = next(train_task)
+emb = np.random.randn(n_vocab, n_hidden) / np.sqrt(n_hidden)
+
+xs_emb = emb[xs]
+ys = 2 * ys - 1
+
+xs_tot = ys[:,None] * (xs_emb[:,0] + xs_emb[:,1])
+
+xs_mat = xs_tot.T @ xs_tot / train_task.batch_size
+
+# <codecell>
+evals, evecs = np.linalg.eig(xs_mat)
+
+plt.plot(emb @ evecs[:,[1]])
+# plt.plot(evals)
+
+
 
 # <codecell>
 config = TransformerConfig(n_layers=1,
@@ -533,8 +553,8 @@ xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 20 - 0.67 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 20 - 0.5 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 45 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 

@@ -23,9 +23,9 @@ accum_k = 16
 
 train_iters = 10_000 * accum_k
 
-n_arm = 10
-n_depths = (2**np.linspace(3, 8.5, num=40)).astype(int) * 2
-n_widths = (2**np.linspace(3, 8.5, num=40)).astype(int) * 2
+n_arms = [2, 5, 10, 50]
+n_depths = (2**np.linspace(3, 8, num=20)).astype(int) * 2
+n_widths = (2**np.linspace(3, 8, num=20)).astype(int) * 2
 
 # n_hop_props = [0.25, 0.5, 0.7]
 n_hop_props = [0.5]
@@ -36,7 +36,7 @@ n_hop_props = [0.5]
 # batch_size = 10
 # accum_k = 10
 
-# n_arm = 10
+# n_arms = [10]
 # n_depths = [100]
 # n_widths = [32]
 
@@ -47,7 +47,7 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
 
-for n_hop_prop, n_hidden, depth in itertools.product(n_hop_props, n_widths, n_depths):
+for n_hop_prop, n_arm, n_hidden, depth in itertools.product(n_hop_props, n_arms, n_widths, n_depths):
     n_hop = np.round(n_hop_prop * depth).astype(int)
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
 
@@ -135,17 +135,6 @@ for case in tqdm(all_cases):
 
 
 df = pd.DataFrame(all_cases)
-df.to_pickle(f'res.{run_id}.pkl')
+# df.to_pickle(f'res.{run_id}.pkl')
 
 print('done!')
-
-# # %%
-# tt = case.train_task
-# batch = next(tt)
-# tt.depth
-
-# case.eval(tt, eval_fns=eval_fns, prefix='test')
- 
-
-# # %%
-# case.info
