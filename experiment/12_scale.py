@@ -14,56 +14,64 @@ from train import *
 from model.transformer import *
 from task.graph import *
 
-depth = 3
+depth = 10
 n_hidden = 512
 batch_size = 128
 
-cot = False
+cot = True
 ttr = True
 nouveau = True
+force_bin_label = True
 n_arms = 10
-n_hop = 1
-test_n_hop = 1
+n_hop = 5
+test_n_hop = 7
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
-train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
-test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau)
+train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
+test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
 
-# <codecell>
-train_task.batch_size = 4096
 xs, ys = next(train_task)
-emb = np.random.randn(n_vocab, n_hidden) / np.sqrt(n_hidden)
+print(xs[:3])
+print(ys[:3])
 
-xs_emb = emb[xs]
-ys = 2 * ys - 1
+# # <codecell>
+# train_task.batch_size = 4096
+# xs, ys = next(train_task)
+# emb = np.random.randn(n_vocab, n_hidden) / np.sqrt(n_hidden)
 
-xs_tot = ys[:,None] * (xs_emb[:,0] + xs_emb[:,1])
+# xs_emb = emb[xs]
+# ys = 2 * ys - 1
 
-xs_mat = xs_tot.T @ xs_tot / train_task.batch_size
+# xs_tot = ys[:,None] * (xs_emb[:,0] + xs_emb[:,1])
 
-# <codecell>
-evals, evecs = np.linalg.eig(xs_mat)
+# xs_mat = xs_tot.T @ xs_tot / train_task.batch_size
 
-plt.plot(emb @ evecs[:,[1]])
-# plt.plot(evals)
+# # <codecell>
+# evals, evecs = np.linalg.eig(xs_mat)
+
+# plt.plot(emb @ evecs[:,[1]])
+# # plt.plot(evals)
 
 
 
 # <codecell>
 config = TransformerConfig(n_layers=1,
                            n_vocab=n_vocab,
-                           n_out=n_vocab if cot else 1,
+                        #    n_out=n_vocab if cot else 1,
+                           n_out=1,
                            n_hidden=n_hidden,
                            pos_emb=False,
                            n_mlp_layers=2,
                            n_heads=1,
                            layer_norm=False,
                            as_rf_model=False,
-                           residual_connections=True if cot else False,
+                        #    residual_connections=True if cot else False,
+                           residual_connections=False,
                            freeze_emb=True,
                            use_bias=False,
-                           return_format=None if cot else 'final_logit',
+                        #    return_format=None if cot else 'final_logit',
+                           return_format='final_logit_up_to_pad',
                            mup_scale=True,
                            unif_att=True
                            )
@@ -73,14 +81,91 @@ state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     test_iters=1,
-                    loss='ce_mask' if cot else 'bce',
+                    # loss='ce_mask' if cot else 'bce',
+                    loss='bce',
                     test_every=1000,
-                    train_iters=25_000,
+                    train_iters=10_000,
                     use_tqdm=True,
-                    eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
-                    print_fn=print_gen if cot else None,
+                    # eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
+                    eval_fns=None,
+                    # print_fn=print_gen if cot else None,
+                    print_fn=None,
                     lr=1e-2,
                     )
+
+# <codecell>
+xs, _ = next(train_task)
+state.apply_fn({'params': state.params}, xs)
+
+# <codecell>
+### ANALYSIS OF COT SIMP MODEL
+jax.tree.map(np.shape, state.params)
+
+emb = state.params['Embed_freeze']['embedding']
+readout = state.params['Dense_0']['kernel'] / n_hidden
+V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / np.sqrt(n_hidden)
+O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / np.sqrt(n_hidden)
+W1 = state.params['TransformerBlock_0']['Dense_0']['kernel'] / np.sqrt(n_hidden)
+W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
+
+xs = next(train_task)[0]
+
+# <codecell>
+emb = emb.at[0].set(0)
+xs_emb = emb[xs]
+W = V @ O @ W1
+a = W2 @ readout
+
+xs_lens = (xs != 0).sum(axis=-1)
+xs_att = xs_emb.sum(axis=1) / xs_lens[:,None]
+
+pred = jax.nn.relu(xs_att @ W) @ a
+logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+
+pred = jax.nn.relu(xs_att @ W) @ a
+pred = pred.flatten()
+
+np.mean((pred - logits)**2) / np.mean(logits**2)
+
+
+# <codecell>
+sort_idxs = np.argsort(a.flatten())
+proj = emb @ W
+proj = proj[:,sort_idxs]
+
+plt.gcf().set_size_inches(20, 12)
+bound = max(np.max(proj), np.min(proj)) * 1
+im = plt.imshow(proj, cmap='BrBG', vmin=-bound, vmax=bound)
+plt.colorbar(im, shrink=0.2)
+plt.tight_layout()
+
+# plt.savefig('fig/zero_mlp_coeffs.svg')
+
+# <codecell>
+plt.plot(a.flatten()[sort_idxs])
+
+# <codecell>
+sort_idxs = np.argsort(a.flatten())
+idx = sort_idxs[4]
+plt.plot(proj[:,0])
+plt.plot(proj[:,111])
+plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
+
+# plt.xlim((200, 300))
+
+# <codecell>
+plt.gcf().set_size_inches(9, 3)
+plt.plot(proj[31])
+plt.plot(proj[41])
+
+# <codecell>
+plt.plot(proj[31,100:])
+
+# <codecell>
+np.mean(proj[:,-5:] > 0)
+
+# <codecell>
+plt.hist(proj[:,0], bins=25)
 
 
 # <codecell>
@@ -200,144 +285,103 @@ print('PS', logits_orig.argmax(-1))
 # intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights']
 # intm['intermediates']
 
-# <codecell>
-att0 = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
-# att1 = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
-plt.imshow(att0)
-# plt.imshow(att1)
-print(att0)
-
 
 # <codecell>
 xs_emb = emb[xs]
-# k = xs_emb @ K
-# q = xs_emb @ Q
 
-# att = q @ t(k) / n_hidden
 att = jnp.ones((xs_emb.shape[1], xs_emb.shape[1]))
 att = jnp.tril(att, k=0)
 att = att.at[att == 0].set(-jnp.inf)
 
 att = jax.nn.softmax(att, axis=-1)
-# plt.imshow(att.squeeze())
 
 xs_att = att @ xs_emb @ V @ O
-xs_mlp_comb = jax.nn.gelu((xs_att + xs_emb) @ M1) @ M2
-
-# xs_att_mlp = jax.nn.gelu(xs_att @ M1) @ M2
-# xs_mlp = jax.nn.gelu(xs_emb @ M1) @ M2
+xs_mlp_comb = jax.nn.relu((xs_att + xs_emb) @ M1) @ M2
 
 xs_out = (xs_mlp_comb + xs_att + xs_emb) @ W
 xs_red = (xs_mlp_comb) @ W
 
+W_eff = V @ O @ M1
+a_eff = M2 @ W
 
-np.mean((xs_red - logits_orig)**2) / np.mean(logits_orig**2)
-# xs_out / logits_orig
-
-# <codecell>
-xs_mlp_comb = jax.nn.gelu((xs_att) @ M1) @ M2 @ W
-print(logits_orig[0][-1][2])
-print(xs_mlp_comb[0][-1][2])
-plt.plot(xs_mlp_comb[0][-1])
-plt.plot(logits_orig[0][-1])
+xs_eff = jax.nn.relu(att @ xs_emb @ W_eff + xs_emb @ M1) @ a_eff
+np.mean((xs_eff - logits_orig)**2) / np.mean(logits_orig**2)
 
 # <codecell>
-z = emb @ M1
-
-# plt.imshow(z @ z.T, cmap='bwr', vmin=-50, vmax=50)
-plt.imshow(z, cmap='bwr')
-plt.colorbar()
-
-# vs = np.linspace(0, 100)
-# plt.plot(vs, vs)
+sort_idxs = np.argsort(a_eff[:,2])
+plt.plot(a_eff[sort_idxs,2])
 
 # <codecell>
-z = emb @ V @ O @ M1
-
-# plt.imshow(z @ z.T, cmap='bwr', vmin=-40_000, vmax=40_000)
-plt.imshow(z, cmap='bwr')
-plt.colorbar()
+proj = emb @ W_eff
+proj = proj[:,sort_idxs]
+bound = max(np.max(proj), np.min(proj))
+plt.imshow(proj, vmin=-bound, vmax=bound, cmap='BrBG')
+plt.colorbar(shrink=0.2)
 
 # <codecell>
-a = M2 @ W
-# plt.imshow(a, cmap='bwr', vmin=-1, vmax=1)
+plt.plot(proj[:,-1])
+plt.plot(proj[:,0])
+
+# <codecell>
+plt.hist(proj[4,:], bins=50)
+
+# <codecell>
+
+
+
+
+# <codecell>
+
+# # <codecell>
+# xs_mlp_comb = jax.nn.gelu((xs_att) @ M1) @ M2 @ W
+# print(logits_orig[0][-1][2])
+# print(xs_mlp_comb[0][-1][2])
+# plt.plot(xs_mlp_comb[0][-1])
+# plt.plot(logits_orig[0][-1])
+
+# # <codecell>
+# z = emb @ M1
+
+# # plt.imshow(z @ z.T, cmap='bwr', vmin=-50, vmax=50)
+# plt.imshow(z, cmap='bwr')
 # plt.colorbar()
 
-plt.plot(a[:,1], alpha=0.7)
+# # vs = np.linspace(0, 100)
+# # plt.plot(vs, vs)
+
+# # <codecell>
+# z = emb @ V @ O @ M1
+
+# # plt.imshow(z @ z.T, cmap='bwr', vmin=-40_000, vmax=40_000)
+# plt.imshow(z, cmap='BrBG', vmin=-100, vmax=100)
+# plt.colorbar()
+
+# # <codecell>
+# a = M2 @ W
+# # plt.imshow(a, cmap='bwr', vmin=-1, vmax=1)
+# # plt.colorbar()
+
+# plt.plot(a[:,1], alpha=0.7)
 
 
+# # <codecell>
+
+# preds_mlp = jax.nn.relu(emb @ V @ O @ M1) @ M2 @ W
+# plt.imshow(preds_mlp)
+# plt.colorbar()
+
+# preds_mlp.argmax(-1)
+
+# preds_mlp[4]
 
 
-# <codecell>
-
-preds_mlp = jax.nn.relu(emb @ V @ O @ M1) @ M2 @ W
-plt.imshow(preds_mlp)
-plt.colorbar()
-
-preds_mlp.argmax(-1)
-
-preds_mlp[4]
+# # <codecell>
+# preds_w = emb @ W
+# plt.imshow(preds_w)
+# plt.colorbar()
+# preds_w.argmax(-1)
 
 
-# <codecell>
-preds_w = emb @ W
-plt.imshow(preds_w)
-plt.colorbar()
-preds_w.argmax(-1)
-
-
-
-# <codecell>
-A = state.params['Dense_0']['kernel']
-w = state.params['Dense_1']['kernel']
-
-emb = state.params['Embed_freeze']['embedding']
-pos = state.params['PE_freeze']['embedding']
-
-# xs, ys = next(test_task)
-xs = jnp.array([[10, 19]])
-xs_orig = np.copy(xs)
-out = state.apply_fn({'params': state.params}, xs)
-
-xs_s = emb[xs]
-# ps = pos * np.sqrt(n_hidden)
-ps = pos
-xs = xs_s + ps
-
-a_ss = xs_s @ t(xs_s @ A)
-a_sp = xs_s @ t(ps @ A)
-a_ps = ps @ t(xs_s @ A)
-a_pp = ps @ t(ps @ A)
-
-att = a_ss + a_sp + a_ps + a_pp
-print('a_ss', a_ss[0,-1])
-print('a_sp', a_sp[0,-1])
-print('a_ps', a_ps[0,-1])
-print('a_pp', a_pp[-1])
-# att_t = jnp.tril((xs_s + ps) @ t((xs_s + ps) @ A))
-# print(att[:3])
-# print(att_t[:3])
-
-w1 = (xs[:,0] @ w).flatten()
-w2 = (xs[:,1] @ w).flatten()
-# ps = ps[None]
-# w1 = (ps[:,0] @ w).flatten()
-# w2 = (ps[:,1] @ w).flatten()
-
-a1 = att[:,1,0]
-a2 = att[:,1,1]
-
-pred = a1 * w1 + a2 * w2
-
-print('a1', a1)
-print('w1', w1)
-print('a2', a2)
-print('w2', w2)
-
-print(pred)
-print(out)
-
-# plt.hist(-out[out < 0], bins=10)
 
 
 # <codecell>

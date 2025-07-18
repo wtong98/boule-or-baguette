@@ -85,7 +85,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
         return args
 
 
-    def make_chain(cot=True, ttr=False):
+    def make_chain(cot=True, ttr=False, **kwargs):
         task_args = {
             'depth': depth,
             'samp_dist': (1, n_hop),
@@ -93,24 +93,43 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
             'nouveau': True
         }
 
-        return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)
+        return StarfishTask(cot=cot, trace_to_start=ttr, **task_args, **kwargs)
     
 
+    # all_cases.extend([
+    #     Case(f'Zero',
+    #             TransformerConfig(n_heads=1,
+    #                             n_out=1,
+    #                             n_layers=1,
+    #                             pos_emb=False, 
+    #                             return_format='final_logit',
+    #                             n_mlp_layers=2,
+    #                             layer_norm=False,
+    #                             residual_connections=True,
+    #                             mup_scale=True,
+    #                             linear_att=False,
+    #                             **model_args),
+    #             train_args=make_train_args('bce'),
+    #             train_task=make_chain(cot=False)
+    #     ), 
+    # ])
+
     all_cases.extend([
-        Case(f'Zero',
+        Case(f'AR (direct)',
                 TransformerConfig(n_heads=1,
                                 n_out=1,
                                 n_layers=1,
                                 pos_emb=False, 
-                                return_format='final_logit',
+                                return_format='final_logit_up_to_pad',
                                 n_mlp_layers=2,
                                 layer_norm=False,
-                                residual_connections=True,
+                                residual_connections=False,
                                 mup_scale=True,
+                                unif_att=True,
                                 linear_att=False,
                                 **model_args),
                 train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False)
+                train_task=make_chain(cot=True, ttr=True, force_bin_label=True)
         ), 
     ])
 
@@ -146,7 +165,7 @@ for case in tqdm(all_cases):
 
     for n_hop in n_hops_test:
         tt = case.train_task
-        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau)
+        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau, force_bin_label=tt.force_bin_label)
 
         case.eval(
             test_task,

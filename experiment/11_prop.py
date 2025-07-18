@@ -105,6 +105,6 @@ plot_df
 g = sns.barplot(plot_df, x='test_n_hop', y='acc', hue='name', hue_order=['Zero', 'Zero (small)', 'AR full'])
 g.set_ylim(0.4, 1)
 g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
-g.set_title('Or-only dataset')
+g.set_title('Imply-only dataset')
 
 # plt.savefig('fig/prop_task_or_only.png')

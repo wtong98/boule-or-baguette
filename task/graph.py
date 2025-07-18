@@ -428,11 +428,12 @@ class StarfishTask:
     sep_idx = 3
     offset = 3
 
-    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, rl_prompt=False, trace_to_start=False, nouveau=False, batch_size=128) -> None:
+    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, force_bin_label=False, rl_prompt=False, trace_to_start=False, nouveau=False, batch_size=128) -> None:
         self.depth = depth
         self.n_arms = n_arms
         self.samp_dist = samp_dist
         self.cot = cot
+        self.force_bin_label = force_bin_label
         self.rl_prompt = rl_prompt
         self.trace_to_start = trace_to_start
         self.nouveau = nouveau
@@ -455,8 +456,14 @@ class StarfishTask:
             mask_start = 1 if self.nouveau else 2
 
             xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size, trace_to_start=self.trace_to_start, nouveau=self.nouveau)
-            ys = xs[:,1:]
-            ys = ys.at[:,:mask_start].set(0)   # mask prompt
+            if not self.force_bin_label:
+                ys = xs[:,1:]
+                ys = ys.at[:,:mask_start].set(0)   # mask prompt
+            else:  
+                # mask out answer if forcing binary label
+                resp_mask = (xs == 1) | (xs == 2)
+                xs = xs.at[resp_mask].set(0)
+
             xs = xs[:,:-1]
         elif self.rl_prompt:
             xs = xs + StarfishTask.offset
@@ -513,13 +520,13 @@ def _star_samp_off(key, depth, n_arms, samp_dist, batch_size):
     return jnp.stack((parents, children), axis=1)
 
 
-# @functools.partial(jax.jit, static_argnums=(1,2,3,4,5))
+@functools.partial(jax.jit, static_argnums=(1,2,3,4,5))
 def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True, nouveau=False):
     parents, children = xs.T
 
     diffs = n_arms * np.arange(depth + 3)
     chain = children[:,None] - diffs
-    root_pos = (0 >= chain) & (chain > -n_arms)
+    root_pos = (0 >= chain) & (chain > -(n_arms - 1))
     chain = chain + root_pos * (1 - chain)
 
     target_idx = jnp.sum(parents[:,None] < chain, axis=1)
@@ -556,11 +563,11 @@ def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True, nouveau=
     return xs
 
 
-# task = StarfishTask(n_arms=100, depth=10, samp_dist=8, batch_size=4, cot=True, trace_to_start=True, nouveau=True)
+# task = StarfishTask(n_arms=4, depth=10, samp_dist=3, batch_size=4, cot=True, force_bin_label=True, trace_to_start=True, nouveau=True)
 # xs, ys = next(task)
 
-# print(xs)
-# print(ys)
+# print(xs[:5])
+# print(ys[:5])
 
 # <codecell>
 
