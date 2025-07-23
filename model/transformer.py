@@ -238,7 +238,7 @@ class Transformer(nn.Module):
             y = nn.Embed(
                 num_embeddings=self.config.n_vocab,
                 features=self.config.n_hidden,
-                # features=64,
+                # features=4096,
                 name=name)(y)
 
         if config.pos_emb:

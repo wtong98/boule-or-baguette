@@ -18,8 +18,8 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-train_iters = 30_000
-warmup_iters = 2000
+train_iters = 100_000
+# warmup_iters = 2000
 
 depth = 10
 n_hop = 5
@@ -29,8 +29,8 @@ all_n_layer = [1]
 # switch = [False, True]  # resid, CoT, LN
 switch = [True]  # resid
 
-n_arms = (2**np.linspace(3, 9, num=40)).astype(int) * 2
-n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
+n_arms = (2**np.linspace(4, 10, num=40)).astype(int) * 2
+n_widths = (2**np.linspace(4, 10, num=40)).astype(int) * 2
 
 ### START TEST CONFIGS
 # run_split = 1
@@ -66,7 +66,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': 1e-2
+            'lr': 1e-3
             # 'lr': optax.schedules.warmup_cosine_decay_schedule(
             #     init_value=1e-3,
             #     peak_value=1e-2,

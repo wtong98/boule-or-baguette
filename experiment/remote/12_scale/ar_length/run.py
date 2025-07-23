@@ -18,14 +18,14 @@ print('RUN ID', run_id)
 
 run_split = 108
 
-batch_size = 64
-accum_k = 4
+batch_size = 128
+accum_k = 1
 
-train_iters = 10_000 * accum_k
+train_iters = 100_000 * accum_k
 
 n_arms = [2, 5, 10, 50]
-n_depths = (2**np.linspace(3, 8, num=20)).astype(int) * 2
-n_widths = (2**np.linspace(3, 8, num=20)).astype(int) * 2
+n_depths = (2**np.linspace(4, 10, num=20)).astype(int) * 2
+n_widths = (2**np.linspace(4, 10, num=20)).astype(int) * 2
 
 # n_hop_props = [0.25, 0.5, 0.7]
 n_hop_props = [0.5]
@@ -63,7 +63,7 @@ for n_hop_prop, n_arm, n_hidden, depth in itertools.product(n_hop_props, n_arms,
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': 1e-2,
+            'lr': 1e-3,
             'k': accum_k
         }
 

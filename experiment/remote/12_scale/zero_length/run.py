@@ -18,11 +18,11 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-train_iters = 50_000
+train_iters = 100_000
 
 n_arms = [2, 5, 10, 50]
-n_depths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
-n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
+n_depths = (2**np.linspace(4, 10, num=40)).astype(int) * 2
+n_widths = (2**np.linspace(4, 10, num=40)).astype(int) * 2
 
 # n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]
@@ -58,7 +58,7 @@ for n_hop_prop, n_arm, depth, n_hidden in itertools.product(n_hop_props, n_arms,
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': 1e-2
+            'lr': 1e-3
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -90,7 +90,7 @@ for n_hop_prop, n_arm, depth, n_hidden in itertools.product(n_hop_props, n_arms,
                                 return_format='final_logit',
                                 n_mlp_layers=2,
                                 layer_norm=False,
-                                residual_connections=True,
+                                residual_connections=False,
                                 mup_scale=True,
                                 linear_att=False,
                                 **model_args),

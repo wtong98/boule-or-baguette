@@ -15,14 +15,14 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 512
+n_hidden = 32
 batch_size = 128
 
 cot = True
 ttr = True
 nouveau = True
 force_bin_label = True
-n_arms = 10
+n_arms = 64
 n_hop = 5
 test_n_hop = 7
 
@@ -32,8 +32,8 @@ train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch
 test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
 
 xs, ys = next(train_task)
-print(xs[:3])
-print(ys[:3])
+# print(xs[:3])
+# print(ys[:3])
 
 # # <codecell>
 # train_task.batch_size = 4096
@@ -70,8 +70,7 @@ config = TransformerConfig(n_layers=1,
                            residual_connections=False,
                            freeze_emb=True,
                            use_bias=False,
-                        #    return_format=None if cot else 'final_logit',
-                           return_format='final_logit_up_to_pad',
+                           return_format='final_logit_up_to_pad' if cot else 'final_logit',
                            mup_scale=True,
                            unif_att=True
                            )
@@ -84,8 +83,7 @@ state, hist = train(config,
                     # loss='ce_mask' if cot else 'bce',
                     loss='bce',
                     test_every=1000,
-                    train_iters=10_000,
-                    use_tqdm=True,
+                    train_iters=100_000,
                     # eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     eval_fns=None,
                     # print_fn=print_gen if cot else None,
@@ -94,8 +92,10 @@ state, hist = train(config,
                     )
 
 # <codecell>
-xs, _ = next(train_task)
-state.apply_fn({'params': state.params}, xs)
+xs, ys = next(train_task)
+
+preds = state.apply_fn({'params': state.params}, xs)
+np.mean((preds > 0) == ys)
 
 # <codecell>
 ### ANALYSIS OF COT SIMP MODEL
@@ -155,8 +155,10 @@ plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 
 # <codecell>
 plt.gcf().set_size_inches(9, 3)
-plt.plot(proj[31])
-plt.plot(proj[41])
+plt.plot(proj[34])
+plt.plot(proj[4034])
+
+
 
 # <codecell>
 plt.plot(proj[31,100:])
@@ -218,13 +220,22 @@ plt.plot(a.flatten()[sort_idxs])
 sort_idxs = np.argsort(a.flatten())
 idx = sort_idxs[4]
 plt.plot(proj[:,0])
-plt.plot(proj[:,-12])
-# plt.plot(proj[:,448])
-# plt.plot(proj[:,200])
+plt.plot(proj[:,-1])
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 a[sort_idxs[0]]
 
-plt.xlim((200, 300))
+# plt.xlim((200, 300))
+
+# <codecell>
+sort_idxs = np.argsort(a.flatten())
+proj = emb @ W
+proj = proj[:,sort_idxs]
+
+plt.gcf().set_size_inches(9, 3)
+plt.plot(proj[20])
+plt.plot(proj[1020])
+
+plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 
 # <codecell>
 np.mean(proj[:,-5:] > 0)
@@ -385,7 +396,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-df = collate_dfs('remote/12_scale/arm', show_progress=True)
+df = collate_dfs('remote/12_scale/arm/set1_zero', show_progress=True)
+# df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
 # %%
@@ -420,7 +432,7 @@ plot_df
 # <codecell>
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
-mdf = mdf[(mdf['test_n_hop'] == 5)]
+mdf = mdf[(mdf['test_n_hop'] == 9)]
 
 mdf = mdf[['n_arms', 'n_hidden', 'acc']]
 mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
@@ -433,7 +445,8 @@ g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 14 - 0.5 * xs, color='black', linestyle='dashed')
 # g.plot(xs, 40 - 1.5 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 35 - 1 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 35 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 45 - 2 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 39 - xs, color='gray', linestyle='dashed')
 
@@ -444,7 +457,7 @@ g.set_ylabel('n_arms')
 g.set_xlabel('n_hidden')
 
 plt.title('Zero')
-plt.savefig(f'fig/zero_mlp_arms_v_size.png', bbox_inches='tight')
+# plt.savefig(f'fig/zero_mlp_arms_v_size.png', bbox_inches='tight')
 plt.show()
 
 
@@ -551,12 +564,13 @@ def extract_plot_vals(row):
 
     return pd.Series([
         row['name'],
+        row['train_task'].n_arms,
         row['train_task'].depth,
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         n_hop_prop,
         row['info'],
-    ], index=['name', 'depth', 'n_hop', 'n_hidden', 'n_hop_prop', 'info'])
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_hop_prop', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -571,8 +585,8 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-bdf = bdf.drop('gen_acc', axis=1)
+# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
@@ -583,6 +597,7 @@ mdf = plot_df.copy()
 mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
     & (mdf['n_hop_prop'] == 0.5)
+    & (mdf['n_arms'] == 5)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc']]
@@ -600,10 +615,95 @@ xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 45 - 0.5 * xs, color='cyan', linestyle='dashed')
 
-# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 20 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('depth')
 g.set_xlabel('n_hidden')
+
+plt.title('AR full')
+# plt.savefig(f'fig/zero_mlp_depth_v_size_debug.png', bbox_inches='tight')
+plt.show()
+
+# <codecell>
+df = collate_dfs('remote/12_scale/ar_bd_sweep', show_progress=True)
+df
+
+# <codecell>
+rand_idxs = np.random.choice(len(df), size=100, replace=False)
+for ex in df['hist'].iloc[rand_idxs]:
+    vals = [p['loss'] for p in ex['test']]
+    plt.plot(vals, color='C0', alpha=0.1)
+
+# df['hist'].iloc[0]['train']
+    
+
+# %%
+def extract_plot_vals(row):
+    if 'n_hop_prop' in row['info']:
+        n_hop_prop = row['info']['n_hop_prop']
+        del row['info']['n_hop_prop']
+    else:
+        n_hop_prop = row['train_task'].samp_dist[1] / row['train_task'].depth
+        props = np.array([0.25, 0.5, 0.7])
+        dists = np.abs(n_hop_prop - props)
+        n_hop_prop = props[np.argmin(dists)]
+
+    return pd.Series([
+        row['name'],
+        row['train_task'].n_arms,
+        row['train_task'].depth,
+        row['train_task'].samp_dist[1],
+        row['config']['n_hidden'],
+        n_hop_prop,
+        row['info'],
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_hop_prop', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+# bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+# <codecell>
+# for name in np.unique(plot_df['name']):
+mdf = plot_df.copy()
+mdf = mdf[
+    (mdf['test_n_hop'] == 0.5)
+    & (mdf['n_hop_prop'] == 0.5)
+    ]
+
+mdf = mdf[['depth', 'n_arms', 'acc']]
+mdf = mdf.groupby(['depth', 'n_arms'], as_index=False).mean()
+mdf = mdf.pivot(index='depth', columns='n_arms', values='acc')
+
+mdf = mdf.iloc[::-1]
+
+g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+
+xs = 2**np.linspace(-5, 8)
+# g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 45 - 0.5 * xs, color='cyan', linestyle='dashed')
+
+g.plot(xs, 25 + 0.5 * xs, color='cyan', linestyle='dashed')
+
+g.set_ylabel('depth')
+g.set_xlabel('n_arms')
 
 plt.title('AR full')
 # plt.savefig(f'fig/zero_mlp_depth_v_size_debug.png', bbox_inches='tight')
