@@ -541,3 +541,44 @@ plt.ylim(0, 39)
 # plt.plot(xs, 3 + 2 * xs, color='red')
 
 plt.savefig('solution_debug.png')
+
+# <codecell>
+n_arms = 10
+n_depth = 10
+n_hop = 5
+eps = 1e-8
+
+task = StarfishTask(depth=n_depth, n_arms=n_arms, samp_dist=(1, n_hop), batch_size=64)
+next(task)
+
+# <codecell>
+# TODO: how does competition look in the AR case?
+z = np.random.randn(n_arms * n_depth) * eps
+
+log = []
+for _ in tqdm(range(1000)):
+    xs, ys = next(task)
+    batch_upd = np.zeros(z.shape)
+
+    for (s1, s2), y in zip(xs, ys):
+        if z[s1] + z[s2] > 0:
+            if y == 1:
+                batch_upd[s1] += 1
+                batch_upd[s2] += 1
+            else:
+                batch_upd[s1] -= 1
+                batch_upd[s2] -= 1
+    
+    z += batch_upd
+    log.append(np.copy(z))
+
+log = np.array(log)
+# <codecell>
+# plt.plot(np.sign(log[4]))
+plt.plot(log[-1])
+plt.plot(log[2])
+
+# <codecell>
+for i in range(n_arms):
+    print(f'{i}: {np.mean(z[i::n_arms] > 0)}')
+

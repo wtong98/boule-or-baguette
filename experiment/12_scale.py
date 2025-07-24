@@ -14,17 +14,17 @@ from train import *
 from model.transformer import *
 from task.graph import *
 
-depth = 10
-n_hidden = 32
+depth = 100
+n_hidden = 128
 batch_size = 128
 
-cot = True
+cot = False
 ttr = True
 nouveau = True
 force_bin_label = True
-n_arms = 64
-n_hop = 5
-test_n_hop = 7
+n_arms = 10
+n_hop = 50
+test_n_hop = 70
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -83,7 +83,7 @@ state, hist = train(config,
                     # loss='ce_mask' if cot else 'bce',
                     loss='bce',
                     test_every=1000,
-                    train_iters=100_000,
+                    train_iters=50_000,
                     # eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     eval_fns=None,
                     # print_fn=print_gen if cot else None,
@@ -147,17 +147,18 @@ plt.plot(a.flatten()[sort_idxs])
 # <codecell>
 sort_idxs = np.argsort(a.flatten())
 idx = sort_idxs[4]
-plt.plot(proj[:,0])
-plt.plot(proj[:,111])
+plt.plot(proj[:,10])
+plt.plot(proj[:,15])
+
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 
 # plt.xlim((200, 300))
 
 # <codecell>
 plt.gcf().set_size_inches(9, 3)
-plt.plot(proj[34])
-plt.plot(proj[4034])
-
+plt.plot(proj[33])
+plt.plot(proj[131])
+plt.plot(a[sort_idxs])
 
 
 # <codecell>
@@ -232,10 +233,15 @@ proj = emb @ W
 proj = proj[:,sort_idxs]
 
 plt.gcf().set_size_inches(9, 3)
-plt.plot(proj[20])
-plt.plot(proj[1020])
+plt.plot(proj[27])
+plt.plot(proj[38])
+plt.plot(a[sort_idxs])
 
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
+
+# <codecell>
+xs = np.array([[27, 137]])
+state.apply_fn({'params': state.params}, xs)
 
 # <codecell>
 np.mean(proj[:,-5:] > 0)
@@ -396,8 +402,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -433,10 +439,10 @@ plot_df
 # <codecell>
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
-mdf = mdf[(mdf['test_n_hop'] == 5)]
+mdf = mdf[(mdf['test_n_hop'] == 7)]
 
 mdf = mdf[['n_arms', 'n_hidden', 'acc']]
-mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
+mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).max()
 mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
@@ -444,7 +450,7 @@ mdf = mdf.iloc[::-1]
 g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
-# g.plot(xs, 14 - 0.5 * xs, color='black', linestyle='dashed')
+g.plot(xs, 51 - 0.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 40 - 1.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 35 - 1 * xs, color='cyan', linestyle='dashed')
 g.plot(xs, 45 - 2 * xs, color='cyan', linestyle='dashed')
@@ -481,12 +487,13 @@ def extract_plot_vals(row):
     del row['info']['n_hop_prop']
     return pd.Series([
         row['name'],
+        row['train_task'].n_arms,
         row['train_task'].depth,
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         n_hop_prop,
         row['info'],
-    ], index=['name', 'depth', 'n_hop', 'n_hidden', 'n_hop_prop', 'info'])
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_hop_prop', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -513,6 +520,7 @@ mdf = plot_df.copy()
 mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
     & (mdf['n_hop_prop'] == 0.5)
+    & (mdf['n_arms'] == 10)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc']]
@@ -527,7 +535,8 @@ xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs + np.log(xs), 40 - 1 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 37 - 0.67 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 27 - 0.67 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
