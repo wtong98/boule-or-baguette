@@ -16,13 +16,13 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 36
 
 train_iters = 100_000
 
 n_arms = [2, 5, 10, 50]
-n_depths = (2**np.linspace(4, 10, num=40)).astype(int) * 2
-n_widths = (2**np.linspace(4, 10, num=40)).astype(int) * 2
+n_depths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
+n_widths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
 
 # n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]

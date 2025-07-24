@@ -396,7 +396,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-df = collate_dfs('remote/12_scale/arm/set1_zero', show_progress=True)
+# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -432,7 +433,7 @@ plot_df
 # <codecell>
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
-mdf = mdf[(mdf['test_n_hop'] == 9)]
+mdf = mdf[(mdf['test_n_hop'] == 5)]
 
 mdf = mdf[['n_arms', 'n_hidden', 'acc']]
 mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
@@ -535,7 +536,7 @@ g.set_ylabel('depth')
 g.set_xlabel('n_hidden')
 
 plt.title('Zero')
-plt.savefig(f'fig/zero_mlp_depth_v_size.png', bbox_inches='tight')
+# plt.savefig(f'fig/zero_mlp_depth_v_size.png', bbox_inches='tight')
 plt.show()
 
 # <codecell>
