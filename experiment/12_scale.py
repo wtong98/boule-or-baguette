@@ -18,13 +18,13 @@ depth = 100
 n_hidden = 128
 batch_size = 128
 
-cot = False
+cot = True
 ttr = True
 nouveau = True
 force_bin_label = True
 n_arms = 10
-n_hop = 50
-test_n_hop = 70
+n_hop = 5
+test_n_hop = 7
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -83,12 +83,12 @@ state, hist = train(config,
                     # loss='ce_mask' if cot else 'bce',
                     loss='bce',
                     test_every=1000,
-                    train_iters=50_000,
+                    train_iters=25_000,
                     # eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     eval_fns=None,
                     # print_fn=print_gen if cot else None,
                     print_fn=None,
-                    lr=1e-2,
+                    lr=1e-3,
                     )
 
 # <codecell>
@@ -233,11 +233,33 @@ proj = emb @ W
 proj = proj[:,sort_idxs]
 
 plt.gcf().set_size_inches(9, 3)
-plt.plot(proj[27])
-plt.plot(proj[38])
+plt.plot(proj[29])
+plt.plot(proj[39])
 plt.plot(a[sort_idxs])
 
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
+
+# <codecell>
+log = []
+for idx in range(proj.shape[1]):
+    samp = proj[:,idx]
+    curr = []
+    for i in range(n_arms):
+        count = np.mean(samp[i::n_arms] > 0)
+        curr.append(count)
+    log.append(curr)
+
+log = np.array(log)
+
+# <codecell>
+plt.imshow(log, cmap='BrBG', vmin=0.2, vmax=0.8)
+plt.colorbar()
+
+# <codecell>
+plt.plot(log[0])
+plt.plot(log[-1])
+plt.plot(log[-2])
+
 
 # <codecell>
 xs = np.array([[27, 137]])
@@ -491,9 +513,10 @@ def extract_plot_vals(row):
         row['train_task'].depth,
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
+        row['config']['residual_connections'],
         n_hop_prop,
         row['info'],
-    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_hop_prop', 'info'])
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'residual_connections', 'n_hop_prop', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -521,10 +544,11 @@ mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
     & (mdf['n_hop_prop'] == 0.5)
     & (mdf['n_arms'] == 10)
+    & (mdf['residual_connections'] == False)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc']]
-mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).mean()
+mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).max()
 mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
@@ -535,7 +559,7 @@ xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs + np.log(xs), 40 - 1 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 27 - 0.67 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 20 - 0.67 * xs, color='cyan', linestyle='dashed')
 g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
 

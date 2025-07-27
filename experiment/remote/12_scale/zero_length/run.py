@@ -127,7 +127,6 @@ for case in tqdm(all_cases):
 
     case.state = None
     case.train_args['eval_fns'] = None
-    case.train_args['lr'] = None
 
 
 df = pd.DataFrame(all_cases)

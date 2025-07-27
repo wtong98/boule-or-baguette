@@ -544,41 +544,77 @@ plt.savefig('solution_debug.png')
 
 # <codecell>
 n_arms = 10
-n_depth = 10
-n_hop = 5
-eps = 1e-8
+n_depth = 100
+n_hop = 50
+n_hidden = 128
+
+n_vocab = n_arms * n_depth
+eps = 1 / np.sqrt(n_hidden)
 
 task = StarfishTask(depth=n_depth, n_arms=n_arms, samp_dist=(1, n_hop), batch_size=64)
 next(task)
 
 # <codecell>
-# TODO: how does competition look in the AR case?
-z = np.random.randn(n_arms * n_depth) * eps
+z = np.random.randn(n_vocab) * eps
+a = eps
 
+# <codecell>
+lr = 1e-3
+
+# @jax.jit
+# def run_iter(batch, z, key):
+#     xs, ys = batch
+#     batch_upd = jnp.zeros(z.shape)
+#     a_upd = 0
+
+#     for (s1, s2), y in zip(xs, ys):
+#         y = 2 * y - 1
+#         noise = jax.random.normal(key) * np.sqrt(n_vocab / n_hidden)
+#         is_good = z[s1] + z[s2] + noise > 0
+#         upd = lr * jnp.sign(a * y) * is_good
+
+#         batch_upd = batch_upd.at[s1].set(batch_upd[s1] + upd)
+#         batch_upd = batch_upd.at[s2].set(batch_upd[s2] + upd)
+#         a_upd += lr * y
+
+#     return batch_upd, a_upd
+
+a_log = []
 log = []
-for _ in tqdm(range(1000)):
+for _ in tqdm(range(5000)):
     xs, ys = next(task)
     batch_upd = np.zeros(z.shape)
+    a_upd = 0
 
+    # batch_upd, a_upd = run_iter((xs, ys), z, jax.random.key(new_seed()))
     for (s1, s2), y in zip(xs, ys):
-        if z[s1] + z[s2] > 0:
-            if y == 1:
-                batch_upd[s1] += 1
-                batch_upd[s2] += 1
-            else:
-                batch_upd[s1] -= 1
-                batch_upd[s2] -= 1
+        y = 2 * y - 1
+        upd = lr * np.sign(a * y)
+        # TODO: technically proportional to z scale, and reuses magnitude of others
+        noise = np.random.randn() * np.sqrt(1000 * n_vocab / n_hidden)
+        # noise = 0
+
+        if z[s1] + z[s2] + noise > 0:
+            batch_upd[s1] += upd
+            batch_upd[s2] += upd
+            a_upd += lr * y
     
     z += batch_upd
+    a += a_upd
     log.append(np.copy(z))
+    a_log.append(a)
 
 log = np.array(log)
-# <codecell>
-# plt.plot(np.sign(log[4]))
-plt.plot(log[-1])
-plt.plot(log[2])
-
 # <codecell>
 for i in range(n_arms):
     print(f'{i}: {np.mean(z[i::n_arms] > 0)}')
 
+# <codecell>
+plt.plot(a_log)
+
+# <codecell>
+# plt.plot(np.sign(log[4]))
+plt.plot(log[-1,9::n_arms])
+# plt.plot(log[2])
+
+# %%
