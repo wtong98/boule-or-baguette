@@ -1,6 +1,8 @@
 """Normative solution"""
 
 # <codecell>
+import jax
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 import optax
@@ -18,7 +20,7 @@ from task.graph import *
 def relu(x):
     return x * (x > 0)
 
-
+# <codecell>
 depth = 10
 n_hidden = 512
 batch_size = 128
@@ -543,6 +545,7 @@ plt.ylim(0, 39)
 plt.savefig('solution_debug.png')
 
 # <codecell>
+### SIMULATION
 n_arms = 10
 n_depth = 100
 n_hop = 50
@@ -551,70 +554,126 @@ n_hidden = 128
 n_vocab = n_arms * n_depth
 eps = 1 / np.sqrt(n_hidden)
 
-task = StarfishTask(depth=n_depth, n_arms=n_arms, samp_dist=(1, n_hop), batch_size=64)
-next(task)
+task = StarfishTask(depth=n_depth, n_arms=n_arms, samp_dist=(1, n_hop), batch_size=128)
+
+# # <codecell>
+# task.batch_size = 10_000
+# xs, ys = next(task)
+
+# # <codecell>
+# # xs[xs[:,0] == 20]
+# # ms = [np.mean(ys[xs[:,0] == i * 10 + 1]) for i in range(1, 80)]
+# ls = [len(ys[xs[:,0] == i * 10 + 2]) for i in range(1, 80)]
+# np.mean(ls)
+
 
 # <codecell>
 z = np.random.randn(n_vocab) * eps
 a = eps
+lr = 1e-2
 
-# <codecell>
-lr = 1e-3
+@jax.jit
+def run_iter(batch, lr, z, a, key):
+    xs, ys = batch
 
-# @jax.jit
-# def run_iter(batch, z, key):
-#     xs, ys = batch
-#     batch_upd = jnp.zeros(z.shape)
-#     a_upd = 0
+    y = 2 * ys - 1
+    batch_size = xs.shape[0]
+    
+    noise = jax.random.normal(key, (batch_size,)) * jnp.sqrt(n_vocab / n_hidden)
+    # z_sum = z[xs[:, 0]] + z[xs[:, 1]] + jnp.mean(jnp.abs(z)) * noise
+    z_sum = noise
+    is_good = z_sum > 0
+    upd = lr * jnp.sign(a * y) * is_good
 
-#     for (s1, s2), y in zip(xs, ys):
-#         y = 2 * y - 1
-#         noise = jax.random.normal(key) * np.sqrt(n_vocab / n_hidden)
-#         is_good = z[s1] + z[s2] + noise > 0
-#         upd = lr * jnp.sign(a * y) * is_good
+    batch_upd = jnp.zeros_like(z)
+    batch_upd = batch_upd.at[xs[:, 0]].add(upd)
+    batch_upd = batch_upd.at[xs[:, 1]].add(upd)
+    a_upd = jnp.sum(lr * y * is_good)
+    return batch_upd, a_upd
 
-#         batch_upd = batch_upd.at[s1].set(batch_upd[s1] + upd)
-#         batch_upd = batch_upd.at[s2].set(batch_upd[s2] + upd)
-#         a_upd += lr * y
 
-#     return batch_upd, a_upd
+start = jax.random.PRNGKey(new_seed())
 
 a_log = []
 log = []
-for _ in tqdm(range(5000)):
-    xs, ys = next(task)
-    batch_upd = np.zeros(z.shape)
-    a_upd = 0
+stds = []
+ones = []
+for _ in tqdm(range(1_000)):
+    batch = next(task)
 
-    # batch_upd, a_upd = run_iter((xs, ys), z, jax.random.key(new_seed()))
-    for (s1, s2), y in zip(xs, ys):
-        y = 2 * y - 1
-        upd = lr * np.sign(a * y)
-        # TODO: technically proportional to z scale, and reuses magnitude of others
-        noise = np.random.randn() * np.sqrt(1000 * n_vocab / n_hidden)
-        # noise = 0
-
-        if z[s1] + z[s2] + noise > 0:
-            batch_upd[s1] += upd
-            batch_upd[s2] += upd
-            a_upd += lr * y
+    start, key = jax.random.split(start)
+    batch_upd, a_upd = run_iter(batch, lr, z, a, key)
     
     z += batch_upd
     a += a_upd
     log.append(np.copy(z))
     a_log.append(a)
+    stds.append(np.std(z[n_arms:-n_arms]))
+    ones.append(batch_upd[1])
 
 log = np.array(log)
-# <codecell>
-for i in range(n_arms):
-    print(f'{i}: {np.mean(z[i::n_arms] > 0)}')
 
 # <codecell>
 plt.plot(a_log)
 
 # <codecell>
+for i in range(n_arms):
+    print(f'{i}: {np.mean(z[i::n_arms] > 0)}')
+
+# <codecell>
+for j in range(n_arms):
+    plt.plot([np.mean(log[i,j::n_arms] > 0) for i in range(len(log))], alpha=0.8)
+
+# <codecell>
 # plt.plot(np.sign(log[4]))
-plt.plot(log[-1,9::n_arms])
-# plt.plot(log[2])
+plt.plot(log[-1,0::n_arms])
+# plt.plot(log[-1])
+
+# <codecell>
+# np.sum(ones)
+key = jax.random.key(0)
+noise = jax.random.normal(key, (128,)) * jnp.sqrt(n_vocab / n_hidden)
+jnp.mean(jnp.abs(z)) * noise
+
+# <codecell>
+plt.plot(stds)
+
+# <codecell>
+out = z[:, None] + z[None, :]
+plt.imshow(out, cmap='BrBG', vmin=-3, vmax=3)
+plt.colorbar()
+
+# <codecell>
+np.mean(np.diag(out) > 0)
+
+# <codecell>
+off_diag = out[~np.eye(out.shape[0], dtype=bool)]
+frac_positive = np.mean(off_diag > 0)
+print(f"Fraction of off-diagonal elements > 0: {frac_positive}")
+
+# <codecell>
+plt.hist(z, bins=50); plt.title("final z distribution")
+print(np.std(z))
 
 # %%
+# Histogram of 'a' over multiple runs
+a_hist = []
+for _ in tqdm(range(100)):
+    z_run = np.random.randn(n_vocab) * eps
+    a_run = eps
+    a_log_run = []
+    start_run = jax.random.PRNGKey(new_seed())
+    for _ in range(500):
+        batch = next(task)
+        start_run, key_run = jax.random.split(start_run)
+        batch_upd, a_upd = run_iter(batch, lr, z_run, a_run, key_run)
+        z_run += batch_upd
+        a_run += a_upd
+        a_log_run.append(a_run)
+    a_hist.append(a_run)
+
+plt.hist(a_hist, bins=30)
+plt.title("Histogram of a over multiple runs")
+plt.xlabel("a")
+plt.ylabel("Frequency")
+plt.show()

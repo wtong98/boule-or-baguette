@@ -53,7 +53,8 @@ class MLP(nn.Module):
                 features=self.config.n_hidden,
                 name=name)(x)
         
-        x = x.reshape(x.shape[0], -1)
+        # x = x.reshape(x.shape[0], -1)
+        x = x.sum(axis=1)  # NOTE: hot edit
 
         for i in range(self.config.n_layers):
             name = None

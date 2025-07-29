@@ -492,10 +492,10 @@ def _star_samp_on(key, depth, n_arms, samp_dist, batch_size):
     children = parents + samp_dist * n_arms
 
     # can adjust to omit root
-    key, source = jax.random.split(source)
-    origin_idx = parents == 1
-    accept_origin = jax.random.bernoulli(key, shape=batch_size)
-    children = children - (origin_idx & accept_origin).astype(int)
+    # key, source = jax.random.split(source)
+    # origin_idx = parents == 1
+    # accept_origin = jax.random.bernoulli(key, shape=batch_size)
+    # children = children - (origin_idx & accept_origin).astype(int)
 
     return jnp.stack((parents, children), axis=1)
 
@@ -507,12 +507,15 @@ def _star_samp_off(key, depth, n_arms, samp_dist, batch_size):
     upr = n_arms * (depth - samp_dist)
 
     key, source = jax.random.split(source)
-    parents = jax.random.randint(key, minval=2, maxval=upr, shape=batch_size)
+    parents = jax.random.randint(key, minval=1, maxval=upr, shape=batch_size)
     children = parents + samp_dist * n_arms
-
     key, source = jax.random.split(source)
     pert = jax.random.randint(key, minval=1, maxval=n_arms, shape=batch_size)
-    children += pert - n_arms
+
+    do_wrap = (children % n_arms) + pert >= n_arms
+    children += pert - n_arms * do_wrap
+    # diff = pert - (children % n_arms)
+    # children += diff - (diff == 0).astype(int)  # introduces small bias
 
     # wrap_idx = (children % n_arms) == 0
     # children -= n_arms * wrap_idx
@@ -563,15 +566,13 @@ def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True, nouveau=
     return xs
 
 
-# task = StarfishTask(n_arms=4, depth=10, samp_dist=3, batch_size=4, cot=True, force_bin_label=True, trace_to_start=True, nouveau=True)
+# task = StarfishTask(n_arms=10, depth=10, samp_dist=3, batch_size=10_000, cot=False, force_bin_label=True, trace_to_start=True, nouveau=True)
 # xs, ys = next(task)
 
-# print(xs[:5])
-# print(ys[:5])
+# # <codecell>
+# xs[xs[:,0] == 19]
 
 # <codecell>
-
-
 class CircleTask:
     pad_idx = 0
     no_idx = 1
