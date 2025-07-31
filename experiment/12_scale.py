@@ -15,17 +15,17 @@ from model.mlp import MlpConfig
 from model.transformer import *
 from task.graph import *
 
-depth = 100
+depth = 10
 n_hidden = 128
 batch_size = 128
 
-cot = False
+cot = True
 ttr = True
 nouveau = True
 force_bin_label = True
 n_arms = 10
-n_hop = 50
-test_n_hop = 70
+n_hop = 5
+test_n_hop = 7
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -57,38 +57,39 @@ test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), bat
 
 
 # <codecell>
-config = MlpConfig(n_layers=1,
-                   n_vocab=n_vocab,
-                   n_hidden=n_hidden,
-                   n_out=1,
-                   mup_scale=False,
-                   use_bias=False,
-                   freeze_emb=True)
+# config = MlpConfig(n_layers=1,
+#                    n_vocab=n_vocab,
+#                    n_hidden=n_hidden,
+#                    n_out=1,
+#                    mup_scale=False,
+#                    use_bias=False,
+#                    freeze_emb=True)
 
-# config = TransformerConfig(n_layers=1,
-#                            n_vocab=n_vocab,
-#                         #    n_out=n_vocab if cot else 1,
-#                            n_out=1,
-#                            n_hidden=n_hidden,
-#                            pos_emb=False,
-#                            n_mlp_layers=2,
-#                            n_heads=1,
-#                            layer_norm=False,
-#                            as_rf_model=False,
-#                         #    residual_connections=True if cot else False,
-#                            residual_connections=False,
-#                            freeze_emb=True,
-#                            use_bias=False,
-#                            return_format='final_logit_up_to_pad' if cot else 'final_logit',
-#                            mup_scale=True,
-#                            unif_att=True
-#                            )
+config = TransformerConfig(n_layers=1,
+                           n_vocab=n_vocab,
+                        #    n_out=n_vocab if cot else 1,
+                           n_out=1,
+                           n_hidden=n_hidden,
+                           pos_emb=False,
+                           n_mlp_layers=2,
+                           n_heads=1,
+                           layer_norm=False,
+                           as_rf_model=False,
+                        #    residual_connections=True if cot else False,
+                           residual_connections=False,
+                           freeze_emb=True,
+                           use_bias=False,
+                           return_format='final_logit_up_to_pad' if cot else 'final_logit',
+                           mup_scale=True,
+                           unif_att=True
+                           )
 
 # <codecell>
 def summarize(state):
-    # readout = state.params['Dense_0']['kernel'] / n_hidden
-    # W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
-    a = state.params['Dense_1']['kernel']
+    readout = state.params['Dense_0']['kernel'] / n_hidden
+    W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
+    a = W2 @ readout
+    # a = state.params['Dense_1']['kernel']
     return a
 
 
@@ -105,7 +106,7 @@ state, hist = train(config,
                     # print_fn=print_gen if cot else None,
                     print_fn=None,
                     lr=1e-2,
-                    optim=optax.sgd,
+                    optim=optax.sign_sgd,
                     summary_fn=summarize
                     )
 
@@ -175,8 +176,8 @@ plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 
 # <codecell>
 plt.gcf().set_size_inches(9, 3)
-plt.plot(proj[33])
-plt.plot(proj[131])
+plt.plot(proj[36])
+plt.plot(proj[46])
 plt.plot(a[sort_idxs])
 
 
@@ -187,7 +188,7 @@ plt.plot(proj[31,100:])
 np.mean(proj[:,-5:] > 0)
 
 # <codecell>
-plt.hist(proj[:,0], bins=25)
+plt.hist(proj[:,-1], bins=25)
 
 
 # <codecell>
@@ -276,7 +277,7 @@ plt.plot(log[-3])
 # <codecell>
 all_a = np.array(hist['summary']).squeeze()
 all_a = all_a[:,sort_idxs]
-plt.plot(all_a[:,-1])
+plt.plot(all_a[:,50])
 
 # <codecell>
 plt.plot(proj[:,-1])
@@ -591,7 +592,7 @@ def extract_plot_vals(row):
         row['config']['n_hidden'],
         row['config']['residual_connections'],
         row['train_args']['lr'],
-        row['hist']['test'][25]['acc'].item(),
+        row['hist']['test'][10]['acc'].item(),
         row['info'],
     ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'lr', 'acc_hist', 'info'])
 
@@ -617,23 +618,23 @@ plot_df
 # <codecell>
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
-mdf = mdf[(mdf['test_n_hop'] == 7)
-          & (mdf['lr'] == 1e-3)
-          & (mdf['resid'] == False)
+mdf = mdf[(mdf['test_n_hop'] == 5)
+        #   & (mdf['lr'] == 1e-3)
+        #   & (mdf['resid'] == False)
           ]
 
-mdf = mdf[['n_arms', 'n_hidden', 'acc']]
+mdf = mdf[['n_arms', 'n_hidden', 'acc_hist']]
 mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).max()
-mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
+mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc_hist')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 48 - 0.5 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 35 - 1 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 45 - 2 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 35 - 1 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 50 - 2 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 39 - xs, color='gray', linestyle='dashed')
 
@@ -644,7 +645,7 @@ g.set_ylabel('n_arms')
 g.set_xlabel('n_hidden')
 
 plt.title('Zero long training - test')
-plt.savefig(f'fig/zero_mlp_arms_v_size_long_test.png', bbox_inches='tight')
+# plt.savefig(f'fig/zero_mlp_arms_v_size_long_test.png', bbox_inches='tight')
 plt.show()
 
 
@@ -673,8 +674,9 @@ def extract_plot_vals(row):
         row['config']['n_hidden'],
         row['config']['residual_connections'],
         n_hop_prop,
+        row['hist']['test'][-1]['acc'].item(),
         row['info'],
-    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'residual_connections', 'n_hop_prop', 'info'])
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'residual_connections', 'n_hop_prop', 'acc_hist', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -705,13 +707,13 @@ mdf = mdf[
     & (mdf['residual_connections'] == False)
     ]
 
-mdf = mdf[['depth', 'n_hidden', 'acc']]
+mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
 mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).max()
-mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
@@ -719,7 +721,8 @@ xs = 2**np.linspace(-5, 8)
 # g.plot(xs + np.log(xs), 40 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 20 - 0.67 * xs, color='cyan', linestyle='dashed')
 g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 17 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 17 - 0.33 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 
@@ -727,7 +730,7 @@ g.set_ylabel('depth')
 g.set_xlabel('n_hidden')
 
 plt.title('Zero')
-plt.savefig(f'fig/zero_mlp_depth_v_size_long.png', bbox_inches='tight')
+# plt.savefig(f'fig/zero_mlp_depth_v_size_long.png', bbox_inches='tight')
 plt.show()
 
 # <codecell>

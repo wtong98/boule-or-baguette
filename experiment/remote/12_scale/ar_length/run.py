@@ -16,16 +16,16 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 108
+run_split = 36
 
 batch_size = 128
 accum_k = 1
 
 train_iters = 100_000 * accum_k
 
-n_arms = [2, 5, 10, 50]
-n_depths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
-n_widths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
+n_arms = [10]
+n_depths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
+n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 
 # n_hop_props = [0.25, 0.5, 0.7]
 n_hop_props = [0.5]
@@ -63,7 +63,7 @@ for n_hop_prop, n_arm, n_hidden, depth in itertools.product(n_hop_props, n_arms,
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': 1e-3,
+            'lr': 5e-3,
             'k': accum_k
         }
 

@@ -545,7 +545,102 @@ plt.ylim(0, 39)
 plt.savefig('solution_debug.png')
 
 # <codecell>
-### SIMULATION
+### AR SIMULATION
+n_arms = 10
+n_depth = 10
+n_hop = 5
+n_hidden = 128
+
+n_vocab = n_arms * n_depth + 4
+eps = 1 / np.sqrt(n_hidden)
+
+task = StarfishTask(depth=n_depth, n_arms=n_arms, samp_dist=(1, n_hop), 
+                    batch_size=128, 
+                    cot=True, 
+                    trace_to_start=True, 
+                    nouveau=True, 
+                    force_bin_label=True)
+
+# <codecell>
+z = np.random.randn(n_vocab) * eps
+z[0] = 0
+
+a = np.random.randn() * eps
+lr = 1e-2
+
+@jax.jit
+def run_iter(batch, lr, z, a, key):
+    xs, ys = batch
+
+    y = 2 * ys - 1
+    batch_size = xs.shape[0]
+    lens = jnp.sum(xs != 0, axis=1)
+    
+    noise = jax.random.normal(key, (batch_size,)) * jnp.sqrt(n_vocab / n_hidden)
+    z_sum = (z[xs].sum(axis=1) / lens) + 100 * jnp.mean(jnp.abs(z)) * noise / jnp.sqrt(lens)
+    # z_sum = noise
+
+    is_good = z_sum > 0
+    upd = lr * jnp.sign(a * y) * is_good
+
+    batch_upd = jnp.zeros_like(z)
+    batch_upd = batch_upd.at[xs].add(upd[:, None])
+    batch_upd = batch_upd.at[0].set(0)
+
+    a_upd = jnp.sum(lr * y * is_good)
+    return batch_upd, a_upd
+
+
+start = jax.random.PRNGKey(new_seed())
+
+a_log = []
+log = []
+stds = []
+ones = []
+for _ in tqdm(range(5_000)):
+    batch = next(task)
+
+    start, key = jax.random.split(start)
+    batch_upd, a_upd = run_iter(batch, lr, z, a, key)
+    
+    z += batch_upd
+    a += a_upd
+
+    log.append(np.copy(z))
+    a_log.append(a)
+    stds.append(np.std(z[n_arms:-n_arms]))
+    ones.append(batch_upd[1])
+
+log = np.array(log)
+
+# <codecell>
+plt.plot(a_log)
+
+# <codecell>
+for i in range(n_arms):
+    print(f'{i}: {np.mean(z[i::n_arms] > 0)}')
+
+# <codecell>
+for j in range(n_arms):
+    plt.plot([np.mean(log[i,j::n_arms] > 0) for i in range(len(log))], alpha=0.8)
+
+# <codecell>
+# plt.plot(np.sign(log[4]))
+plt.plot(log[-1,8::n_arms], alpha=0.8)
+# plt.plot(log[-1])
+
+# <codecell>
+# np.sum(ones)
+key = jax.random.key(0)
+noise = jax.random.normal(key, (128,)) * jnp.sqrt(n_vocab / n_hidden)
+jnp.mean(jnp.abs(z)) * noise
+
+# <codecell>
+plt.plot(stds)
+
+
+# <codecell>
+### ZERO SIMULATION
 n_arms = 10
 n_depth = 100
 n_hop = 50
@@ -580,8 +675,8 @@ def run_iter(batch, lr, z, a, key):
     batch_size = xs.shape[0]
     
     noise = jax.random.normal(key, (batch_size,)) * jnp.sqrt(n_vocab / n_hidden)
-    # z_sum = z[xs[:, 0]] + z[xs[:, 1]] + jnp.mean(jnp.abs(z)) * noise
-    z_sum = noise
+    z_sum = z[xs[:, 0]] + z[xs[:, 1]] + 0 * jnp.mean(jnp.abs(z)) * noise
+    # z_sum = noise
     is_good = z_sum > 0
     upd = lr * jnp.sign(a * y) * is_good
 
@@ -606,6 +701,7 @@ for _ in tqdm(range(1_000)):
     
     z += batch_upd
     a += a_upd
+
     log.append(np.copy(z))
     a_log.append(a)
     stds.append(np.std(z[n_arms:-n_arms]))
@@ -626,7 +722,11 @@ for j in range(n_arms):
 
 # <codecell>
 # plt.plot(np.sign(log[4]))
-plt.plot(log[-1,0::n_arms])
+plt.plot(log[0,8::n_arms], alpha=0.8)
+plt.plot(log[1000,8::n_arms], alpha=0.8)
+plt.plot(log[2000,8::n_arms], alpha=0.8)
+plt.plot(log[3000,8::n_arms], alpha=0.8)
+plt.plot(log[4000,8::n_arms], alpha=0.8)
 # plt.plot(log[-1])
 
 # <codecell>

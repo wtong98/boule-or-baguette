@@ -16,7 +16,7 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 36
 
 train_iters = 100_000
 # warmup_iters = 2000
@@ -26,11 +26,12 @@ n_hop = 5
 n_hops_test = [5, 6, 7, 8, 9]
 
 all_n_layer = [1]
-# switch = [False, True]  # resid, CoT, LN
 switch = [True]  # resid
 
-n_arms = (2**np.linspace(4, 10, num=40)).astype(int) * 2
-n_widths = (2**np.linspace(4, 10, num=40)).astype(int) * 2
+n_arms = (2**np.linspace(3, 9, num=40)).astype(int) * 2
+n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
+
+lrs = [1e-2, 5e-3, 1e-3]
 
 ### START TEST CONFIGS
 # run_split = 1
@@ -45,13 +46,15 @@ n_widths = (2**np.linspace(4, 10, num=40)).astype(int) * 2
 # switch = [True]
 # n_arms = [100]
 # n_widths = [256]
+
+# lrs = [1e-2]
 ### END TEST CONFIGS
 
 all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
 
-for n_arm, n_hidden in itertools.product(n_arms, n_widths):
+for lr, n_arm, n_hidden in itertools.product(lrs, n_arms, n_widths):
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
 
     model_args = {
@@ -66,7 +69,7 @@ for n_arm, n_hidden in itertools.product(n_arms, n_widths):
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': 1e-3
+            'lr': lr
             # 'lr': optax.schedules.warmup_cosine_decay_schedule(
             #     init_value=1e-3,
             #     peak_value=1e-2,
@@ -175,7 +178,6 @@ for case in tqdm(all_cases):
 
     case.state = None
     case.train_args['eval_fns'] = None
-    case.train_args['lr'] = None
 
 
 df = pd.DataFrame(all_cases)
