@@ -19,11 +19,11 @@ depth = 10
 n_hidden = 128
 batch_size = 128
 
-cot = True
+cot = False
 ttr = True
 nouveau = True
 force_bin_label = True
-n_arms = 10
+n_arms = 100
 n_hop = 5
 test_n_hop = 7
 
@@ -92,6 +92,8 @@ def summarize(state):
     # a = state.params['Dense_1']['kernel']
     return a
 
+lr = 1e-2
+gamma = 10
 
 state, hist = train(config,
                     train_iter=iter(train_task), 
@@ -105,8 +107,9 @@ state, hist = train(config,
                     eval_fns=None,
                     # print_fn=print_gen if cot else None,
                     print_fn=None,
-                    lr=1e-2,
-                    optim=optax.sign_sgd,
+                    lr=lr * gamma,
+                    gamma=gamma,
+                    optim=optax.adamw,
                     summary_fn=summarize
                     )
 
@@ -578,8 +581,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -592,7 +595,7 @@ def extract_plot_vals(row):
         row['config']['n_hidden'],
         row['config']['residual_connections'],
         row['train_args']['lr'],
-        row['hist']['test'][10]['acc'].item(),
+        row['hist']['test'][-1]['acc'].item(),
         row['info'],
     ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'lr', 'acc_hist', 'info'])
 
@@ -619,21 +622,22 @@ plot_df
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[(mdf['test_n_hop'] == 5)
-        #   & (mdf['lr'] == 1e-3)
+          & (mdf['lr'] == 1e-2)
         #   & (mdf['resid'] == False)
           ]
 
-mdf = mdf[['n_arms', 'n_hidden', 'acc_hist']]
-mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).max()
-mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc_hist')
+mdf = mdf[['n_arms', 'n_hidden', 'acc']]
+mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
+mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
 g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 48 - 0.5 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 35 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 55 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 45 - 2 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 50 - 2 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 39 - xs, color='gray', linestyle='dashed')
@@ -707,20 +711,21 @@ mdf = mdf[
     & (mdf['residual_connections'] == False)
     ]
 
-mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
+mdf = mdf[['depth', 'n_hidden', 'acc']]
 mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).max()
-mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
 g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs + np.log(xs), 40 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 20 - 0.67 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 40 - 1 * xs, color='cyan', linestyle='dashed')
 g.plot(xs, 17 - 0.5 * xs, color='cyan', linestyle='dashed')
 g.plot(xs, 17 - 0.33 * xs, color='cyan', linestyle='dashed')
 
@@ -763,9 +768,10 @@ def extract_plot_vals(row):
         row['train_task'].depth,
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
+        row['hist']['test'][25]['acc'].item(),
         n_hop_prop,
         row['info'],
-    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_hop_prop', 'info'])
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'acc_hist', 'n_hop_prop', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -792,16 +798,17 @@ mdf = plot_df.copy()
 mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
     & (mdf['n_hop_prop'] == 0.5)
-    & (mdf['n_arms'] == 2)
+    & (mdf['n_arms'] == 10)
     ]
 
-mdf = mdf[['depth', 'n_hidden', 'acc']]
+mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
 mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).mean()
-mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
@@ -810,7 +817,7 @@ xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 45 - 0.5 * xs, color='cyan', linestyle='dashed')
 
-g.plot(xs, 20 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 40 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('depth')
 g.set_xlabel('n_hidden')

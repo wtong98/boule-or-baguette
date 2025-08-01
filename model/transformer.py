@@ -129,8 +129,10 @@ class SimpleSelfAttention(nn.Module):
         head_dim = n_feats // n_heads
 
         if self.config.mup_scale:
-            kernel_init = nn.initializers.normal(1)
-            prefac = 1 / np.sqrt(head_dim)
+            # kernel_init = nn.initializers.normal(1)
+            # prefac = 1 / np.sqrt(head_dim)
+            kernel_init = nn.initializers.normal(np.sqrt(head_dim))
+            prefac = 1 / head_dim
         else:
             kernel_init = nn.initializers.truncated_normal(1 / np.sqrt(head_dim))
             prefac = 1
@@ -157,8 +159,10 @@ class SimpleSelfAttention(nn.Module):
         out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
 
         if self.config.mup_scale:
-            kernel_init = nn.initializers.normal(1)
-            prefac = 1 / np.sqrt(self.config.n_hidden)
+            # kernel_init = nn.initializers.normal(1)
+            # prefac = 1 / np.sqrt(self.config.n_hidden)
+            kernel_init = nn.initializers.normal(np.sqrt(self.config.n_hidden))
+            prefac = 1 / self.config.n_hidden
         else:
             kernel_init = nn.initializers.truncated_normal(1 / np.sqrt(self.config.n_hidden))
             prefac = 1
@@ -193,8 +197,10 @@ class TransformerBlock(nn.Module):
             x = nn.LayerNorm()(x)
         
         if self.config.mup_scale:
-            kernel_init = nn.initializers.normal(1)
-            prefac = 1 / np.sqrt(self.config.n_hidden)
+            # kernel_init = nn.initializers.normal(1)
+            # prefac = 1 / np.sqrt(self.config.n_hidden)
+            kernel_init = nn.initializers.normal(np.sqrt(self.config.n_hidden))
+            prefac = 1 / self.config.n_hidden
         else:
             kernel_init = nn.initializers.truncated_normal(1 / np.sqrt(self.config.n_hidden))
             prefac = 1
@@ -238,6 +244,7 @@ class Transformer(nn.Module):
             y = nn.Embed(
                 num_embeddings=self.config.n_vocab,
                 features=self.config.n_hidden,
+                embedding_init=nn.initializers.normal(1),
                 # features=4096,
                 name=name)(y)
 
@@ -412,7 +419,7 @@ class Tr(nn.Module):
         return x
 
 
-## COORDINATE CHECKING
+### COORDINATE CHECKING
 # import matplotlib.pyplot as plt
 
 # import sys
@@ -438,10 +445,8 @@ class Tr(nn.Module):
 #     curr_norms_att = []
 
 #     for n_hidden in [64, 128, 256, 512, 1024, 2048]:
-#         # gamma0 = 1
-#         # gamma = gamma0 * np.sqrt(n_hidden)
-#         # lr = gamma0**2 * base_lr
-#         lr = base_lr
+#         gamma = 100
+#         lr = base_lr * gamma
 
 
 #         config = TransformerConfig(n_vocab=n_vocab,
@@ -464,7 +469,8 @@ class Tr(nn.Module):
 #                                 model=config.to_model(),
 #                                 dummy_input=xs_init,
 #                                 lr=lr,
-#                                 optim=optax.sign_sgd)
+#                                 optim=optax.sign_sgd,
+#                                 gamma=gamma)
 
 #         # logits_init = state.apply_fn({'params': state.params}, xs_init)
 #         logits_init, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
@@ -478,7 +484,8 @@ class Tr(nn.Module):
 #                             test_every=1000,
 #                             train_iters=n_steps, 
 #                             test_iters=1,
-#                             seed=None)
+#                             seed=None,
+#                             gamma=gamma)
 
 #         logits, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
 #         # att = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
@@ -495,14 +502,11 @@ class Tr(nn.Module):
     
 #     all_norms.append(curr_norms)
 
-# # <codecell>
+
 # for norms in all_norms:
 #     norms = np.array(norms)
 #     plt.plot(norms[:,0], 'o--')
-#     plt.plot(norms[:,1], 'o--')
+#     # plt.plot(norms[:,1], 'o--')
 #     plt.plot(norms[:,2], 'o--')
 #     # plt.yscale('log')
 
-
-# # <codecell>
-# # plt.plot(curr_norms_att, 'o--')

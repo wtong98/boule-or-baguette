@@ -27,7 +27,7 @@ n_arms = [10]
 n_depths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 
-# n_hop_props = [0.25, 0.5, 0.7]
+test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]
 
 ### START TEST CONFIGS
@@ -135,7 +135,7 @@ for case in tqdm(all_cases):
     print('RUNNING', case.name)
     case.run()
 
-    for n_hop_prop in n_hop_props:
+    for n_hop_prop in test_n_hop_props:
         tt = case.train_task
         n_hop = np.round(tt.depth * n_hop_prop).astype(int)
         test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau, batch_size=tt.batch_size, force_bin_label=tt.force_bin_label)

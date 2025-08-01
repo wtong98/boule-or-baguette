@@ -31,7 +31,8 @@ switch = [True]  # resid
 n_arms = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 
-lrs = [1e-2, 5e-3, 1e-3]
+lrs = [1e-2]
+gammas = [1, 10, 100]
 
 ### START TEST CONFIGS
 # run_split = 1
@@ -48,13 +49,14 @@ lrs = [1e-2, 5e-3, 1e-3]
 # n_widths = [256]
 
 # lrs = [1e-2]
+# gammas = [10]
 ### END TEST CONFIGS
 
 all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
 
-for lr, n_arm, n_hidden in itertools.product(lrs, n_arms, n_widths):
+for lr, gamma, n_arm, n_hidden in itertools.product(lrs, gammas, n_arms, n_widths):
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
 
     model_args = {
@@ -69,7 +71,8 @@ for lr, n_arm, n_hidden in itertools.product(lrs, n_arms, n_widths):
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': lr
+            'lr': lr * gamma,
+            'gamma': gamma,
             # 'lr': optax.schedules.warmup_cosine_decay_schedule(
             #     init_value=1e-3,
             #     peak_value=1e-2,

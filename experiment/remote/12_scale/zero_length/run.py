@@ -25,7 +25,7 @@ n_arms = [10]
 n_depths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 
-# n_hop_props = [0.25, 0.5, 0.7, 0.95]
+test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]
 lrs = [1e-3]
 switch = [False]
@@ -100,6 +100,7 @@ for lr, use_resid, n_hop_prop, n_arm, depth, n_hidden in itertools.product(lrs, 
                                 residual_connections=use_resid,
                                 mup_scale=True,
                                 linear_att=False,
+                                unif_att=True,
                                 **model_args),
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False),
@@ -115,7 +116,7 @@ for case in tqdm(all_cases):
     print('RUNNING', case.name)
     case.run()
 
-    for n_hop_prop in n_hop_props:
+    for n_hop_prop in test_n_hop_props:
         tt = case.train_task
         n_hop = np.round(tt.depth * n_hop_prop).astype(int)
         test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau)

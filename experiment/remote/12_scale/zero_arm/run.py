@@ -25,7 +25,7 @@ n_hop = 5
 n_hops_test = [5, 6, 7, 8, 9]
 
 all_n_layer = [1]
-switch = [False, True]  # resid
+switch = [False]  # resid
 all_lrs = [1e-2, 1e-3]
 
 n_arms = (2**np.linspace(3, 9, num=40)).astype(int) * 2
@@ -107,6 +107,7 @@ for lr, resid, n_arm, n_hidden in itertools.product(all_lrs, switch, n_arms, n_w
                                 residual_connections=resid,
                                 mup_scale=True,
                                 linear_att=False,
+                                unif_att=True,
                                 **model_args),
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False)
