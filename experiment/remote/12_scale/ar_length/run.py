@@ -21,7 +21,7 @@ run_split = 36
 batch_size = 128
 accum_k = 1
 
-train_iters = 100_000 * accum_k
+train_iters = 200_000 * accum_k
 
 n_arms = [10]
 n_depths = (2**np.linspace(3, 9, num=40)).astype(int) * 2

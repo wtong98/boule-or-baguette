@@ -15,7 +15,7 @@ from model.mlp import MlpConfig
 from model.transformer import *
 from task.graph import *
 
-depth = 100
+depth = 10
 n_hidden = 128
 batch_size = 128
 
@@ -23,7 +23,7 @@ cot = True
 ttr = True
 nouveau = True
 force_bin_label = True
-n_arms = 10
+n_arms = 100
 n_hop = 5
 test_n_hop = 7
 
@@ -581,8 +581,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -623,19 +623,19 @@ plot_df
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[(mdf['test_n_hop'] == 5)
-          & (mdf['lr'] == 1e-2)
+        #   & (mdf['lr'] == 1e-2)
         #   & (mdf['gamma'] == 1)
         #   & (mdf['resid'] == False)
           ]
 
-mdf = mdf[['n_arms', 'n_hidden', 'acc_hist']]
+mdf = mdf[['n_arms', 'n_hidden', 'acc']]
 mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
-mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc_hist')
+mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
-# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+# g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 40 - 1 * xs, color='cyan', linestyle='dashed')
@@ -651,7 +651,7 @@ g.set_ylabel('n_arms')
 g.set_xlabel('n_hidden')
 
 plt.title('Zero short training')
-plt.savefig(f'fig/zero_mlp_arms_v_size_short.png', bbox_inches='tight')
+# plt.savefig(f'fig/zero_mlp_arms_v_size_short.png', bbox_inches='tight')
 # plt.savefig(f'fig/ar_mlp_arms_v_size_long.png', bbox_inches='tight')
 plt.show()
 
@@ -798,7 +798,7 @@ plot_df
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['test_n_hop'] == 0.5)
+    (mdf['test_n_hop'] == 0.7)
     & (mdf['n_hop_prop'] == 0.5)
     & (mdf['n_arms'] == 10)
     ]
@@ -815,17 +815,17 @@ g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 38 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 45 - 0.5 * xs, color='cyan', linestyle='dashed')
 
-g.plot(xs, 38 - 0.5 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 38 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('depth')
 g.set_xlabel('n_hidden')
 
 plt.title('AR full')
-plt.savefig(f'fig/ar_mlp_depth_v_size_long.png', bbox_inches='tight')
+# plt.savefig(f'fig/ar_mlp_depth_v_size_long.png', bbox_inches='tight')
 plt.show()
 
 # <codecell>

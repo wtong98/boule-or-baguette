@@ -18,7 +18,7 @@ print('RUN ID', run_id)
 
 run_split = 36
 
-train_iters = 100_000
+train_iters = 200_000
 # warmup_iters = 2000
 
 depth = 10
@@ -26,30 +26,27 @@ n_hop = 5
 n_hops_test = [5, 6, 7, 8, 9]
 
 all_n_layer = [1]
-switch = [True]  # resid
 
 n_arms = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
 
-lrs = [1e-2]
-gammas = [1, 10, 100]
+lrs = [5e-3]
+gammas = [1]
 
 ### START TEST CONFIGS
 # run_split = 1
-# train_iters = 500
-# warmup_iters = 100
+# train_iters = 10_000
 
 # depth = 10
 # n_hop = 5
 # n_hops_test = [7]
 
-# all_n_layer = [2]
-# switch = [True]
+# all_n_layer = [1]
 # n_arms = [100]
 # n_widths = [256]
 
-# lrs = [1e-2]
-# gammas = [10]
+# lrs = [5e-3]
+# gammas = [1]
 ### END TEST CONFIGS
 
 all_cases = []
@@ -101,24 +98,6 @@ for lr, gamma, n_arm, n_hidden in itertools.product(lrs, gammas, n_arms, n_width
 
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args, **kwargs)
     
-
-    # all_cases.extend([
-    #     Case(f'Zero',
-    #             TransformerConfig(n_heads=1,
-    #                             n_out=1,
-    #                             n_layers=1,
-    #                             pos_emb=False, 
-    #                             return_format='final_logit',
-    #                             n_mlp_layers=2,
-    #                             layer_norm=False,
-    #                             residual_connections=True,
-    #                             mup_scale=True,
-    #                             linear_att=False,
-    #                             **model_args),
-    #             train_args=make_train_args('bce'),
-    #             train_task=make_chain(cot=False)
-    #     ), 
-    # ])
 
     all_cases.extend([
         Case(f'AR (direct)',
