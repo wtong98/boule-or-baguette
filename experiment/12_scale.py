@@ -19,7 +19,7 @@ depth = 10
 n_hidden = 128
 batch_size = 128
 
-cot = True
+cot = False
 ttr = True
 nouveau = True
 force_bin_label = True
@@ -93,7 +93,7 @@ def summarize(state):
     return a
 
 lr = 1e-2
-gamma = 1
+gamma = 3
 
 state, hist = train(config,
                     train_iter=iter(train_task), 
@@ -249,8 +249,8 @@ proj = emb @ W
 proj = proj[:,sort_idxs]
 
 plt.gcf().set_size_inches(9, 3)
-plt.plot(proj[4])
-plt.plot(proj[39])
+plt.plot(proj[5])
+plt.plot(proj[45])
 plt.plot(a[sort_idxs])
 
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
@@ -273,7 +273,7 @@ plt.colorbar()
 
 # <codecell>
 plt.plot(log[0])
-plt.plot(log[-1])
+plt.plot(log[1])
 plt.plot(log[-2])
 plt.plot(log[-3])
 
@@ -581,8 +581,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -634,12 +634,12 @@ mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-# g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
-g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 40 - 1 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 45 - 2 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 25 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 40 - 2 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 50 - 2 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 39 - xs, color='gray', linestyle='dashed')
@@ -737,7 +737,7 @@ g.set_ylabel('depth')
 g.set_xlabel('n_hidden')
 
 plt.title('Zero long')
-plt.savefig(f'fig/zero_mlp_depth_v_size_long.png', bbox_inches='tight')
+# plt.savefig(f'fig/zero_mlp_depth_v_size_long.png', bbox_inches='tight')
 plt.show()
 
 # <codecell>
@@ -770,7 +770,7 @@ def extract_plot_vals(row):
         row['train_task'].depth,
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
-        row['hist']['test'][25]['acc'].item(),
+        row['hist']['test'][50]['acc'].item(),
         n_hop_prop,
         row['info'],
     ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'acc_hist', 'n_hop_prop', 'info'])
@@ -803,9 +803,9 @@ mdf = mdf[
     & (mdf['n_arms'] == 10)
     ]
 
-mdf = mdf[['depth', 'n_hidden', 'acc']]
+mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
 mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).mean()
-mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
 
 mdf = mdf.iloc[::-1]
 
@@ -814,12 +814,12 @@ g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 38 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 35 - 2 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 38 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 45 - 0.5 * xs, color='cyan', linestyle='dashed')
 
-# g.plot(xs, 38 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 35 - 0.5 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 28 - 0.33 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('depth')
 g.set_xlabel('n_hidden')

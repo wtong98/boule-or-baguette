@@ -18,34 +18,34 @@ print('RUN ID', run_id)
 
 run_split = 36
 
-train_iters = 200_000
+train_iters = 100_000
 # warmup_iters = 2000
 
 depth = 10
 n_hop = 5
 n_hops_test = [5, 6, 7, 8, 9]
 
-all_n_layer = [1]
+all_n_layer = [1, 2, 4]
 
-n_arms = (2**np.linspace(3, 9, num=40)).astype(int) * 2
-n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
+n_arms = (2**np.linspace(3, 9, num=30)).astype(int) * 2
+n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
 
-lrs = [5e-3]
+lrs = [1e-2]
 gammas = [1]
 
 ### START TEST CONFIGS
 # run_split = 1
-# train_iters = 10_000
+# train_iters = 500
 
 # depth = 10
 # n_hop = 5
 # n_hops_test = [7]
 
-# all_n_layer = [1]
+# all_n_layer = [2]
 # n_arms = [100]
 # n_widths = [256]
 
-# lrs = [5e-3]
+# lrs = [1e-2]
 # gammas = [1]
 ### END TEST CONFIGS
 
@@ -53,7 +53,7 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
 
-for lr, gamma, n_arm, n_hidden in itertools.product(lrs, gammas, n_arms, n_widths):
+for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms, n_widths, all_n_layer):
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
 
     model_args = {
@@ -68,7 +68,7 @@ for lr, gamma, n_arm, n_hidden in itertools.product(lrs, gammas, n_arms, n_width
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': lr * gamma,
+            'lr': lr * gamma / n_layer,
             'gamma': gamma,
             # 'lr': optax.schedules.warmup_cosine_decay_schedule(
             #     init_value=1e-3,
@@ -103,7 +103,7 @@ for lr, gamma, n_arm, n_hidden in itertools.product(lrs, gammas, n_arms, n_width
         Case(f'AR (direct)',
                 TransformerConfig(n_heads=1,
                                 n_out=1,
-                                n_layers=1,
+                                n_layers=n_layer,
                                 pos_emb=False, 
                                 return_format='final_logit_up_to_pad',
                                 n_mlp_layers=2,

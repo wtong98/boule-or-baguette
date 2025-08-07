@@ -777,3 +777,58 @@ plt.title("Histogram of a over multiple runs")
 plt.xlabel("a")
 plt.ylabel("Frequency")
 plt.show()
+
+# <codecell>
+V = 10
+split_idx = V // 2
+
+all_ps = []
+
+for idx in range(V**2):
+    i, j = idx // V, idx % V
+    
+    s_i = (i < split_idx) * 2 - 1
+    s_j = (j < split_idx) * 2 - 1
+
+    p_i = np.zeros(V**2)
+    p_i[i * V + i] = 1
+    for k in range(V):
+        if k != i:
+            p_i[i * V + k] = -1 / (V - 1)
+
+    p_j = np.zeros(V**2)
+    p_j[j * V + j] = 1
+    for k in range(V):
+        if k != j:
+            p_j[j * V + k] = -1 / (V - 1)
+
+    # p_j = np.zeros(V**2)
+    # p_j[j * V] = 1
+    # p_j[(j * V + 1):((j + 1) * V)] = -1 / (V - 1)
+
+    p = s_i * p_i + s_j * p_j
+    all_ps.append(p)
+
+all_ps = np.array(all_ps)
+
+# <codecell>
+plt.imshow(all_ps, cmap='BrBG', vmin=-1, vmax=1)
+print(all_ps)
+
+# <codecell>
+evals, evecs = np.linalg.eig(all_ps)
+# plt.plot(evals)
+i = 1
+plt.plot(evecs[:,i])
+print(evals[i])
+print(np.argmax(evecs[:,i]))
+print(np.argsort(evecs[:,i]))
+
+# <codecell>
+prod = evecs * evals[None,:]
+out = np.sum(prod[:,:11], axis=1)
+
+np.argsort(out)
+
+
+

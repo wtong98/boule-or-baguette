@@ -18,17 +18,19 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-train_iters = 200_000
+train_iters = 100_000
 
 # n_arms = [2, 5, 10, 50]
 n_arms = [10]
-n_depths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
-n_widths = (2**np.linspace(3, 9, num=40)).astype(int) * 2
+n_depths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
+n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
 
 test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]
-lrs = [1e-3]
+lrs = [1e-2]
 switch = [False]
+
+all_n_layer = [1, 2, 4]
 
 # n_hop_props = [0.5]
 
@@ -40,6 +42,7 @@ switch = [False]
 # n_depths = [22]
 # n_widths = [256]
 
+# all_n_layer = [2]
 # n_hop_props = [0.25]
 # lrs = [1e-2]
 # switch = [False]
@@ -49,7 +52,7 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
 
-for lr, use_resid, n_hop_prop, n_arm, depth, n_hidden in itertools.product(lrs, switch, n_hop_props, n_arms, n_depths, n_widths):
+for lr, use_resid, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, switch, n_hop_props, n_arms, n_depths, n_widths, all_n_layer):
     n_hop = np.round(n_hop_prop * depth).astype(int)
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
 
@@ -65,7 +68,7 @@ for lr, use_resid, n_hop_prop, n_arm, depth, n_hidden in itertools.product(lrs, 
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': lr
+            'lr': lr / n_layer
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -92,7 +95,7 @@ for lr, use_resid, n_hop_prop, n_arm, depth, n_hidden in itertools.product(lrs, 
         Case(f'Zero',
                 TransformerConfig(n_heads=1,
                                 n_out=1,
-                                n_layers=1,
+                                n_layers=n_layer,
                                 pos_emb=False, 
                                 return_format='final_logit',
                                 n_mlp_layers=2,
