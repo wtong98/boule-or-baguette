@@ -51,7 +51,7 @@ class Finite:
         return self
 
 
-def split_cases(all_cases, run_split):
+def split_cases(all_cases, run_split, shuffle_seed=None):
     run_idx = sys.argv[1]
     try:
         run_idx = int(run_idx) % run_split
@@ -60,6 +60,12 @@ def split_cases(all_cases, run_split):
         run_idx = 0
 
     print('RUN IDX', run_idx)
+
+    all_cases = np.array(all_cases)
+    if shuffle_seed is not None:
+        rng = np.random.default_rng(shuffle_seed)
+        rng.shuffle(all_cases)
+
     all_cases = np.array_split(all_cases, run_split)[run_idx]
     return list(all_cases)
 

@@ -16,7 +16,7 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 36
+run_split = 72
 
 batch_size = 128
 accum_k = 1
@@ -32,8 +32,10 @@ all_n_layer = [1, 2, 4]
 test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]
 
+shuffle_seed = 100
+
 ### START TEST CONFIGS
-# run_split = 1
+# run_split = 2
 # train_iters = 1_000
 # batch_size = 10
 # accum_k = 10
@@ -43,7 +45,7 @@ n_hop_props = [0.5]
 # n_widths = [32]
 
 # all_n_layer = [1]
-# n_hop_props = [0.25]
+# n_hop_props = [0.25, 0.5, 0.75, 0.95]
 ### END TEST CONFIGS
 
 all_cases = []
@@ -131,7 +133,7 @@ for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props
     
     
     
-all_cases = split_cases(all_cases, run_split)
+all_cases = split_cases(all_cases, run_split, shuffle_seed=shuffle_seed)
 print('CASES', all_cases)
 
 for case in tqdm(all_cases):

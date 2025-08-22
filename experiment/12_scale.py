@@ -16,14 +16,14 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 128
+n_hidden = 512
 batch_size = 128
 
 cot = False
 ttr = True
 nouveau = True
 force_bin_label = True
-n_arms = 100
+n_arms = 10
 n_hop = 5
 test_n_hop = 7
 
@@ -92,8 +92,11 @@ def summarize(state):
     # a = state.params['Dense_1']['kernel']
     return a
 
+# lr = 1e-2
+# gamma = 100
+
 lr = 1e-2
-gamma = 3
+gamma = 1
 
 state, hist = train(config,
                     train_iter=iter(train_task), 
@@ -110,7 +113,7 @@ state, hist = train(config,
                     lr=lr * gamma,
                     gamma=gamma,
                     optim=optax.adamw,
-                    summary_fn=summarize
+                    summary_fn=summarize,
                     )
 
 
@@ -199,11 +202,11 @@ plt.hist(proj[:,-1], bins=25)
 jax.tree.map(np.shape, state.params)
 
 emb = state.params['Embed_freeze']['embedding']
-a = state.params['Dense_0']['kernel'] / n_hidden
-V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / np.sqrt(n_hidden)
-O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / np.sqrt(n_hidden)
-W1 = state.params['TransformerBlock_0']['Dense_0']['kernel'] / np.sqrt(n_hidden)
-W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
+a = state.params['Dense_0']['kernel'] / n_hidden / gamma
+V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / n_hidden
+O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / n_hidden
+W1 = state.params['TransformerBlock_0']['Dense_0']['kernel'] / n_hidden
+W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / n_hidden
 
 xs = next(test_task)[0]
 xs_emb = emb[xs]
@@ -213,7 +216,7 @@ a = W2 @ a
 xs_emb = 0.5 * (xs_emb[:,0] + xs_emb[:,1])
 
 pred = jax.nn.relu(xs_emb @ W) @ a
-logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+logits = state.apply_fn({'params': state.params}, xs)
 
 np.mean((pred.flatten() - logits)**2) / np.mean(logits**2)
 
@@ -272,48 +275,53 @@ plt.imshow(log, cmap='BrBG', vmin=0.1, vmax=0.9)
 plt.colorbar()
 
 # <codecell>
-plt.plot(log[0])
+plt.plot(log[5])
 plt.plot(log[1])
 plt.plot(log[-2])
-plt.plot(log[-3])
+plt.plot(log[-10])
 
 # <codecell>
 all_a = np.array(hist['summary']).squeeze()
 all_a = all_a[:,sort_idxs]
-plt.plot(all_a[:,50])
+plt.plot(all_a[:, 0::10])
 
 # <codecell>
-plt.plot(proj[:,-1])
-# np.mean(proj[4,-80:])
-# np.mean(proj[1,:50])
+W_sort = W[:,sort_idxs]
+a_sort = a[sort_idxs]
 
-# next(train_task)
-
-# <codecell>
-z = proj[:,0]
-out = z[:,None] + z[None,:]
-
-on_diag = np.diag(out)
-
-print('Frac pos:', np.mean(on_diag > 0))
-print('Valu pos:', np.mean(on_diag[on_diag > 0]))
-off_diag = out[~np.eye(out.shape[0], dtype=bool)]
-frac_positive = np.mean(off_diag > 0)
-print(f"Frac neg:", np.mean(off_diag > 0))
-print(f"Valu neg:", np.mean(off_diag[off_diag > 0]))
-
-plt.hist(z, bins=25)
-
-# <codecell>
-xs = np.array([[27, 137]])
+xs = jnp.array([[14, 114]])
+# xs, _ = next(train_task)
+print(xs)
 state.apply_fn({'params': state.params}, xs)
 
-# <codecell>
-np.mean(proj[:,-5:] > 0)
+xs_emb = emb[xs].squeeze()
+# # h1 = jax.nn.relu(xs_emb.sum(axis=0, keepdims=True) @ W_sort) @ a_sort
+
+h1 = xs_emb @ W_sort
+plt.plot(h1[0])
+plt.plot(h1[1])
+plt.plot(h1[0] + h1[1])
+
+plt.plot(a_sort)
+plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
+plt.ylim((-20, 20))
+
+jax.nn.relu(xs_emb.sum(axis=0, keepdims=True) @ W_sort) @ a_sort
+# state.apply_fn({'params': state.params}, xs)
 
 # <codecell>
-# plt.hist(proj[:,0], bins=50)
-plt.plot(proj[:,0])
+proj = emb @ W_sort
+# plt.plot(proj[14::20,-5])
+s = proj[:-4,7]
+plt.imshow(s.reshape(-1, n_arms), cmap='BrBG', vmin=-10, vmax=10)
+plt.colorbar(shrink=0.5)
+
+# <codecell>
+train_task.batch_size = 4096
+xs, ys = next(train_task)
+diffs = xs[ys == 1]
+
+np.mean(proj[:,-1][diffs].sum(axis=1) > 0)
 
 # <codecell>
 ### ANALYSIS OF MLP MODEL
@@ -594,11 +602,12 @@ def extract_plot_vals(row):
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         row['config']['residual_connections'],
+        row['config']['n_layers'],
         row['train_args']['lr'],
-        row['hist']['test'][5]['acc'].item(),
+        row['hist']['test'][-1]['acc'].item(),
         row['train_args']['gamma'] if 'gamma' in row['train_args'] else -1,
         row['info'],
-    ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'lr', 'acc_hist', 'gamma', 'info'])
+    ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'n_layers',  'lr', 'acc_hist', 'gamma', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -622,7 +631,8 @@ plot_df
 # <codecell>
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
-mdf = mdf[(mdf['test_n_hop'] == 5)
+mdf = mdf[(mdf['test_n_hop'] == 6)
+          & (mdf['n_layers'] == 1)
         #   & (mdf['lr'] == 1e-2)
         #   & (mdf['gamma'] == 1)
         #   & (mdf['resid'] == False)
@@ -638,8 +648,8 @@ g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 # g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
-# g.plot(xs, 25 - 1 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 40 - 2 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 30 - 2 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 50 - 2 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 39 - xs, color='gray', linestyle='dashed')
@@ -652,7 +662,7 @@ g.set_xlabel('n_hidden')
 
 plt.title('Zero short training')
 # plt.savefig(f'fig/zero_mlp_arms_v_size_short.png', bbox_inches='tight')
-# plt.savefig(f'fig/ar_mlp_arms_v_size_long.png', bbox_inches='tight')
+# plt.savefig(f'fig/ar_mlp_arms_v_size_debug.png', bbox_inches='tight')
 plt.show()
 
 
@@ -680,10 +690,11 @@ def extract_plot_vals(row):
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         row['config']['residual_connections'],
+        row['config']['n_layers'],
         n_hop_prop,
         row['hist']['test'][50]['acc'].item(),
         row['info'],
-    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'residual_connections', 'n_hop_prop', 'acc_hist', 'info'])
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'residual_connections', 'n_layers', 'n_hop_prop', 'acc_hist', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -711,12 +722,13 @@ mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
     & (mdf['n_hop_prop'] == 0.5)
     & (mdf['n_arms'] == 10)
+    & (mdf['n_layers'] == 1)
     & (mdf['residual_connections'] == False)
     ]
 
-mdf = mdf[['depth', 'n_hidden', 'acc']]
+mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
 mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).max()
-mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
 
 mdf = mdf.iloc[::-1]
 
@@ -728,8 +740,8 @@ xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs + np.log(xs), 40 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 20 - 0.67 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 40 - 1 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 40 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 
@@ -770,10 +782,11 @@ def extract_plot_vals(row):
         row['train_task'].depth,
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
+        row['config']['n_layers'],
         row['hist']['test'][50]['acc'].item(),
         n_hop_prop,
         row['info'],
-    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'acc_hist', 'n_hop_prop', 'info'])
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_layers', 'acc_hist', 'n_hop_prop', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -798,9 +811,10 @@ plot_df
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['test_n_hop'] == 0.7)
+    (mdf['test_n_hop'] == 0.5)
     & (mdf['n_hop_prop'] == 0.5)
     & (mdf['n_arms'] == 10)
+    & (mdf['n_layers'] == 1)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
@@ -814,11 +828,12 @@ g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 35 - 2 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 30 - 2 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 38 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
 
-g.plot(xs, 35 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 28 - 0.33 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('depth')
