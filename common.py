@@ -51,6 +51,12 @@ class Finite:
         return self
 
 
+def split_batch(batch_size, max_size):
+    fac = np.ceil(batch_size / max_size)
+    batch_size = np.round(batch_size / fac)
+    return int(batch_size), int(fac)
+
+
 def split_cases(all_cases, run_split, shuffle_seed=None):
     run_idx = sys.argv[1]
     try:

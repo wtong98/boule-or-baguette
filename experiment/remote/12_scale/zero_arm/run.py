@@ -29,22 +29,24 @@ all_lrs = [1e-2]
 
 n_arms = (2**np.linspace(3, 9, num=30)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
+max_batch_size = 1024
 
-all_n_layer = [1, 2, 4]
+all_n_layer = [1, 4]
 
 ### START TEST CONFIGS
-# run_split = 1
-# train_iters = 500
-# warmup_iters = 100
+run_split = 1
+train_iters = 500
 
-# depth = 10
-# n_hop = 5
-# n_hops_test = [7]
+depth = 10
+n_hop = 5
+n_hops_test = [7]
 
-# all_n_layer = [2]
-# switch = [True]
-# n_arms = [100]
-# n_widths = [256]
+all_n_layer = [2]
+switch = [False]
+n_arms = [10]
+n_widths = [256]
+
+max_batch_size = 27
 ### END TEST CONFIGS
 
 all_cases = []
@@ -53,6 +55,8 @@ eval_fns = [loss_and_acc, gen_acc_cot1]
 
 for lr, resid, n_arm, n_hidden, n_layer in itertools.product(all_lrs, switch, n_arms, n_widths, all_n_layer):
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
+    batch_size = n_arm * depth
+    batch_size, k = split_batch(batch_size, max_batch_size)
 
     model_args = {
         'n_vocab': n_vocab,
@@ -66,14 +70,8 @@ for lr, resid, n_arm, n_hidden, n_layer in itertools.product(all_lrs, switch, n_
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': lr / n_layer
-            # 'lr': optax.schedules.warmup_cosine_decay_schedule(
-            #     init_value=1e-3,
-            #     peak_value=1e-2,
-            #     warmup_steps=warmup_iters,
-            #     decay_steps=train_iters,
-            #     end_value=1e-4
-            # )
+            'lr': lr / n_layer,
+            'k': k
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -90,7 +88,8 @@ for lr, resid, n_arm, n_hidden, n_layer in itertools.product(all_lrs, switch, n_
             'depth': depth,
             'samp_dist': (1, n_hop),
             'n_arms': n_arm,
-            'nouveau': True
+            'nouveau': True,
+            'batch_size': batch_size
         }
 
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args, **kwargs)
@@ -126,7 +125,14 @@ for case in tqdm(all_cases):
 
     for n_hop in n_hops_test:
         tt = case.train_task
-        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau, force_bin_label=tt.force_bin_label)
+        test_task = StarfishTask(n_arms=tt.n_arms, 
+                                 depth=tt.depth, 
+                                 samp_dist=n_hop, 
+                                 cot=tt.cot, 
+                                 trace_to_start=tt.trace_to_start, 
+                                 nouveau=tt.nouveau, 
+                                 force_bin_label=tt.force_bin_label,
+                                 batch_size=1024)
 
         case.eval(
             test_task,

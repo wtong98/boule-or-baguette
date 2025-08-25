@@ -33,6 +33,8 @@ n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
 lrs = [1e-2]
 gammas = [1]
 
+max_batch_size = 1024
+
 ### START TEST CONFIGS
 # run_split = 1
 # train_iters = 500
@@ -47,6 +49,7 @@ gammas = [1]
 
 # lrs = [1e-2]
 # gammas = [1]
+# max_batch_size = 27
 ### END TEST CONFIGS
 
 all_cases = []
@@ -55,6 +58,9 @@ eval_fns = [loss_and_acc, gen_acc_cot1]
 
 for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms, n_widths, all_n_layer):
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
+
+    batch_size = n_arm * depth
+    batch_size, k = split_batch(batch_size, max_batch_size)
 
     model_args = {
         'n_vocab': n_vocab,
@@ -70,13 +76,7 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
             'train_iters': train_iters,
             'lr': lr * gamma / n_layer,
             'gamma': gamma,
-            # 'lr': optax.schedules.warmup_cosine_decay_schedule(
-            #     init_value=1e-3,
-            #     peak_value=1e-2,
-            #     warmup_steps=warmup_iters,
-            #     decay_steps=train_iters,
-            #     end_value=1e-4
-            # )
+            'k': k
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -93,7 +93,8 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
             'depth': depth,
             'samp_dist': (1, n_hop),
             'n_arms': n_arm,
-            'nouveau': True
+            'nouveau': True,
+            'batch_size': batch_size
         }
 
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args, **kwargs)
@@ -140,7 +141,7 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
     
     
     
-all_cases = split_cases(all_cases, run_split)
+all_cases = split_cases(all_cases, run_split, shuffle_seed=10)
 
 print('CASES', all_cases)
 
@@ -150,7 +151,14 @@ for case in tqdm(all_cases):
 
     for n_hop in n_hops_test:
         tt = case.train_task
-        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau, force_bin_label=tt.force_bin_label)
+        test_task = StarfishTask(n_arms=tt.n_arms, 
+                                 depth=tt.depth, 
+                                 samp_dist=n_hop, 
+                                 cot=tt.cot, 
+                                 trace_to_start=tt.trace_to_start, 
+                                 nouveau=tt.nouveau, 
+                                 force_bin_label=tt.force_bin_label,
+                                 batch_size=1024)
 
         case.eval(
             test_task,

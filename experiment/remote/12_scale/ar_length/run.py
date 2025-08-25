@@ -19,9 +19,8 @@ print('RUN ID', run_id)
 run_split = 72
 
 batch_size = 128
-accum_k = 1
 
-train_iters = 100_000 * accum_k
+train_iters = 100_000
 
 n_arms = [10]
 n_depths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
@@ -32,20 +31,23 @@ all_n_layer = [1, 2, 4]
 test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]
 
+max_batch_size = 1024
+
 shuffle_seed = 100
 
 ### START TEST CONFIGS
 # run_split = 2
-# train_iters = 1_000
+# train_iters = 100
 # batch_size = 10
-# accum_k = 10
 
 # n_arms = [10]
-# n_depths = [100]
+# n_depths = [10]
 # n_widths = [32]
 
 # all_n_layer = [1]
 # n_hop_props = [0.25, 0.5, 0.75, 0.95]
+
+# max_batch_size = 27
 ### END TEST CONFIGS
 
 all_cases = []
@@ -55,6 +57,9 @@ eval_fns = [loss_and_acc, gen_acc_cot1]
 for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props, n_arms, n_widths, n_depths, all_n_layer):
     n_hop = np.round(n_hop_prop * depth).astype(int)
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
+
+    batch_size = n_arm * depth
+    batch_size, k = split_batch(batch_size, max_batch_size)
 
     model_args = {
         'n_vocab': n_vocab,
@@ -69,7 +74,7 @@ for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props
             'test_every': 1000,
             'train_iters': train_iters,
             'lr': 1e-2 / n_layer,
-            'k': accum_k
+            'k': k
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -143,13 +148,19 @@ for case in tqdm(all_cases):
     for n_hop_prop in test_n_hop_props:
         tt = case.train_task
         n_hop = np.round(tt.depth * n_hop_prop).astype(int)
-        test_task = StarfishTask(n_arms=tt.n_arms, depth=tt.depth, samp_dist=n_hop, cot=tt.cot, trace_to_start=tt.trace_to_start, nouveau=tt.nouveau, batch_size=tt.batch_size, force_bin_label=tt.force_bin_label)
+        test_task = StarfishTask(n_arms=tt.n_arms, 
+                                 depth=tt.depth, 
+                                 samp_dist=n_hop, 
+                                 cot=tt.cot, 
+                                 trace_to_start=tt.trace_to_start, 
+                                 nouveau=tt.nouveau, 
+                                 batch_size=1024, 
+                                 force_bin_label=tt.force_bin_label)
 
         case.eval(
             test_task,
             eval_fns=case.train_args['eval_fns'],
-            prefix=n_hop_prop,
-            n_iters=accum_k
+            prefix=n_hop_prop
         )
 
     case.state = None

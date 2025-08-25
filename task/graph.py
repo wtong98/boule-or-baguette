@@ -428,7 +428,7 @@ class StarfishTask:
     sep_idx = 3
     offset = 3
 
-    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, force_bin_label=False, rl_prompt=False, trace_to_start=False, nouveau=False, batch_size=128) -> None:
+    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, force_bin_label=False, rl_prompt=False, trace_to_start=False, nouveau=False, batch_size='adaptive') -> None:
         self.depth = depth
         self.n_arms = n_arms
         self.samp_dist = samp_dist
@@ -438,6 +438,9 @@ class StarfishTask:
         self.trace_to_start = trace_to_start
         self.nouveau = nouveau
         self.batch_size = batch_size
+
+        if batch_size == 'adaptive':
+            self.batch_size = n_arms * depth
 
         self.seed = new_seed()
         self.source = jax.random.key(self.seed)
@@ -702,7 +705,6 @@ def _circle_add_chain(xs, depth, batch_size, trace_to_start=True):
     ), axis=-1)
 
     return xs
-
 
 
 # %%

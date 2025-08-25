@@ -16,16 +16,17 @@ from model.transformer import *
 from task.graph import *
 
 depth = 10
-n_hidden = 512
-batch_size = 128
+n_hidden = 128
 
 cot = False
 ttr = True
 nouveau = True
 force_bin_label = True
-n_arms = 10
+n_arms = 2
 n_hop = 5
 test_n_hop = 7
+
+batch_size = n_arms * depth
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -118,10 +119,12 @@ state, hist = train(config,
 
 
 # <codecell>
-xs, ys = next(train_task)
+xs, ys = next(test_task)
 
 preds = state.apply_fn({'params': state.params}, xs)
-np.mean((preds > 0) == ys)
+print(np.mean((preds > 0) == ys))
+
+preds
 
 # <codecell>
 ### ANALYSIS OF COT SIMP MODEL
@@ -312,16 +315,23 @@ jax.nn.relu(xs_emb.sum(axis=0, keepdims=True) @ W_sort) @ a_sort
 # <codecell>
 proj = emb @ W_sort
 # plt.plot(proj[14::20,-5])
-s = proj[:-4,7]
+s = proj[:-4,-1]
 plt.imshow(s.reshape(-1, n_arms), cmap='BrBG', vmin=-10, vmax=10)
 plt.colorbar(shrink=0.5)
 
 # <codecell>
-train_task.batch_size = 4096
-xs, ys = next(train_task)
-diffs = xs[ys == 1]
+xs = next(test_task)[0]
+xs_emb = emb[xs]
+out = (xs_emb @ W_sort).sum(axis=1)
 
-np.mean(proj[:,-1][diffs].sum(axis=1) > 0)
+pos_idx = a_sort.flatten() > 0
+
+print('pos', np.sum(jax.nn.relu(out[0])[pos_idx]))
+print('neg', np.sum(jax.nn.relu(out[0])[~pos_idx]))
+
+# plt.plot(jax.nn.relu(out[0]))
+
+
 
 # <codecell>
 ### ANALYSIS OF MLP MODEL
@@ -783,7 +793,7 @@ def extract_plot_vals(row):
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         row['config']['n_layers'],
-        row['hist']['test'][50]['acc'].item(),
+        row['hist']['test'][1]['acc'].item(),
         n_hop_prop,
         row['info'],
     ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_layers', 'acc_hist', 'n_hop_prop', 'info'])
@@ -814,7 +824,7 @@ mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
     & (mdf['n_hop_prop'] == 0.5)
     & (mdf['n_arms'] == 10)
-    & (mdf['n_layers'] == 1)
+    & (mdf['n_layers'] == 4)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc_hist']]

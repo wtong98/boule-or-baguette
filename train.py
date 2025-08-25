@@ -206,15 +206,15 @@ def train(config, train_iter,
           loss='ce', gamma=None,
           eval_fns: Iterable=None, print_fn=None,
           summary_fn=None,
-          train_iters=10_000, test_iters=10, test_every=1_000, save_params=False,
+          train_iters=10_000, test_iters=1, test_every=1_000, save_params=False,
           early_stop_n=None, early_stop_key='loss', early_stop_decision='min' ,
-          optim=optax.adamw, k=None,
+          optim=optax.adamw, k=1,
           seed=None, use_tqdm=False,
           **opt_kwargs):
 
     if seed is None:
         seed = new_seed()
-    
+
     if test_iter is None:
         test_iter = train_iter
     
@@ -240,6 +240,7 @@ def train(config, train_iter,
         'summary': []
     }
 
+    train_iters = k * train_iters
     it = zip(range(train_iters), train_iter)
     if use_tqdm:
         it = tqdm(it, total=train_iters)
@@ -265,7 +266,7 @@ def train(config, train_iter,
                 summ = summary_fn(state)
                 hist['summary'].append(summ)
 
-            print_fn(step+1, hist)
+            print_fn((step + 1) // k, hist)
 
             if save_params:
                 hist['params'].append(state.params)
@@ -380,7 +381,7 @@ class Case:
         loss = train_args.get('loss', None)
         return get_flops(train_step, self.state, next(self.train_task), loss=loss)
     
-    def eval(self, task, eval_fns, n_iters=10, prefix=None):
+    def eval(self, task, eval_fns, n_iters=1, prefix=None):
         all_res = []
         loss = self.train_args.get('loss', None)
 
