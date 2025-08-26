@@ -16,7 +16,7 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 36
 
 train_iters = 100_000
 
@@ -29,24 +29,24 @@ all_lrs = [1e-2]
 
 n_arms = (2**np.linspace(3, 9, num=30)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
-max_batch_size = 1024
+max_batch_size = 512
 
-all_n_layer = [1, 4]
+all_n_layer = [1]
 
 ### START TEST CONFIGS
-run_split = 1
-train_iters = 500
+# run_split = 1
+# train_iters = 500
 
-depth = 10
-n_hop = 5
-n_hops_test = [7]
+# depth = 10
+# n_hop = 5
+# n_hops_test = [7]
 
-all_n_layer = [2]
-switch = [False]
-n_arms = [10]
-n_widths = [256]
+# all_n_layer = [2]
+# switch = [False]
+# n_arms = [10]
+# n_widths = [256]
 
-max_batch_size = 27
+# max_batch_size = 27
 ### END TEST CONFIGS
 
 all_cases = []

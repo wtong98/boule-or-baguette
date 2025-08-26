@@ -25,7 +25,7 @@ depth = 10
 n_hop = 5
 n_hops_test = [5, 6, 7, 8, 9]
 
-all_n_layer = [1, 2, 4]
+all_n_layer = [1]
 
 n_arms = (2**np.linspace(3, 9, num=30)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
@@ -33,7 +33,7 @@ n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
 lrs = [1e-2]
 gammas = [1]
 
-max_batch_size = 1024
+max_batch_size = 512
 
 ### START TEST CONFIGS
 # run_split = 1

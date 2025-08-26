@@ -599,8 +599,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -641,7 +641,7 @@ plot_df
 # <codecell>
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
-mdf = mdf[(mdf['test_n_hop'] == 6)
+mdf = mdf[(mdf['test_n_hop'] == 5)
           & (mdf['n_layers'] == 1)
         #   & (mdf['lr'] == 1e-2)
         #   & (mdf['gamma'] == 1)
@@ -729,16 +729,16 @@ plot_df
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['test_n_hop'] == 0.5)
+    (mdf['test_n_hop'] == 0.7)
     & (mdf['n_hop_prop'] == 0.5)
     & (mdf['n_arms'] == 10)
     & (mdf['n_layers'] == 1)
     & (mdf['residual_connections'] == False)
     ]
 
-mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
+mdf = mdf[['depth', 'n_hidden', 'acc']]
 mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).max()
-mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 

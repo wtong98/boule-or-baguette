@@ -16,7 +16,7 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 36
 
 train_iters = 100_000
 
@@ -30,9 +30,9 @@ n_hop_props = [0.5]
 lrs = [1e-2]
 switch = [False]
 
-all_n_layer = [1, 4]
+all_n_layer = [1]
 
-max_batch_size = 1024
+max_batch_size = 512
 
 # n_hop_props = [0.5]
 
