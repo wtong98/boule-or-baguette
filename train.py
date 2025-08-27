@@ -248,7 +248,7 @@ def train(config, train_iter,
     for step, batch in it:
         state = train_step(state, batch, loss=loss)
 
-        if ((step + 1) % test_every == 0) or ((step + 1) == train_iters):
+        if ((step + 1) % (test_every * k) == 0) or ((step + 1) == train_iters):
             all_train = []
             all_test = []
 

@@ -22,7 +22,7 @@ cot = False
 ttr = True
 nouveau = True
 force_bin_label = True
-n_arms = 2
+n_arms = 10
 n_hop = 5
 test_n_hop = 7
 
@@ -97,7 +97,8 @@ def summarize(state):
 # gamma = 100
 
 lr = 1e-2
-gamma = 1
+gamma = 0.5
+
 
 state, hist = train(config,
                     train_iter=iter(train_task), 
@@ -114,7 +115,7 @@ state, hist = train(config,
                     lr=lr * gamma,
                     gamma=gamma,
                     optim=optax.adamw,
-                    summary_fn=summarize,
+                    # summary_fn=summarize,
                     )
 
 
@@ -315,7 +316,7 @@ jax.nn.relu(xs_emb.sum(axis=0, keepdims=True) @ W_sort) @ a_sort
 # <codecell>
 proj = emb @ W_sort
 # plt.plot(proj[14::20,-5])
-s = proj[:-4,-1]
+s = proj[:-4,14]
 plt.imshow(s.reshape(-1, n_arms), cmap='BrBG', vmin=-10, vmax=10)
 plt.colorbar(shrink=0.5)
 
@@ -599,8 +600,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -729,7 +730,7 @@ plot_df
 # for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['test_n_hop'] == 0.7)
+    (mdf['test_n_hop'] == 0.5)
     & (mdf['n_hop_prop'] == 0.5)
     & (mdf['n_arms'] == 10)
     & (mdf['n_layers'] == 1)
@@ -737,7 +738,7 @@ mdf = mdf[
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc']]
-mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).max()
+mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).mean()
 mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
@@ -750,7 +751,7 @@ xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs + np.log(xs), 40 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 20 - 0.67 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 27 - 1 * xs, color='cyan', linestyle='dashed')
 g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
@@ -793,7 +794,7 @@ def extract_plot_vals(row):
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         row['config']['n_layers'],
-        row['hist']['test'][1]['acc'].item(),
+        row['hist']['test'][10]['acc'].item(),
         n_hop_prop,
         row['info'],
     ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_layers', 'acc_hist', 'n_hop_prop', 'info'])
@@ -824,7 +825,7 @@ mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
     & (mdf['n_hop_prop'] == 0.5)
     & (mdf['n_arms'] == 10)
-    & (mdf['n_layers'] == 4)
+    & (mdf['n_layers'] == 1)
     ]
 
 mdf = mdf[['depth', 'n_hidden', 'acc_hist']]

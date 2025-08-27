@@ -16,22 +16,20 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 72
+run_split = 108
 
-batch_size = 128
-
-train_iters = 100_000
+train_iters = 80_000
 
 n_arms = [10]
-n_depths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
-n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
+n_depths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
+n_widths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
 
 all_n_layer = [1]
 
 test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]
 
-max_batch_size = 128
+max_batch_size = 256
 
 shuffle_seed = 100
 

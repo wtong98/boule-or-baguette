@@ -243,9 +243,9 @@ class Transformer(nn.Module):
             name = 'Embed_freeze' if (self.config.freeze_emb or self.config.as_rf_model) else None
             y = nn.Embed(
                 num_embeddings=self.config.n_vocab,
-                features=self.config.n_hidden,
                 embedding_init=nn.initializers.normal(1),
-                # features=4096,
+                features=self.config.n_hidden,
+                # features=512,
                 name=name)(y)
 
         if config.pos_emb:
