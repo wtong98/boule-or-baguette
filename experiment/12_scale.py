@@ -15,16 +15,16 @@ from model.mlp import MlpConfig
 from model.transformer import *
 from task.graph import *
 
-depth = 10
-n_hidden = 128
+depth = 100
+n_hidden = 512
 
 cot = False
 ttr = True
 nouveau = True
 force_bin_label = True
 n_arms = 10
-n_hop = 5
-test_n_hop = 7
+n_hop = 20
+test_n_hop = 30
 
 batch_size = n_arms * depth
 
@@ -97,7 +97,7 @@ def summarize(state):
 # gamma = 100
 
 lr = 1e-2
-gamma = 0.5
+gamma = 1
 
 
 state, hist = train(config,
@@ -115,7 +115,7 @@ state, hist = train(config,
                     lr=lr * gamma,
                     gamma=gamma,
                     optim=optax.adamw,
-                    # summary_fn=summarize,
+                    summary_fn=summarize,
                     )
 
 
@@ -285,6 +285,9 @@ plt.plot(log[-2])
 plt.plot(log[-10])
 
 # <codecell>
+np.mean(log[3] > 0.5)
+
+# <codecell>
 all_a = np.array(hist['summary']).squeeze()
 all_a = all_a[:,sort_idxs]
 plt.plot(all_a[:, 0::10])
@@ -316,12 +319,26 @@ jax.nn.relu(xs_emb.sum(axis=0, keepdims=True) @ W_sort) @ a_sort
 # <codecell>
 proj = emb @ W_sort
 # plt.plot(proj[14::20,-5])
-s = proj[:-4,14]
-plt.imshow(s.reshape(-1, n_arms), cmap='BrBG', vmin=-10, vmax=10)
-plt.colorbar(shrink=0.5)
+s = proj[:-4,0]
+s = s.reshape(-1, n_arms)
+plt.imshow(s, cmap='BrBG', vmin=-10, vmax=10)
+# plt.colorbar(shrink=0.1)
 
 # <codecell>
-xs = next(test_task)[0]
+proj = emb @ W_sort
+s = proj[:-4,22]
+
+s = s.reshape(-1, n_arms)
+
+coeffs = np.fft.rfft(s[:,0])
+freqs = np.fft.rfftfreq(len(s), d=1/len(s))
+
+plt.plot(freqs, np.abs(coeffs))
+# freqs
+
+
+# <codecell>
+xs = next(train_task)[0]
 xs_emb = emb[xs]
 out = (xs_emb @ W_sort).sum(axis=1)
 
@@ -600,8 +617,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -615,7 +632,7 @@ def extract_plot_vals(row):
         row['config']['residual_connections'],
         row['config']['n_layers'],
         row['train_args']['lr'],
-        row['hist']['test'][-1]['acc'].item(),
+        row['hist']['test'][20]['acc'].item(),
         row['train_args']['gamma'] if 'gamma' in row['train_args'] else -1,
         row['info'],
     ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'n_layers',  'lr', 'acc_hist', 'gamma', 'info'])
@@ -649,9 +666,9 @@ mdf = mdf[(mdf['test_n_hop'] == 5)
         #   & (mdf['resid'] == False)
           ]
 
-mdf = mdf[['n_arms', 'n_hidden', 'acc']]
+mdf = mdf[['n_arms', 'n_hidden', 'acc_hist']]
 mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
-mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
+mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc_hist')
 
 mdf = mdf.iloc[::-1]
 
@@ -764,7 +781,7 @@ plt.title('Zero long')
 plt.show()
 
 # <codecell>
-df = collate_dfs('remote/12_scale/ar_length', show_progress=True)
+df = collate_dfs('remote/12_scale/ar_length/', show_progress=True)
 df
 
 # <codecell>
@@ -794,7 +811,7 @@ def extract_plot_vals(row):
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         row['config']['n_layers'],
-        row['hist']['test'][10]['acc'].item(),
+        row['hist']['test'][50]['acc'].item(),
         n_hop_prop,
         row['info'],
     ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_layers', 'acc_hist', 'n_hop_prop', 'info'])
@@ -840,11 +857,11 @@ g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 30 - 2 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 20 - 2 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 38 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
 
-g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 14 - 0.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 28 - 0.33 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('depth')

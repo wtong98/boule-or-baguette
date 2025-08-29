@@ -10,7 +10,7 @@ from .data import *
 lean_repl_path = r'util/repl'
 
 
-def format_example(n_atoms: int, prop: Proposition, proof: Proof):
+def format_example(n_atoms: int, prop: Proposition, proof: Proof, proof_to_string=True):
     ctx = StateTrackingCtx(n_atoms, prop)
 
     init_state = build_state(ctx.get_cur_tactic_state(), 0)
@@ -27,11 +27,16 @@ def format_example(n_atoms: int, prop: Proposition, proof: Proof):
     proof_states = [int(e.get('id')) for e in result if e.tag == 'state']
     proof_length = max(proof_states) if len(proof_states) > 0 else 0
     uniq_ops = set([standardize(e.text) for e in result if e.tag == 'tactic'])
+
+    if proof_to_string:
+        proof = ''.join([et.tostring(r, encoding='utf-8').decode('utf-8') for r in result])
+    else:
+        proof = result
     
     ex = {
         'input': et.tostring(init_state, encoding='utf-8').decode('utf-8'),
         'is_true': is_succ,
-        'proof': ''.join([et.tostring(r, encoding='utf-8').decode('utf-8') for r in result]),
+        'proof': proof,
         'length': proof_length,
         'ops': list(uniq_ops)
     }

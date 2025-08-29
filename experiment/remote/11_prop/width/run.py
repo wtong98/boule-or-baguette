@@ -23,10 +23,11 @@ print('RUN ID', run_id)
 run_split = 12
 
 batch_size = 8
-multistep_k = 16
-train_iters = multistep_k * 100_000
-warmup_iters = multistep_k * 2000
+multistep_k = 8
+train_iters = 100_000
+warmup_iters = 2000
 eval_k = 12
+max_len = 2000
 
 n_hops = [4, 8, 12, 20]
 
@@ -93,7 +94,8 @@ for n_hop in n_hops:
             'depth': n_hop,
             'split': split,
             'batch_size': batch_size,
-            'filter_ops': PropTask.imply_ops
+            'filter_ops': PropTask.imply_ops,
+            'max_len': max_len
         }
 
         return PropTask(cot=cot, **task_args)
@@ -166,7 +168,7 @@ for case in tqdm(all_cases):
     n_hop = case.test_task.depth
     case.eval(case.test_task, eval_fns=case.train_args['eval_fns'], prefix=n_hop, n_iters=eval_k)
 
-    save_name = f'{case.name}_{n_hop}_filterOr_weights.pkl'
+    save_name = f'{case.name}_{n_hop}_filterImply_weights.pkl'
 
     with (save_dir / save_name).open('wb') as fp:
         pickle.dump(case.state.params, fp)

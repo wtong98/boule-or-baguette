@@ -1,6 +1,8 @@
 """Proposition task"""
 
 # <codecell>
+import os
+
 from datasets import DatasetDict, concatenate_datasets
 import jax
 import jax.numpy as jnp
@@ -19,6 +21,7 @@ except ImportError:
 
 
 ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
+# ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 
 
 class PropTask:
@@ -26,13 +29,16 @@ class PropTask:
     imply_ops = {'split Imply', 'intro h', 'exact', 'apply True', 'efq'}
     n_vocab = 50257
 
-    def __init__(self, depth, split='train', filter_ops=None, cot=False, batch_size=128) -> None:
+    def __init__(self, depth, split='train', filter_ops=None, max_len=None, cot=False, grow_fac=1, n_proc=None, batch_size=128) -> None:
         assert batch_size > 1, f'require batch_size={batch_size} > 1'
         
         self.depth = depth
         self.split = split
         self.filter_ops = filter_ops
+        self.max_len = max_len
         self.cot = cot
+        self.grow_fac = grow_fac
+        self.n_proc = n_proc if n_proc is not None else os.cpu_count()
         self.batch_size = batch_size
 
         self.ds = None
@@ -78,13 +84,20 @@ class PropTask:
             def matches_ops(ex):
                 return set(ex['ops']).issubset(self.filter_ops)
 
-            self.true_ds = self.true_ds.filter(matches_ops)
-            self.false_ds = self.false_ds.filter(matches_ops)
+            self.true_ds = self.true_ds.filter(matches_ops, num_proc=self.n_proc)
+            self.false_ds = self.false_ds.filter(matches_ops, num_proc=self.n_proc)
+        
+        if self.max_len is not None:
+            def filter_len(ex):
+                return len(ex['full_ids']) <= self.max_len
+
+            self.true_ds = self.true_ds.filter(filter_len, num_proc=self.n_proc)
+            self.false_ds = self.false_ds.filter(filter_len, num_proc=self.n_proc)
         
         self.max_true = len(self.true_ds)
         self.max_false = len(self.false_ds)
 
-        if self.max_true == 0 or self.max_false == 0:
+        if self.max_true <= 1 or self.max_false <= 1:
             print(f'warn: insufficient examples: max_true={self.max_true} and max_false={self.max_false}')
 
         if self.cot:
@@ -126,6 +139,12 @@ class PropTask:
         batch = self.collate(batch)
         
         xs = batch['input_ids']
+        if self.grow_fac > 1:
+            new_size = int(xs.shape[1] * self.grow_fac)
+            new_xs = np.zeros((xs.shape[0], new_size)).astype(int)
+            new_xs[:,:xs.shape[1]] = xs
+            xs = new_xs
+
         if self.cot:
             ys = xs[:,1:]
             xs = xs[:,:-1]
@@ -138,8 +157,22 @@ class PropTask:
     def __iter__(self):
         return self
 
-# task_test = PropTask(depth=3, batch_size=5, split='test', cot=True, filter_ops=PropTask.imply_ops)
-# xs, ys = next(task_test)
+# task = PropTask(depth=20, batch_size=5, split='test', cot=True, grow_fac=1, max_len=2000)
+# # task = PropTask(depth=3, batch_size=5, split='test', cot=True, filter_ops=PropTask.imply_ops, grow_fac=1)
+# xs, ys = next(task)
+# xs.shape
+
+# # <codecell>
+# all_lens = task.false_ds.map(lambda ex: {'len': len(ex['input_ids'])}, num_proc=16)['len']
+# all_lens
+
+# # <codecell>
+# import matplotlib.pyplot as plt
+# plt.hist(all_lens, bins=50)
+# np.quantile(all_lens, [0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
+
+# # quantiles for depth 3:  array([ 428.,  552.,  680.,  813.,  939., 1518.])
+# # quantiles for depth 20: array([ 779., 1073., 1659., 2269., 2599., 4025.])
 
 # # <codecell>
 # tok = get_tokenizer()
@@ -147,16 +180,16 @@ class PropTask:
 
 # # <codecell>
 # # tok.decode(task_test.true_ds[10000]['input_ids'])
-# task_test.true_ds[10000]['ops']
+# task.true_ds[0]['ops']
 
 # # <codecell>
-# count_ops(task_test.false_ds)
+# count_ops(task.false_ds)
 
 # # <codecell>
 # def matches_ops(ex):
 #     return set(ex['ops']).issubset(PropTask.imply_ops)
 
-# filt_ds = task_test.ds.filter(matches_ops)
+# filt_ds = task.ds.filter(matches_ops)
 
 # # <codecell>
 # t_vals = []
@@ -204,31 +237,82 @@ class PropTask:
 
 # final indices: [3, 5, 7, 12]
 
-# <codecell>
+# # <codecell>
+# from train import *
+# from model.transformer import TransformerConfig
 
+# n_vocab = len(task.tokenizer)
+
+# config = TransformerConfig(n_layers=2,
+#                            n_vocab=n_vocab,
+#                            n_out=n_vocab,
+#                            n_hidden=128,
+#                            pos_emb=False,
+#                            n_mlp_layers=2,
+#                            n_heads=1,
+#                            layer_norm=True,
+#                            as_rf_model=False,
+#                            residual_connections=True,
+#                            freeze_emb=True,
+#                            use_bias=False,
+#                            return_format=None,
+#                            mup_scale=True,
+#                            linear_att=False
+#                            )
+
+# state, hist = train(config,
+#                     train_iter=task,
+#                     loss='ce_mask',
+#                     test_every=1000,
+#                     test_iters=1,
+#                     train_iters=0,
+#                     use_tqdm=True,
+#                     eval_fns=[loss_and_acc, gen_acc_cot_prop],
+#                     print_fn=print_gen,
+#                     )
+
+# state
+
+
+# <codecell>
 yes_id = 13138
 no_id = 32165
 state_id = 5219
 
 # NOTE: un-optimized and very expensive to run
-# TODO: give extra buffer for x
-def gen_acc_cot_prop(state, batch, loss=None):
+def _old_gen_acc_cot_prop(state, batch, loss=None):
     tot_correct = 0
     all_exs = batch[0]
 
     for xs in tqdm(all_exs):
+        xs = jnp.array(xs)
         start_idx = jnp.argmax((xs[2:] == state_id)) + 4
         preds = generate(state, xs, idx=start_idx)
         tot_correct += score(xs, preds)
     
     return {'gen_acc': tot_correct / len(all_exs)}
-        
+    
+
+def gen_acc_cot_prop(state, batch, loss=None):
+    seed = new_seed()
+    return fast_gen_acc_cot_prop(state, batch, seed)
+
 
 @jax.jit
+def fast_gen_acc_cot_prop(state, batch, seed):
+    xs = batch[0]
+
+    start_idxs = jnp.argmax((xs[0,2:] == state_id), axis=-1) + 4
+    preds = fast_generate(state, xs, idx=start_idxs, seed=seed)
+    gen_acc = score(xs, preds)
+
+    return {'gen_acc': np.mean(gen_acc), 'preds': preds}
+        
+
 def score(xs, preds):
-    is_true = jnp.argmax(xs == yes_id) > 0
-    pred_is_true = jnp.argmax(preds == yes_id) > 0
-    pred_is_false = jnp.argmax(preds == no_id) > 0
+    is_true = jnp.argmax(xs == yes_id, axis=-1) > 0
+    pred_is_true = jnp.argmax(preds == yes_id, axis=-1) > 0
+    pred_is_false = jnp.argmax(preds == no_id, axis=-1) > 0
 
     return is_true * pred_is_true + (1 - is_true) * pred_is_false
 
@@ -247,10 +331,28 @@ def generate(state, xs, idx, beta=1, seed=None):
     return xs.squeeze()
 
 
-@jax.jit
+def fast_generate(state, xs, idx, beta=1, seed=0):
+    max_len = xs.shape[1]
+
+    def cond_fun(val):
+        _, idx, _ = val
+        return jnp.any(idx < max_len - 1)
+
+    def body_fun(val):
+        xs, idx, key = val
+        key, subkey = jax.random.split(key)
+        xs = _gen_pass(subkey, state, xs, idx, beta)
+        next_idx = idx + 1 * (idx < max_len - 1)
+        return xs, next_idx, key
+
+    key = jax.random.PRNGKey(seed)
+    xs, idx, _ = jax.lax.while_loop(cond_fun, body_fun, (xs, idx, key))
+    return xs.squeeze()
+
+
 def _gen_pass(key, state, xs, idx, beta):
     logits = state.apply_fn({'params': state.params}, xs)
-    pred = jax.random.categorical(key, beta * logits[0,idx])
-    xs = xs.at[0,idx+1].set(pred)
+    pred = jax.random.categorical(key, beta * logits[:,idx])
+    xs = xs.at[:,idx+1].set(pred)
     return xs
 

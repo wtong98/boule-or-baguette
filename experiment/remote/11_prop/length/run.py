@@ -23,10 +23,11 @@ print('RUN ID', run_id)
 run_split = 12
 
 batch_size = 8
-multistep_k = 16
-train_iters = multistep_k * 100_000
-warmup_iters = multistep_k * 2000
+multistep_k = 8
+train_iters = 100_000
+warmup_iters = 2000
 eval_k = 12
+max_len = 2000
 
 n_hops = [3, 5, 7, 12]
 
@@ -51,6 +52,8 @@ save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights')
 # n_hidden = 100
 # n_layer = 1
 # n_head = 1
+
+# max_len = 100
 
 # save_dir = Path('.').parent
 ### END TEST CONFIGS
@@ -92,7 +95,8 @@ for n_hop in n_hops:
         task_args = {
             'depth': n_hop,
             'split': split,
-            'batch_size': batch_size
+            'batch_size': batch_size,
+            'max_len': max_len,
         }
 
         return PropTask(cot=cot, **task_args)
