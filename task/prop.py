@@ -306,7 +306,8 @@ def fast_gen_acc_cot_prop(state, batch, seed):
     preds = fast_generate(state, xs, idx=start_idxs, seed=seed)
     gen_acc = score(xs, preds)
 
-    return {'gen_acc': np.mean(gen_acc), 'preds': preds}
+    # return {'gen_acc': np.mean(gen_acc), 'preds': preds}
+    return {'gen_acc': np.mean(gen_acc)}
         
 
 def score(xs, preds):

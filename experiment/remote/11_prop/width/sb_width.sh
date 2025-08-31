@@ -3,7 +3,7 @@
 #SBATCH -t 3-00:00:00
 #SBATCH -p kempner_h100,kempner
 #SBATCH --gres=gpu:1
-#SBATCH --mem=64000
+#SBATCH --mem=96000
 #SBATCH -o log.%A.%a.out
 #SBATCH -e log.%A.%a.err
 #SBATCH --array=1-12

@@ -27,7 +27,7 @@ multistep_k = 8
 train_iters = 100_000
 warmup_iters = 2000
 eval_k = 12
-max_len = 2000
+max_len = 1000
 
 n_hops = [3, 5, 7, 12]
 
