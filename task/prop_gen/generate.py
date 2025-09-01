@@ -40,19 +40,27 @@ run_id = uuid.uuid4()
 print('RUN_ID', run_id)
 
 # total number of tokens with this configuration is 1559127906 (about 1.6 billion)
+# n_atoms = 3
+# max_nodes = 5
+# n_cores = 16 * 16
+# keep = 'until_success'
+
+
+# total number of tokens with this configuration is ?
 n_atoms = 3
 max_nodes = 5
 n_cores = 16 * 16
+keep = 'simplest'
 
-run_split = 12
+run_split = 16
 
-out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/extra')
+out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/trunc')
 
 ### START TEST CONFIG
 # out_dir = Path('test_data')
-# n_cores = 1
+# n_cores = 64
 # n_atoms = 2
-# max_nodes = 2
+# max_nodes = 3
 ### END TEST CONFIG
 
 if not out_dir.exists():
@@ -67,7 +75,7 @@ total_ex = sum(n_combo(n_atoms, n) for n in range(1, max_nodes + 1))
 pbar = tqdm(total=total_ex // run_split)
 
 def write_example(prop):
-    proof = prove(prop, keep='until_success')
+    proof = prove(prop, keep=keep)
     ex = format_example(n_atoms, prop, proof)
     pbar.update(1)
 

@@ -1,6 +1,8 @@
 """Exploring generalization on prop task"""
 
 # <codecell>
+import pickle
+
 import matplotlib.pyplot as plt
 import numpy as np
 import optax
@@ -71,8 +73,9 @@ state, hist = train(config,
 
 
 # <codecell>
-# df = collate_dfs('remote/11_prop/length', show_progress=True)
-df = collate_dfs('remote/11_prop/width', show_progress=True)
+df = collate_dfs('remote/11_prop/length', show_progress=True)
+# df = collate_dfs('remote/11_prop/width', show_progress=True)
+# df = collate_dfs('remote/11_prop/width/set2_imply', show_progress=True)
 df
 
 # %%
@@ -102,9 +105,51 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-g = sns.barplot(plot_df, x='test_n_hop', y='acc', hue='name', hue_order=['Zero', 'Zero (small)', 'AR full'])
+g = sns.barplot(plot_df, x='test_n_hop', y='acc', hue='name', hue_order=['Zero', 'Zero (small)', 'AR full'], estimator='mean')
 g.set_ylim(0.4, 1)
 g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
 g.set_title('Imply-only dataset')
 
 # plt.savefig('fig/prop_task_or_only.png')
+
+# <codecell>
+### MODEL INSPECTION
+with open('remote/11_prop/weights/AR_full_20_filterImply_weights.pkl', 'rb') as fp:
+    params = pickle.load(fp)
+
+# <codecell>
+task = PropTask(5, split='train', cot=True, batch_size=2, filter_ops=PropTask.imply_ops, max_len=1000)
+xs = next(task)
+
+# <codecell>
+xs = jnp.array(task.true_ds[0]['input_ids'])
+# xs = jnp.concat([xs, jnp.zeros(200).astype(int)])
+len(xs)
+
+# <codecell>
+cfg = TransformerConfig(n_heads=12, 
+                    n_out=len(task.tokenizer),
+                    n_vocab=len(task.tokenizer),
+                    n_layers=12,
+                    n_hidden=768,
+                    pos_emb=False, 
+                    return_format=None,
+                    n_mlp_layers=2,
+                    layer_norm=True,
+                    residual_connections=True,
+                    mup_scale=True,
+                    linear_att=False)
+
+state = create_train_state(model=cfg.to_model(), params=params)
+state.apply_fn({'params': state.params}, xs[None, :])
+
+# %%
+out = fast_gen_acc_cot_prop(state, (xs[None], 1), seed=new_seed(), return_preds=True)
+out
+
+# <codecell>
+def dec(ids):
+    return print(task.tokenizer.decode(ids))
+
+dec(out['preds'])
+dec(xs)

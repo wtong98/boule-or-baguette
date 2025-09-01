@@ -1,6 +1,7 @@
 """Proposition task"""
 
 # <codecell>
+import functools
 import os
 
 from datasets import DatasetDict, concatenate_datasets
@@ -298,15 +299,17 @@ def gen_acc_cot_prop(state, batch, loss=None):
     return fast_gen_acc_cot_prop(state, batch, seed)
 
 
-@jax.jit
-def fast_gen_acc_cot_prop(state, batch, seed):
+@functools.partial(jax.jit, static_argnames=['return_preds'])
+def fast_gen_acc_cot_prop(state, batch, seed, return_preds=False):
     xs = batch[0]
 
     start_idxs = jnp.argmax((xs[0,2:] == state_id), axis=-1) + 4
     preds = fast_generate(state, xs, idx=start_idxs, seed=seed)
     gen_acc = score(xs, preds)
 
-    # return {'gen_acc': np.mean(gen_acc), 'preds': preds}
+    if return_preds:
+        return {'gen_acc': np.mean(gen_acc), 'preds': preds}
+
     return {'gen_acc': np.mean(gen_acc)}
         
 

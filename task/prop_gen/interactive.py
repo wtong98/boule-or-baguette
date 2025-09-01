@@ -16,8 +16,7 @@ from util.sample import gen_batch, n_combo
 n_combo(3, 5)
 
 # <codecell>
-
-prop = Implies(Atom('p1'), Implies(PTrue(), PTrue()))
+prop = Implies(Atom('p1'), Or(PFalse(), PTrue()))
 
 
 print('PROP', prop)

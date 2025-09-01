@@ -262,6 +262,9 @@ def refine_choice(proof: Proof) -> Proof:
 
 
 def keep_simplest(p: Proof) -> Proof:
+    if proof_has_failed(p):
+        return keep_until_success(p)
+
     def make_choice(p: Proof) -> Optional[Proof]:
         match p:
             case FocusChoice(choices):
@@ -275,6 +278,7 @@ def keep_simplest(p: Proof) -> Proof:
                 return keep_simplest(min(success_choices, key=calculate_complexity))
             case _:
                 return None
+
     return map_proof(make_choice, p)
 
 
