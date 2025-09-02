@@ -7,7 +7,6 @@ from datasets import load_dataset, DatasetDict, Dataset
 from transformers import AutoTokenizer
 from tqdm import tqdm
 
-# <codecell>
 
 def get_tokenizer():
     tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
@@ -58,14 +57,8 @@ if __name__ == '__main__':
             'full_ids': inp_and_proof_toks['input_ids'],
         }
 
-    ds = ds.map(to_toks, batched=False)
+    ds = ds.map(to_toks, batched=False, num_proc=16)
     ds = DatasetDict({k: dataset.remove_columns(column_names=['proof', 'input']) for k, dataset in ds.items() if len(dataset) > 0})
 
-    ds.save_to_disk('data/hf_full')
-
-# # <codecell>
-#     ds = DatasetDict.load_from_disk('data/hf_full')
-
-# # <codecell>
-#     ds
+    ds.save_to_disk('data/hf_trunc')
 

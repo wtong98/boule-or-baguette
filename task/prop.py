@@ -55,24 +55,28 @@ class PropTask:
 
     def _slice_dataset(self, prefix, start, stop):
         all_ds = []
-        for i in range(start, stop):
-            key = f'{prefix}_{i}'
-            if key in self.ds:
-                all_ds.append(self.ds[key])
+        
+        for key in self.ds.keys():
+            name, i = key.split('_')
+            name = True if name == 'True' else False
+            i = int(i)
 
+            if start <= i < stop and name == prefix:
+                all_ds.append(self.ds[key])
+        
+        print('ALL_DS', all_ds)
         return concatenate_datasets(all_ds)
     
 
     def load_ds(self):
         self.ds = DatasetDict.load_from_disk(ds_path)
 
-        max_len = len(self.ds.keys()) // 2
         if self.split == 'train':
             self.true_ds = self._slice_dataset(True, 1, self.depth + 1)
             self.false_ds = self._slice_dataset(False, 1, self.depth + 1)
         elif self.split == 'test':
-            self.true_ds = self._slice_dataset(True, self.depth + 1, max_len + 1)
-            self.false_ds = self._slice_dataset(False, self.depth + 1, max_len + 1)
+            self.true_ds = self._slice_dataset(True, self.depth + 1, np.inf)
+            self.false_ds = self._slice_dataset(False, self.depth + 1, np.inf)
         elif self.split == 'range':
             self.true_ds = self._slice_dataset(True, self.depth[0], self.depth[1])
             self.false_ds = self._slice_dataset(False, self.depth[0], self.depth[1])
@@ -158,10 +162,11 @@ class PropTask:
     def __iter__(self):
         return self
 
-# task = PropTask(depth=20, batch_size=5, split='test', cot=True, grow_fac=1, max_len=2000)
-# # task = PropTask(depth=3, batch_size=5, split='test', cot=True, filter_ops=PropTask.imply_ops, grow_fac=1)
+# task = PropTask(depth=20, batch_size=5, split='train', cot=True, grow_fac=1)
 # xs, ys = next(task)
 # xs.shape
+
+# # <codecell>
 
 # # <codecell>
 # all_lens = task.false_ds.map(lambda ex: {'len': len(ex['input_ids'])}, num_proc=16)['len']
@@ -305,12 +310,20 @@ def fast_gen_acc_cot_prop(state, batch, seed, return_preds=False):
 
     start_idxs = jnp.argmax((xs[0,2:] == state_id), axis=-1) + 4
     preds = fast_generate(state, xs, idx=start_idxs, seed=seed)
-    gen_acc = score(xs, preds)
+    true_pos, true_neg, false_pos, false_neg = score(xs, preds)
+
+    res = {
+        'gen_acc': jnp.mean(true_pos + true_neg),
+        'true_pos': jnp.mean(true_pos),
+        'true_neg': jnp.mean(true_neg),
+        'false_pos': jnp.mean(false_pos),
+        'false_neg': jnp.mean(false_neg),
+    }
 
     if return_preds:
-        return {'gen_acc': np.mean(gen_acc), 'preds': preds}
+        res['preds'] = preds
 
-    return {'gen_acc': np.mean(gen_acc)}
+    return res
         
 
 def score(xs, preds):
@@ -318,7 +331,13 @@ def score(xs, preds):
     pred_is_true = jnp.argmax(preds == yes_id, axis=-1) > 0
     pred_is_false = jnp.argmax(preds == no_id, axis=-1) > 0
 
-    return is_true * pred_is_true + (1 - is_true) * pred_is_false
+    true_pos = is_true * pred_is_true
+    true_neg = (1 - is_true) * pred_is_false
+    false_pos = (1 - is_true) * pred_is_true
+    false_neg = is_true * pred_is_false
+
+    # return is_true * pred_is_true + (1 - is_true) * pred_is_false
+    return true_pos, true_neg, false_pos, false_neg
 
 
 def generate(state, xs, idx, beta=1, seed=None):
