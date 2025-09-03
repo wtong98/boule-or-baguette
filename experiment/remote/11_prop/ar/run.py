@@ -27,12 +27,9 @@ multistep_k = 8
 train_iters = 100_000
 warmup_iters = 2000
 eval_k = 12
-max_len = 1000
+max_len = 1024
 
 n_hops = [2, 3, 4, 5, 6, 10]
-
-range_hops = [1] + n_hops + [np.inf]
-ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
 n_hidden = 768
 n_layer = 12
@@ -52,14 +49,17 @@ save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights')
 
 # n_hops = [2]
 
-# n_hidden = 100
+# n_hidden = 64
 # n_layer = 1
 # n_head = 1
 
-# max_len = 100
+# max_len = 200
 
 # save_dir = Path('.').parent
 ### END TEST CONFIGS
+
+range_hops = [1] + [(h + 1) for h in n_hops] + [np.inf]
+ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
 all_cases = []
 
@@ -89,12 +89,11 @@ for n_hop in n_hops:
             )
         }
 
-        # TODO: include generation accuracy too
         args['eval_fns'] = [loss_and_acc]
         return args
 
 
-    def make_chain(cot=True, split='train', batch_size=128):
+    def make_chain(cot=True, split='train', batch_size=128, **kwargs):
         task_args = {
             'depth': n_hop,
             'split': split,
@@ -102,7 +101,7 @@ for n_hop in n_hops:
             'max_len': max_len,
         }
 
-        return PropTask(cot=cot, **task_args)
+        return PropTask(cot=cot, **task_args, **kwargs)
     
 
     all_cases.extend([
@@ -123,7 +122,6 @@ for n_hop in n_hops:
         #         test_task=make_chain(cot=False, split='test', batch_size=batch_size)
         # ), 
 
-        # TODO: configure with trunc option
         Case('AR full',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
@@ -137,10 +135,26 @@ for n_hop in n_hops:
                                   linear_att=False,
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
-                train_task=make_chain(cot=True, split='train', batch_size=batch_size),
-                test_task=make_chain(cot=True, split='test', batch_size=batch_size)
+                train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path),
+                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path)
         ), 
 
+        Case('AR trunc',
+                TransformerConfig(n_heads=n_head, 
+                                  n_out=n_vocab,
+                                  n_layers=n_layer,
+                                  pos_emb=False, 
+                                  return_format=None,
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=trunc_ds_path),
+                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=trunc_ds_path)
+        ), 
     ])
     
 all_cases = split_cases(all_cases, run_split)
@@ -154,9 +168,17 @@ for case in tqdm(all_cases):
         case.train_args['eval_fns'].append(gen_acc_cot_prop)
 
     for r in ranges:
-        case.test_task.depth = r
-        case.split = 'range'
-        case.eval(case.test_task, eval_fns=case.train_args['eval_fns'], prefix=r, n_iters=eval_k)
+        t = case.test_task
+        test_task = PropTask(depth=r, 
+                             split='range', 
+                             cot=t.cot, 
+                             batch_size=t.batch_size, 
+                             ds_path=t.ds_path, 
+                             max_len=max_len,
+                             filter_ops=t.filter_ops,
+                             padding='max_length')
+
+        case.eval(test_task, eval_fns=case.train_args['eval_fns'], prefix=r, n_iters=eval_k)
 
     save_name = f'{case.name}_{n_hop}_weights.pkl'
 

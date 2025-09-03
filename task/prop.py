@@ -21,8 +21,9 @@ except ImportError:
     from prop_gen.to_dataset import get_tokenizer, count_ops
 
 
-ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
-# ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
+trunc_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_trunc'
+full_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
+debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 
 
 class PropTask:
@@ -30,15 +31,15 @@ class PropTask:
     imply_ops = {'split Imply', 'intro h', 'exact', 'apply True', 'efq'}
     n_vocab = 50257
 
-    def __init__(self, depth, split='train', filter_ops=None, max_len=None, cot=False, grow_fac=1, n_proc=None, batch_size=128) -> None:
+    def __init__(self, depth, ds_path=None, split='train', filter_ops=None, max_len=None, padding='longest', cot=False, n_proc=None, batch_size=128) -> None:
         assert batch_size > 1, f'require batch_size={batch_size} > 1'
         
         self.depth = depth
+        self.ds_path = ds_path if ds_path is not None else debug_ds_path
         self.split = split
         self.filter_ops = filter_ops
         self.max_len = max_len
         self.cot = cot
-        self.grow_fac = grow_fac
         self.n_proc = n_proc if n_proc is not None else os.cpu_count()
         self.batch_size = batch_size
 
@@ -50,7 +51,7 @@ class PropTask:
         self.max_false = None
 
         self.tokenizer = get_tokenizer()
-        self.collate = DataCollatorWithPadding(self.tokenizer, return_tensors='np')
+        self.collate = DataCollatorWithPadding(self.tokenizer, return_tensors='np', max_length=max_len, padding=padding)
     
 
     def _slice_dataset(self, prefix, start, stop):
@@ -64,12 +65,11 @@ class PropTask:
             if start <= i < stop and name == prefix:
                 all_ds.append(self.ds[key])
         
-        print('ALL_DS', all_ds)
         return concatenate_datasets(all_ds)
     
 
     def load_ds(self):
-        self.ds = DatasetDict.load_from_disk(ds_path)
+        self.ds = DatasetDict.load_from_disk(self.ds_path)
 
         if self.split == 'train':
             self.true_ds = self._slice_dataset(True, 1, self.depth + 1)
@@ -144,11 +144,11 @@ class PropTask:
         batch = self.collate(batch)
         
         xs = batch['input_ids']
-        if self.grow_fac > 1:
-            new_size = int(xs.shape[1] * self.grow_fac)
-            new_xs = np.zeros((xs.shape[0], new_size)).astype(int)
-            new_xs[:,:xs.shape[1]] = xs
-            xs = new_xs
+        # if self.grow_fac > 1:
+        #     new_size = int(xs.shape[1] * self.grow_fac)
+        #     new_xs = np.zeros((xs.shape[0], new_size)).astype(int)
+        #     new_xs[:,:xs.shape[1]] = xs
+        #     xs = new_xs
 
         if self.cot:
             ys = xs[:,1:]
@@ -162,7 +162,7 @@ class PropTask:
     def __iter__(self):
         return self
 
-# task = PropTask(depth=20, batch_size=5, split='train', cot=True, grow_fac=1)
+# task = PropTask(depth=20, batch_size=5, split='test', cot=True, ds_path=full_ds_path, max_len=1024, padding='max_length')
 # xs, ys = next(task)
 # xs.shape
 
