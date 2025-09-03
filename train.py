@@ -150,6 +150,29 @@ def loss_and_acc(state, batch, loss='bce'):
 
 
 @partial(jax.jit, static_argnames=('loss'))
+def decomp_flat_acc(state, batch, loss=None):
+    x, labels = batch
+    logits = state.apply_fn({'params': state.params}, x)
+
+    if len(logits.shape) == 1:
+        preds = logits > 0
+    else:
+        preds = logits.argmax(axis=-1)
+    
+    true_pos = labels * preds
+    true_neg = (1 - labels) * (1 - preds)
+    false_pos = (1 - labels) * preds
+    false_neg = labels * (1 - preds)
+
+    return {
+        'true_pos': jnp.mean(true_pos),
+        'true_neg': jnp.mean(true_neg),
+        'false_pos': jnp.mean(false_pos),
+        'false_neg': jnp.mean(false_neg),
+    }
+
+
+@partial(jax.jit, static_argnames=('loss'))
 def gen_acc_cot2(state, batch, loss=None):
     xs, ys = batch
     ys = ys[:,2:]
