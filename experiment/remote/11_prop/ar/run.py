@@ -20,7 +20,7 @@ from task.prop import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 18
 
 batch_size = 8
 multistep_k = 8
@@ -105,24 +105,7 @@ for n_hop in n_hops:
     
 
     all_cases.extend([
-        # Case('Zero',
-        #         TransformerConfig(n_heads=n_head,
-        #                           n_out=1,
-        #                           n_layers=n_layer,
-        #                           pos_emb=True, 
-        #                           return_format='final_logit_up_to_pad',
-        #                           n_mlp_layers=2,
-        #                           layer_norm=True,
-        #                           residual_connections=True,
-        #                           mup_scale=True,
-        #                           linear_att=False,
-        #                           **model_args),
-        #         train_args=make_train_args('bce'),
-        #         train_task=make_chain(cot=False, split='train', batch_size=batch_size),
-        #         test_task=make_chain(cot=False, split='test', batch_size=batch_size)
-        # ), 
-
-        Case('AR full',
+        Case('AR_full',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,
@@ -136,10 +119,29 @@ for n_hop in n_hops:
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path),
-                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path)
+                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path),
+                info={'n_hop': n_hop}
         ), 
 
-        Case('AR trunc',
+        Case('AR_imply',
+                TransformerConfig(n_heads=n_head, 
+                                  n_out=n_vocab,
+                                  n_layers=n_layer,
+                                  pos_emb=False, 
+                                  return_format=None,
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
+                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
+                info={'n_hop': n_hop}
+        ), 
+
+        Case('AR_trunc',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,

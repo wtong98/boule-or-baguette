@@ -155,7 +155,7 @@ class SimpleSelfAttention(nn.Module):
                 attn_weights = jax.nn.softmax(attn_weights, axis=-1)
 
 
-        self.sow('intermediates', 'attention_logits', attn_weights)
+        self.sow('intermediates', 'attention_weights', attn_weights)
         out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
 
         if self.config.mup_scale:

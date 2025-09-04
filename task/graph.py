@@ -537,7 +537,7 @@ def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True, nouveau=
         n_nodes = n_arms * depth
         chain = (chain + n_nodes) % n_nodes
         resp = (chain == parents[:,None]).sum(axis=1, keepdims=True)
-        chain = jnp.concat((chain + 3, resp + 1), axis=1)
+        chain = jnp.concat((chain + 3, resp + 1, jnp.zeros((batch_size, 1))), axis=1)
     else:
         root_pos = (0 >= chain) & (chain > -(n_arms - 1))
         chain = chain + root_pos * (1 - chain)
@@ -666,8 +666,6 @@ def _circle_samp_off(key, depth, samp_dist, batch_size):
     children += (1 - ring) * depth
 
     return jnp.stack((parents, children), axis=1)
-
-
 
 
 @functools.partial(jax.jit, static_argnums=(1,2,3))

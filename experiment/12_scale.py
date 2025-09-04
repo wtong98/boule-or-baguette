@@ -15,16 +15,16 @@ from model.mlp import MlpConfig
 from model.transformer import *
 from task.graph import *
 
-depth = 100
+depth = 30
 n_hidden = 512
 
-cot = False
+cot = True
 ttr = True
 nouveau = True
-force_bin_label = True
+force_bin_label = False
 n_arms = 10
-n_hop = 20
-test_n_hop = 30
+n_hop = 15
+test_n_hop = 21
 
 batch_size = n_arms * depth
 
@@ -33,9 +33,9 @@ n_vocab = n_arms * depth + 1 + StarfishTask.offset
 train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
 test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
 
-# xs, ys = next(train_task)
-# print(xs[:3])
-# print(ys[:3])
+xs, ys = next(train_task)
+print(xs[:3])
+print(ys[:3])
 
 # # <codecell>
 # train_task.batch_size = 4096
@@ -68,21 +68,22 @@ test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), bat
 
 config = TransformerConfig(n_layers=1,
                            n_vocab=n_vocab,
-                        #    n_out=n_vocab if cot else 1,
-                           n_out=1,
+                           n_out=n_vocab if cot else 1,
+                        #    n_out=1,
                            n_hidden=n_hidden,
                            pos_emb=False,
                            n_mlp_layers=2,
                            n_heads=1,
                            layer_norm=False,
                            as_rf_model=False,
-                        #    residual_connections=True if cot else False,
-                           residual_connections=False,
+                           residual_connections=True if cot else False,
+                        #    residual_connections=False,
                            freeze_emb=True,
                            use_bias=False,
-                           return_format='final_logit_up_to_pad' if cot else 'final_logit',
+                        #    return_format='final_logit_up_to_pad' if cot else 'final_logit',
+                           return_format=None,
                            mup_scale=True,
-                           unif_att=True
+                           unif_att=False
                            )
 
 # <codecell>
@@ -104,14 +105,14 @@ state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     test_iters=1,
-                    # loss='ce_mask' if cot else 'bce',
-                    loss='bce',
+                    loss='ce_mask' if cot else 'bce',
+                    # loss='bce',
                     test_every=1000,
-                    train_iters=25_000,
-                    # eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
-                    eval_fns=None,
-                    # print_fn=print_gen if cot else None,
-                    print_fn=None,
+                    train_iters=20_000,
+                    eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
+                    # eval_fns=None,
+                    print_fn=print_gen if cot else None,
+                    # print_fn=None,
                     lr=lr * gamma,
                     gamma=gamma,
                     optim=optax.adamw,
@@ -122,10 +123,19 @@ state, hist = train(config,
 # <codecell>
 xs, ys = next(test_task)
 
-preds = state.apply_fn({'params': state.params}, xs)
-print(np.mean((preds > 0) == ys))
+preds, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 
-preds
+att = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
+
+plt.imshow(att[2])
+print(xs[2])
+
+# <codecell>
+plt.plot(att[2,-2])
+xs = np.linspace(0, 31)
+ys = np.ones(xs.shape) * 1 / 29
+plt.plot(xs, ys)
+
 
 # <codecell>
 ### ANALYSIS OF COT SIMP MODEL

@@ -48,7 +48,13 @@ def create_train_state(rng=None,
 
         if gamma is not None:
             logits_init = model.apply({'params': params}, *args, **kwargs)
+
+            if type(logits_init) is tuple:
+                val = (1 / gamma) * (logits[0] - logits_init[0])
+                return val, logits[1]
+
             logits = (1 / gamma) * (logits - logits_init)
+            return logits
 
         return logits
 
