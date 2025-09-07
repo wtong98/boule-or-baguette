@@ -84,15 +84,24 @@ df
 # <codecell>
 # rand_idxs = np.random.choice(len(df), size=100, replace=False)
 for ex in df1['hist']:
-    vals = [p['loss'] for p in ex['train']]
+    vals = [p['acc'] for p in ex['train']]
     plt.plot(vals, color='C0', alpha=0.1)
 
 # %%
 def extract_plot_vals(row):
+    if 'n_hop' in row['info']:
+        train_hop = row['info']['n_hop']
+        new_info = row['info'].copy()
+        new_info.pop('n_hop')
+    else:
+        train_hop = 0
+        new_info = row['info']
+    
     return pd.Series([
         row['name'],
-        row['info'],
-    ], index=['name', 'info'])
+        train_hop,
+        new_info
+    ], index=['name', 'train_hop', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
@@ -117,7 +126,10 @@ plot_df['test_n_hop'] = n_hop_val
 plot_df
 
 # <codecell>
-g = sns.barplot(plot_df, x='test_n_hop', y='acc', hue='name', hue_order=['Direct', 'AR full', 'AR trunc'], estimator='mean')
+mdf = plot_df.copy()
+mdf = mdf[mdf['train_hop'] == 10]
+
+g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_imply'], estimator='mean')
 g.set_ylim(0.4, 1)
 g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
 # g.set_title('Imply-only dataset')
@@ -126,17 +138,16 @@ g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
 
 # <codecell>
 ### MODEL INSPECTION
-with open('remote/11_prop/weights/AR_full_20_filterImply_weights.pkl', 'rb') as fp:
+with open('remote/11_prop/weights/AR_full_10_weights.pkl', 'rb') as fp:
     params = pickle.load(fp)
 
 # <codecell>
-task = PropTask(5, split='train', cot=True, batch_size=2, filter_ops=PropTask.imply_ops, max_len=1000)
-xs = next(task)
+task = PropTask(5, split='train', cot=True, batch_size=8, max_len=1024, padding='max_length')
+xs, ys = next(task)
+xs.shape
 
 # <codecell>
-xs = jnp.array(task.true_ds[0]['input_ids'])
-# xs = jnp.concat([xs, jnp.zeros(200).astype(int)])
-len(xs)
+print(task.tokenizer.decode(xs[0]))
 
 # <codecell>
 cfg = TransformerConfig(n_heads=12, 
@@ -153,15 +164,40 @@ cfg = TransformerConfig(n_heads=12,
                     linear_att=False)
 
 state = create_train_state(model=cfg.to_model(), params=params)
-state.apply_fn({'params': state.params}, xs[None, :])
+state.apply_fn({'params': state.params}, xs)
 
 # %%
-out = fast_gen_acc_cot_prop(state, (xs[None], 1), seed=new_seed(), return_preds=True)
+out = fast_gen_acc_cot_prop(state, (xs, ys), seed=new_seed(), return_preds=True)
 out
 
 # <codecell>
 def dec(ids):
     return print(task.tokenizer.decode(ids))
 
-dec(out['preds'])
-dec(xs)
+dec(out['preds'][0])
+dec(xs[0])
+
+# <codecell>
+yes_id = 13138
+no_id = 32165
+
+np.argmax(out['preds'][1] == no_id)
+
+# <codecell>
+def score(xs, preds):
+    is_true = jnp.argmax(xs == yes_id, axis=-1) > 0
+    t = jnp.argmax(preds == yes_id, axis=-1)
+    f = jnp.argmax(preds == no_id, axis=-1)
+
+    pred_is_true = (t != 0) * ((f == 0) + (t < f))
+    pred_is_false = (f != 0) * ((t == 0) + (f < t))
+
+    true_pos = is_true * pred_is_true
+    true_neg = (1 - is_true) * pred_is_false
+    false_pos = (1 - is_true) * pred_is_true
+    false_neg = is_true * pred_is_false
+
+    # return is_true * pred_is_true + (1 - is_true) * pred_is_false
+    return true_pos, true_neg, false_pos, false_neg
+
+score(xs, out['preds'])

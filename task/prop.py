@@ -27,9 +27,10 @@ debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 
 
 class PropTask:
+    n_vocab = 512
+
     or_ops = {'apply Or', 'cases Or', 'intro h', 'exact', 'apply True', 'efq'}
     imply_ops = {'split Imply', 'intro h', 'exact', 'apply True', 'efq'}
-    n_vocab = 50257
 
     def __init__(self, depth, ds_path=None, split='train', filter_ops=None, max_len=None, padding='longest', cot=False, n_proc=None, batch_size=128) -> None:
         assert batch_size > 1, f'require batch_size={batch_size} > 1'
@@ -167,8 +168,6 @@ class PropTask:
 # xs.shape
 
 # # <codecell>
-
-# # <codecell>
 # all_lens = task.false_ds.map(lambda ex: {'len': len(ex['input_ids'])}, num_proc=16)['len']
 # all_lens
 
@@ -243,47 +242,13 @@ class PropTask:
 
 # final indices: [3, 5, 7, 12]
 
-# # <codecell>
-# from train import *
-# from model.transformer import TransformerConfig
-
-# n_vocab = len(task.tokenizer)
-
-# config = TransformerConfig(n_layers=2,
-#                            n_vocab=n_vocab,
-#                            n_out=n_vocab,
-#                            n_hidden=128,
-#                            pos_emb=False,
-#                            n_mlp_layers=2,
-#                            n_heads=1,
-#                            layer_norm=True,
-#                            as_rf_model=False,
-#                            residual_connections=True,
-#                            freeze_emb=True,
-#                            use_bias=False,
-#                            return_format=None,
-#                            mup_scale=True,
-#                            linear_att=False
-#                            )
-
-# state, hist = train(config,
-#                     train_iter=task,
-#                     loss='ce_mask',
-#                     test_every=1000,
-#                     test_iters=1,
-#                     train_iters=0,
-#                     use_tqdm=True,
-#                     eval_fns=[loss_and_acc, gen_acc_cot_prop],
-#                     print_fn=print_gen,
-#                     )
-
-# state
 
 
 # <codecell>
-yes_id = 13138
-no_id = 32165
-state_id = 5219
+# TODO: update IDs
+yes_id = 366
+no_id = 352
+state_id = 264
 
 # NOTE: un-optimized and very expensive to run
 def _old_gen_acc_cot_prop(state, batch, loss=None):
@@ -299,16 +264,16 @@ def _old_gen_acc_cot_prop(state, batch, loss=None):
     return {'gen_acc': tot_correct / len(all_exs)}
     
 
-def gen_acc_cot_prop(state, batch, loss=None):
+def gen_acc_cot_prop(state, batch, loss=None, **kwargs):
     seed = new_seed()
-    return fast_gen_acc_cot_prop(state, batch, seed)
+    return fast_gen_acc_cot_prop(state, batch, seed, **kwargs)
 
 
 @functools.partial(jax.jit, static_argnames=['return_preds'])
 def fast_gen_acc_cot_prop(state, batch, seed, return_preds=False):
-    xs = batch[0]
+    xs = jnp.array(batch[0])
 
-    start_idxs = jnp.argmax((xs[0,2:] == state_id), axis=-1) + 4
+    start_idxs = jnp.argmax((xs[:,2:] == state_id), axis=-1) + 4
     preds = fast_generate(state, xs, idx=start_idxs, seed=seed)
     true_pos, true_neg, false_pos, false_neg = score(xs, preds)
 
@@ -322,6 +287,8 @@ def fast_gen_acc_cot_prop(state, batch, seed, return_preds=False):
 
     if return_preds:
         res['preds'] = preds
+        res['xs'] = xs
+        res['start_idxs'] = start_idxs
 
     return res
         
@@ -359,13 +326,14 @@ def fast_generate(state, xs, idx, beta=1, seed=0):
 
     def cond_fun(val):
         _, idx, _ = val
-        return jnp.any(idx < max_len - 1)
+        # NOTE: technically off-by-one for a subset of runs
+        return jnp.any((idx + 1) < max_len - 1)
 
     def body_fun(val):
         xs, idx, key = val
         key, subkey = jax.random.split(key)
         xs = _gen_pass(subkey, state, xs, idx, beta)
-        next_idx = idx + 1 * (idx < max_len - 1)
+        next_idx = idx + 1 * ((idx + 1) < max_len - 1)
         return xs, next_idx, key
 
     key = jax.random.PRNGKey(seed)
@@ -374,8 +342,69 @@ def fast_generate(state, xs, idx, beta=1, seed=0):
 
 
 def _gen_pass(key, state, xs, idx, beta):
+    batch_size = xs.shape[0]
+
     logits = state.apply_fn({'params': state.params}, xs)
-    pred = jax.random.categorical(key, beta * logits[:,idx])
-    xs = xs.at[:,idx+1].set(pred)
+    pred = jax.random.categorical(key, beta * logits[jnp.arange(batch_size), idx])
+    xs = xs.at[jnp.arange(batch_size), idx + 1].set(pred)
     return xs
 
+
+# # <codecell>
+# from train import *
+# from model.transformer import TransformerConfig
+
+# n_vocab = len(task.tokenizer)
+
+# config = TransformerConfig(n_layers=2,
+#                            n_vocab=n_vocab,
+#                            n_out=n_vocab,
+#                            n_hidden=128,
+#                            pos_emb=False,
+#                            n_mlp_layers=2,
+#                            n_heads=1,
+#                            layer_norm=True,
+#                            as_rf_model=False,
+#                            residual_connections=True,
+#                            freeze_emb=True,
+#                            use_bias=False,
+#                            return_format=None,
+#                            mup_scale=True,
+#                            linear_att=False
+#                            )
+
+# state, hist = train(config,
+#                     train_iter=task,
+#                     loss='ce_mask',
+#                     test_every=1000,
+#                     test_iters=1,
+#                     train_iters=0,
+#                     use_tqdm=True,
+#                     eval_fns=[loss_and_acc, gen_acc_cot_prop],
+#                     print_fn=print_gen,
+#                     )
+
+# state
+
+# # <codecell>
+# out = gen_acc_cot_prop(state, next(task), return_preds=True)
+
+# # <codecell>
+# idx = 2
+# print(out['start_idxs'][idx])
+# print(np.argmax((out['xs'][idx][2:50]) == state_id))
+# print((out['xs'][idx][:100]))
+# print((out['preds'][idx][:100]))
+
+# idxs = out['xs'][idx][:50] == out['preds'][idx][:50]
+# out['xs'][idx][:50][idxs]
+# out['xs'][idx][42]
+# np.sum(idxs)
+
+# # <codecell>
+# xs = out['xs']
+# idx = out['start_idxs']
+
+# print(task.tokenizer.decode(out['preds'][0][:100]))
+# out['preds'][0][:100]
+# task.tokenizer.decode([18, 259, 273, 257, 264, 281])

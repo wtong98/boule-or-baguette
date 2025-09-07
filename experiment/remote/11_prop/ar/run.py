@@ -22,8 +22,8 @@ print('RUN ID', run_id)
 
 run_split = 18
 
-batch_size = 8
-multistep_k = 8
+batch_size = 64
+multistep_k = 1
 train_iters = 100_000
 warmup_iters = 2000
 eval_k = 12
@@ -155,7 +155,8 @@ for n_hop in n_hops:
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=trunc_ds_path),
-                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=trunc_ds_path)
+                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=trunc_ds_path),
+                info={'n_hop': n_hop}
         ), 
     ])
     
@@ -168,6 +169,8 @@ for case in tqdm(all_cases):
 
     if case.train_task.cot == True:
         case.train_args['eval_fns'].append(gen_acc_cot_prop)
+
+    case.eval(case.test_task, eval_fns=case.train_args['eval_fns'], prefix=(-1, -1), n_iters=eval_k)
 
     for r in ranges:
         t = case.test_task
@@ -182,6 +185,7 @@ for case in tqdm(all_cases):
 
         case.eval(test_task, eval_fns=case.train_args['eval_fns'], prefix=r, n_iters=eval_k)
 
+    n_hop = case.info['n_hop']
     save_name = f'{case.name}_{n_hop}_weights.pkl'
 
     with (save_dir / save_name).open('wb') as fp:

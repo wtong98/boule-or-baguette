@@ -2,6 +2,7 @@
 
 # <codecell>
 from collections import defaultdict
+from pathlib import Path
 
 from datasets import load_dataset, DatasetDict, Dataset
 from transformers import AutoTokenizer
@@ -9,8 +10,9 @@ from tqdm import tqdm
 
 
 def get_tokenizer():
-    tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
-    tokenizer.pad_token = '!'
+    tok_path = Path(__file__).parent / 'data' / 'tok'
+    tokenizer = AutoTokenizer.from_pretrained(str(tok_path))
+    tokenizer.pad_token = tokenizer.eos_token
     return tokenizer
 
 
@@ -42,16 +44,34 @@ def count_ops(dataset):
 
     return counts
 
-
 if __name__ == '__main__':
-    dataset = load_dataset('json', data_dir='data/raw', split='train', keep_in_memory=True)
+    dataset = load_dataset('json', data_dir='data/raw_trunc', split='train', keep_in_memory=True, num_proc=16)
+
+    if Path('data/tok').exists():
+        tokenizer = AutoTokenizer.from_pretrained('data/tok')
+    else:
+        tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
+
+        def make_corps(batch_size):
+            for i in range(0, len(dataset), batch_size):
+                inp = dataset[i:i+batch_size]['input']
+                proof = dataset[i:i+batch_size]['proof']
+                full = [a + b for a, b in zip(inp, proof)]
+                yield full
+
+        corps = make_corps(1000)
+
+        print('info: training tokenizer...')
+        tokenizer = tokenizer.train_new_from_iterator(corps, vocab_size=512)
+
+        tokenizer.save_pretrained('data/tok')
 
     ds = split_by_len(dataset)
-    tokenizer = get_tokenizer()
 
     def to_toks(ex):
         inp_toks = tokenizer(ex['input'], return_attention_mask=False)
         inp_and_proof_toks = tokenizer(ex['input'] + ex['proof'], return_attention_mask=False)
+
         return {
             'input_ids': inp_toks['input_ids'],
             'full_ids': inp_and_proof_toks['input_ids'],

@@ -22,8 +22,8 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-batch_size = 8
-multistep_k = 8
+batch_size = 64
+multistep_k = 1
 train_iters = 100_000
 warmup_iters = 2000
 eval_k = 12
@@ -53,7 +53,7 @@ save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights')
 # n_layer = 1
 # n_head = 1
 
-# max_len = 200
+# max_len = 500
 
 # save_dir = Path('.').parent
 ### END TEST CONFIGS
@@ -153,6 +153,8 @@ for case in tqdm(all_cases):
         case.train_args['eval_fns'].append(gen_acc_cot_prop)
     else:
         case.train_args['eval_fns'].append(decomp_flat_acc)
+    
+    case.eval(case.test_task, eval_fns=case.train_args['eval_fns'], prefix=(-1, -1), n_iters=eval_k)
 
     for r in ranges:
         t = case.test_task
