@@ -29,11 +29,16 @@ warmup_iters = 2000
 eval_k = 12
 max_len = 1024
 
-n_hops = [2, 3, 4, 5, 6, 10]
+# n_hops = [2, 3, 4, 5, 6, 10]
+n_hops = [2, 4, 6, 10]
 
-n_hidden = 768
-n_layer = 12
-n_head = 12
+# n_hidden = 768
+# n_layer = 12
+# n_head = 12
+
+n_hidden = 1024
+n_layer = 24
+n_head = 16
 
 save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights') 
 
