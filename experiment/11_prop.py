@@ -127,9 +127,9 @@ plot_df
 
 # <codecell>
 mdf = plot_df.copy()
-mdf = mdf[mdf['train_hop'] == 10]
+mdf = mdf[mdf['train_hop'] == 4]
 
-g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_imply'], estimator='mean')
+g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='mean')
 g.set_ylim(0.4, 1)
 g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
 # g.set_title('Imply-only dataset')
@@ -138,11 +138,11 @@ g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
 
 # <codecell>
 ### MODEL INSPECTION
-with open('remote/11_prop/weights/AR_full_10_weights.pkl', 'rb') as fp:
+with open('remote/11_prop/weights/AR_full_4_weights.pkl', 'rb') as fp:
     params = pickle.load(fp)
 
 # <codecell>
-task = PropTask(5, split='train', cot=True, batch_size=8, max_len=1024, padding='max_length')
+task = PropTask(5, split='train', cot=True, batch_size=8, max_len=1024, padding='max_length', ds_path=full_ds_path)
 xs, ys = next(task)
 xs.shape
 
@@ -174,8 +174,8 @@ out
 def dec(ids):
     return print(task.tokenizer.decode(ids))
 
-dec(out['preds'][0])
-dec(xs[0])
+dec(out['preds'][-1])
+dec(xs[-1])
 
 # <codecell>
 yes_id = 13138

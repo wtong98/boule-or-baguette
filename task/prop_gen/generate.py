@@ -47,14 +47,21 @@ print('RUN_ID', run_id)
 
 
 # total number of tokens with this configuration is ?
+# n_atoms = 3
+# max_nodes = 5
+# n_cores = 16 * 16
+# keep = 'simplest'
+
+# total number of tokens with this configuration is ?
+# NOTE: generation ops set to Implies only
 n_atoms = 3
-max_nodes = 5
+max_nodes = 7
 n_cores = 16 * 16
-keep = 'simplest'
+keep = 'until_success'
 
-run_split = 16
+run_split = 24
 
-out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/trunc')
+out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/implies')
 
 ### START TEST CONFIG
 # out_dir = Path('test_data')

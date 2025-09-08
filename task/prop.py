@@ -23,7 +23,7 @@ except ImportError:
 
 trunc_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_trunc'
 full_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
-debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
+# debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 
 
 class PropTask:
@@ -270,11 +270,11 @@ def gen_acc_cot_prop(state, batch, loss=None, **kwargs):
 
 
 @functools.partial(jax.jit, static_argnames=['return_preds'])
-def fast_gen_acc_cot_prop(state, batch, seed, return_preds=False):
+def fast_gen_acc_cot_prop(state, batch, seed, beta=1, return_preds=False):
     xs = jnp.array(batch[0])
 
     start_idxs = jnp.argmax((xs[:,2:] == state_id), axis=-1) + 4
-    preds = fast_generate(state, xs, idx=start_idxs, seed=seed)
+    preds = fast_generate(state, xs, idx=start_idxs, beta=beta, seed=seed)
     true_pos, true_neg, false_pos, false_neg = score(xs, preds)
 
     res = {

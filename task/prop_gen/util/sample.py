@@ -1,14 +1,17 @@
 """Enumerate new propositions"""
 
+# <codecell>
 import itertools as it
 import math
 
-from .data import *
+try:
+    from .data import *
+except ImportError:
+    from data import *
 
-ops = [And, Or, Implies]
+# ops = [And, Or, Implies]
+ops = [Implies]
 
-n_atoms = 5
-n_nodes = 3
 
 def gen_batch(n_atoms, n_nodes):
     atoms = [PFalse(), PTrue()] + [Atom(f'p{i+1}') for i in range(n_atoms)]
