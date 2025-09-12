@@ -76,8 +76,8 @@ state, hist = train(config,
 # df = collate_dfs('remote/11_prop/length', show_progress=True)
 # df = collate_dfs('remote/11_prop/width', show_progress=True)
 # df = collate_dfs('remote/11_prop/width/set2_imply', show_progress=True)
-df1 = collate_dfs('remote/11_prop/ar', show_progress=True)
-df2 = collate_dfs('remote/11_prop/direct', show_progress=True)
+df1 = collate_dfs('remote/11_prop/ar/set1_good', show_progress=True)
+df2 = collate_dfs('remote/11_prop/direct/set1_good', show_progress=True)
 df = pd.concat([df1, df2], ignore_index=True)
 df
 

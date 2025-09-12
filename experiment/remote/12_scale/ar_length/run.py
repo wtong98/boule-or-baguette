@@ -16,13 +16,13 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 108
+run_split = 400
 
-train_iters = 80_000
+train_iters = 50_000
 
 n_arms = [10]
-n_depths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
-n_widths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
+n_depths = (2**np.linspace(3, 8.5, num=20)).astype(int) * 2
+n_widths = (2**np.linspace(3, 8.5, num=20)).astype(int) * 2
 
 all_n_layer = [1]
 
@@ -158,7 +158,8 @@ for case in tqdm(all_cases):
         case.eval(
             test_task,
             eval_fns=case.train_args['eval_fns'],
-            prefix=n_hop_prop
+            prefix=n_hop_prop,
+            n_iters=1
         )
 
     case.state = None

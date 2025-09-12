@@ -18,7 +18,7 @@ from task.graph import *
 depth = 30
 n_hidden = 512
 
-cot = True
+cot = False
 ttr = True
 nouveau = True
 force_bin_label = False
@@ -81,7 +81,7 @@ config = TransformerConfig(n_layers=1,
                            freeze_emb=True,
                            use_bias=False,
                         #    return_format='final_logit_up_to_pad' if cot else 'final_logit',
-                           return_format=None,
+                           return_format=None if cot else 'final_logit',
                            mup_scale=True,
                            unif_att=False
                            )
@@ -128,7 +128,7 @@ preds, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediate
 att = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
 
 plt.imshow(att[2])
-print(xs[2])
+print(att[2])
 
 # <codecell>
 plt.plot(att[2,-2])
@@ -333,6 +333,31 @@ s = proj[:-4,0]
 s = s.reshape(-1, n_arms)
 plt.imshow(s, cmap='BrBG', vmin=-10, vmax=10)
 # plt.colorbar(shrink=0.1)
+
+# <codecell>
+xs, ys = next(train_task)
+# <codecell>
+xs_emb = emb[xs].sum(axis=1) / 2
+
+out = xs_emb @ W
+out
+
+emb_sgn = np.sign(emb)
+# emb_sgn = np.random.randn(*emb_sgn.shape)
+
+beta = W @ emb_sgn.T @ np.linalg.pinv(emb_sgn @ emb_sgn.T)
+W_hat = beta @ emb_sgn
+
+out_hat = xs_emb @ W_hat
+out_hat
+
+print(np.corrcoef(out.flatten(), out_hat.flatten()))
+# np.mean((out - out_hat)**2) / np.mean(out**2)
+plt.scatter(out.flatten(), out_hat.flatten(), alpha=0.1)
+
+
+
+# state.apply_fn({'params': state.params}, xs)
 
 # <codecell>
 proj = emb @ W_sort
