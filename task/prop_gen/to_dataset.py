@@ -45,7 +45,8 @@ def count_ops(dataset):
     return counts
 
 if __name__ == '__main__':
-    dataset = load_dataset('json', data_dir='data/raw_trunc', split='train', keep_in_memory=True, num_proc=16)
+    # dataset = load_dataset('json', data_dir='data/raw_trunc', split='train', keep_in_memory=True, num_proc=16)
+    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop', split='train', keep_in_memory=True, num_proc=16)
 
     if Path('data/tok').exists():
         tokenizer = AutoTokenizer.from_pretrained('data/tok')

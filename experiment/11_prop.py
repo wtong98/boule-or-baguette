@@ -126,15 +126,17 @@ plot_df['test_n_hop'] = n_hop_val
 plot_df
 
 # <codecell>
-mdf = plot_df.copy()
-mdf = mdf[mdf['train_hop'] == 4]
+for n_hop in [2, 4, 6, 10]:
+    mdf = plot_df.copy()
+    mdf = mdf[mdf['train_hop'] == n_hop]
 
-g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='mean')
-g.set_ylim(0.4, 1)
-g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
-# g.set_title('Imply-only dataset')
+    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='mean')
+    g.set_ylim(0.4, 1)
+    g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
+    g.set_title('Train hop: ' + str(n_hop))
 
-# plt.savefig('fig/prop_task_or_only.png')
+    plt.savefig(f'fig/prop_task_n_hop_{n_hop}.png')
+    plt.show()
 
 # <codecell>
 ### MODEL INSPECTION
