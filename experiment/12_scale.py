@@ -846,7 +846,7 @@ def extract_plot_vals(row):
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         row['config']['n_layers'],
-        row['hist']['test'][50]['acc'].item(),
+        row['hist']['test'][5]['acc'].item(),
         n_hop_prop,
         row['info'],
     ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_layers', 'acc_hist', 'n_hop_prop', 'info'])
@@ -880,9 +880,9 @@ mdf = mdf[
     & (mdf['n_layers'] == 1)
     ]
 
-mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
+mdf = mdf[['depth', 'n_hidden', 'acc']]
 mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).mean()
-mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
@@ -896,7 +896,7 @@ g.plot(xs, 20 - 2 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 38 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
 
-g.plot(xs, 14 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 12 - 0.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 28 - 0.33 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('depth')

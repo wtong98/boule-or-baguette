@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -c 16
-#SBATCH -t 12:00:00
-#SBATCH -p pehlevan,bigmem,bigmem_intermediate,seas_compute,sapphire,shared,
-#SBATCH --mem=128000
+#SBATCH -t 20:00:00
+#SBATCH -p bigmem,bigmem_intermediate
+#SBATCH --mem=1000G
 #SBATCH -o log.%j.out
 #SBATCH -e log.%j.err
 #SBATCH --mail-type=END

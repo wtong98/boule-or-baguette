@@ -45,7 +45,10 @@ def count_ops(dataset):
     return counts
 
 if __name__ == '__main__':
-    # dataset = load_dataset('json', data_dir='data/raw_trunc', split='train', keep_in_memory=True, num_proc=16)
+    # maxlen = 100
+    # dataset = load_dataset('json', data_dir='test_data', split='train', keep_in_memory=True, num_proc=16)
+
+    maxlens = [1024, 2048]
     dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop', split='train', keep_in_memory=True, num_proc=16)
 
     if Path('data/tok').exists():
@@ -79,7 +82,16 @@ if __name__ == '__main__':
         }
 
     ds = ds.map(to_toks, batched=False, num_proc=16)
-    ds = DatasetDict({k: dataset.remove_columns(column_names=['proof', 'input']) for k, dataset in ds.items() if len(dataset) > 0})
 
-    ds.save_to_disk('data/hf_trunc')
+    for maxlen in maxlens:
+        print(f'info: filtering by length {maxlen}')
+
+        def filter_len(example):
+            return len(example['full_ids']) <= maxlen
+        
+        ds_small = ds.filter(filter_len, num_proc=16)
+
+        ds_small = DatasetDict({k: dataset.remove_columns(column_names=['proof', 'input']) for k, dataset in ds_small.items() if len(dataset) > 0})
+        # ds_small.save_to_disk(f'data/hf_implies_{maxlen}')
+        ds.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_implies_{maxlen}')
 
