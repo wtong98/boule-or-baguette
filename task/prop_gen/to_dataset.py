@@ -45,11 +45,11 @@ def count_ops(dataset):
     return counts
 
 if __name__ == '__main__':
-    # maxlen = 100
-    # dataset = load_dataset('json', data_dir='test_data', split='train', keep_in_memory=True, num_proc=16)
+    maxlens= [100]
+    dataset = load_dataset('json', data_dir='test_data', split='train', keep_in_memory=True, num_proc=16)
 
-    maxlens = [1024, 2048]
-    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop', split='train', keep_in_memory=True, num_proc=16)
+    # maxlens = [1024, 2048]
+    # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop', split='train', keep_in_memory=True, num_proc=16)
 
     if Path('data/tok').exists():
         tokenizer = AutoTokenizer.from_pretrained('data/tok')
@@ -93,5 +93,5 @@ if __name__ == '__main__':
 
         ds_small = DatasetDict({k: dataset.remove_columns(column_names=['proof', 'input']) for k, dataset in ds_small.items() if len(dataset) > 0})
         # ds_small.save_to_disk(f'data/hf_implies_{maxlen}')
-        ds.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_implies_{maxlen}')
+        # ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_implies_{maxlen}')
 
