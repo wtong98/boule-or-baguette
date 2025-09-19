@@ -32,13 +32,13 @@ max_len = 1024
 # n_hops = [2, 3, 4, 5, 6, 10]
 n_hops = [2, 4, 6, 10]
 
-# n_hidden = 768
-# n_layer = 12
-# n_head = 12
+n_hidden = 768
+n_layer = 12
+n_head = 12
 
-n_hidden = 1024
-n_layer = 24
-n_head = 16
+# n_hidden = 1024
+# n_layer = 24
+# n_head = 16
 
 save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights') 
 
@@ -141,8 +141,10 @@ for n_hop in n_hops:
                                   linear_att=False,
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
-                train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
-                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
+                # train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
+                # test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
+                train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=implies_ds_path),
+                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=implies_ds_path),
                 info={'n_hop': n_hop}
         ), 
 

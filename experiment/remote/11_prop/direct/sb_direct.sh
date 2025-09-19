@@ -3,13 +3,13 @@
 #SBATCH -t 6:00:00
 #SBATCH -p kempner_requeue
 #SBATCH --gres=gpu:1
-#SBATCH --mem=96000
+#SBATCH --mem=32000
 #SBATCH -o log.%A.%a.out
 #SBATCH -e log.%A.%a.err
-#SBATCH --array=1-24
+#SBATCH --array=1-36
 #SBATCH --mail-type=END
 #SBATCH --mail-user=wtong@g.harvard.edu
-#SBATCH --account=kempner_pehlevan_lab
+#SBATCH --account=kempner_grads
 #SBATCH --exclude=holygpu8a19205,holygpu8a19503
 
 source ../../../../../venv_imply/bin/activate

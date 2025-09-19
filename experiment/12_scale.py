@@ -15,16 +15,16 @@ from model.mlp import MlpConfig
 from model.transformer import *
 from task.graph import *
 
-depth = 30
-n_hidden = 512
+n_arms = 500
+depth = 10
+n_hidden = 100
 
 cot = False
 ttr = True
 nouveau = True
 force_bin_label = False
-n_arms = 10
-n_hop = 15
-test_n_hop = 21
+n_hop = 5
+test_n_hop = 7
 
 batch_size = n_arms * depth
 
@@ -108,7 +108,7 @@ state, hist = train(config,
                     loss='ce_mask' if cot else 'bce',
                     # loss='bce',
                     test_every=1000,
-                    train_iters=20_000,
+                    train_iters=50_000,
                     eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     # eval_fns=None,
                     print_fn=print_gen if cot else None,
@@ -274,7 +274,7 @@ plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 
 # <codecell>
 log = []
-for idx in range(proj.shape[1]):
+for idx in tqdm(range(proj.shape[1])):
     samp = proj[:,idx]
     curr = []
     for i in range(n_arms):
@@ -289,10 +289,15 @@ plt.imshow(log, cmap='BrBG', vmin=0.1, vmax=0.9)
 plt.colorbar()
 
 # <codecell>
-plt.plot(log[5])
-plt.plot(log[1])
-plt.plot(log[-2])
-plt.plot(log[-10])
+# plt.plot(log[5])
+# plt.plot(log[1])
+plt.plot(log[-5])
+# plt.plot(log[-10])
+
+# <codecell>
+diffs = np.abs(log[-14] - 0.5)
+plt.hist(diffs)
+np.sum(diffs > 0.4)
 
 # <codecell>
 np.mean(log[3] > 0.5)
@@ -329,7 +334,7 @@ jax.nn.relu(xs_emb.sum(axis=0, keepdims=True) @ W_sort) @ a_sort
 # <codecell>
 proj = emb @ W_sort
 # plt.plot(proj[14::20,-5])
-s = proj[:-4,0]
+s = proj[:-4,-2]
 s = s.reshape(-1, n_arms)
 plt.imshow(s, cmap='BrBG', vmin=-10, vmax=10)
 # plt.colorbar(shrink=0.1)
@@ -652,8 +657,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -667,7 +672,7 @@ def extract_plot_vals(row):
         row['config']['residual_connections'],
         row['config']['n_layers'],
         row['train_args']['lr'],
-        row['hist']['test'][20]['acc'].item(),
+        row['hist']['test'][5]['acc'].item(),
         row['train_args']['gamma'] if 'gamma' in row['train_args'] else -1,
         row['info'],
     ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'n_layers',  'lr', 'acc_hist', 'gamma', 'info'])
@@ -755,7 +760,7 @@ def extract_plot_vals(row):
         row['config']['residual_connections'],
         row['config']['n_layers'],
         n_hop_prop,
-        row['hist']['test'][50]['acc'].item(),
+        row['hist']['test'][25]['acc'].item(),
         row['info'],
     ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'residual_connections', 'n_layers', 'n_hop_prop', 'acc_hist', 'info'])
 
@@ -789,9 +794,9 @@ mdf = mdf[
     & (mdf['residual_connections'] == False)
     ]
 
-mdf = mdf[['depth', 'n_hidden', 'acc']]
+mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
 mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).mean()
-mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
 
 mdf = mdf.iloc[::-1]
 
@@ -880,9 +885,9 @@ mdf = mdf[
     & (mdf['n_layers'] == 1)
     ]
 
-mdf = mdf[['depth', 'n_hidden', 'acc']]
+mdf = mdf[['depth', 'n_hidden', 'acc_hist']]
 mdf = mdf.groupby(['depth', 'n_hidden'], as_index=False).mean()
-mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
+mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
 
 mdf = mdf.iloc[::-1]
 

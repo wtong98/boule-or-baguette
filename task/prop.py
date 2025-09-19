@@ -23,7 +23,9 @@ except ImportError:
 
 trunc_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_trunc'
 full_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
+implies_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_implies'
 # debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
+debug_ds_path = None
 
 
 class PropTask:
@@ -93,7 +95,7 @@ class PropTask:
             self.true_ds = self.true_ds.filter(matches_ops, num_proc=self.n_proc)
             self.false_ds = self.false_ds.filter(matches_ops, num_proc=self.n_proc)
         
-        if self.max_len is not None:
+        if self.max_len is not None and self.ds_path != implies_ds_path:
             def filter_len(ex):
                 return len(ex['full_ids']) <= self.max_len
 
