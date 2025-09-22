@@ -995,3 +995,63 @@ g.set_xlabel('n_arms')
 plt.title('AR full')
 # plt.savefig(f'fig/zero_mlp_depth_v_size_debug.png', bbox_inches='tight')
 plt.show()
+
+
+# <codecell>
+df = collate_dfs('remote/12_scale/gen/', show_progress=True)
+df
+
+# <codecell>
+rand_idxs = np.random.choice(len(df), size=100, replace=False)
+for ex in df['hist'].iloc[rand_idxs]:
+    vals = [p['loss'] for p in ex['test']]
+    plt.plot(vals, color='C0', alpha=0.1)
+
+# df['hist'].iloc[0]['train']
+    
+
+# %%
+def extract_plot_vals(row):
+    n_hop_prop = row['info']['n_hop_prop']
+    del row['info']['n_hop_prop']
+    del row['info']['n_hop']
+
+    return pd.Series([
+        row['name'],
+        row['train_task'].n_arms,
+        row['train_task'].depth,
+        row['train_task'].samp_dist[1],
+        row['config']['n_hidden'],
+        row['config']['n_layers'],
+        row['hist']['test'][5]['acc'].item(),
+        n_hop_prop,
+        row['info'],
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_layers', 'acc_hist', 'n_hop_prop', 'info'])
+
+plot_df = df.copy().apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+# bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+# <codecell>
+mdf = plot_df.copy()
+
+mdf = mdf[
+    (mdf['n_hop_prop'] == 0.25)
+    & (mdf['depth'] == 50)
+]
+sns.barplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='full')

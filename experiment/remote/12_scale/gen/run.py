@@ -135,7 +135,7 @@ for case in tqdm(all_cases):
         case.eval(
             test_task,
             eval_fns=case.train_args['eval_fns'],
-            prefix=n_hop_prop,
+            prefix=n_hop,
             n_iters=1
         )
 

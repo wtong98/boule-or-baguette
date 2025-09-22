@@ -63,7 +63,7 @@ print('RUN_ID', run_id)
 # NOTE: generation ops set to Or only
 n_atoms = 3
 max_nodes = 7
-n_cores = 16
+n_cores = 16 * 16
 keep = 'until_success'
 
 run_split = 24
@@ -72,9 +72,9 @@ out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or')
 
 ### START TEST CONFIG
 # out_dir = Path('test_data')
-# n_cores = 64
+# n_cores = 16
 # n_atoms = 2
-# max_nodes = 3
+# max_nodes = 4
 ### END TEST CONFIG
 
 if not out_dir.exists():
