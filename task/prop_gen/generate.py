@@ -54,24 +54,21 @@ print('RUN_ID', run_id)
 
 # total number of tokens with this configuration is ?
 # NOTE: generation ops set to Implies only
-n_atoms = 3
-max_nodes = 7
-n_cores = 16 * 16
-keep = 'until_success'
+# n_atoms = 3
+# max_nodes = 7
+# n_cores = 16 * 16
+# keep = 'until_success'
 
 # total number of tokens with this configuration is ?
 # NOTE: generation ops set to Or only
 n_atoms = 3
-max_nodes = 4
-# n_cores = 16 * 16
+max_nodes = 7
 n_cores = 16
 keep = 'until_success'
 
-# run_split = 24
-run_split = 1
+run_split = 24
 
-# out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/implies')
-out_dir = Path('data/or')
+out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or')
 
 ### START TEST CONFIG
 # out_dir = Path('test_data')
@@ -90,7 +87,6 @@ all_ex = itertools.chain(*[gen_batch_or(n_atoms, n) for n in range(1, max_nodes 
 all_ex = split(all_ex, run_split)
 # total_ex = sum(n_combo(n_atoms, n) for n in range(1, max_nodes + 1))
 total_ex = sum(n_combo_or(n_atoms, n) for n in range(1, max_nodes + 1))
-
 
 pbar = tqdm(total=total_ex // run_split)
 
