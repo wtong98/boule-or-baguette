@@ -24,6 +24,7 @@ except ImportError:
 trunc_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_trunc'
 full_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
 implies_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_implies'
+or_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_or'
 # debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 debug_ds_path = None
 

@@ -76,8 +76,10 @@ state, hist = train(config,
 # df = collate_dfs('remote/11_prop/length', show_progress=True)
 # df = collate_dfs('remote/11_prop/width', show_progress=True)
 # df = collate_dfs('remote/11_prop/width/set2_imply', show_progress=True)
-df1 = collate_dfs('remote/11_prop/ar/set1_good', show_progress=True)
-df2 = collate_dfs('remote/11_prop/direct/set1_good', show_progress=True)
+# df1 = collate_dfs('remote/11_prop/ar/set1_good', show_progress=True)
+# df2 = collate_dfs('remote/11_prop/direct/set1_good', show_progress=True)
+df1 = collate_dfs('remote/11_prop/ar', show_progress=True)
+df2 = collate_dfs('remote/11_prop/direct', show_progress=True)
 df = pd.concat([df1, df2], ignore_index=True)
 df
 
@@ -126,16 +128,17 @@ plot_df['test_n_hop'] = n_hop_val
 plot_df
 
 # <codecell>
-for n_hop in [2, 4, 6, 10]:
+# for n_hop in [2, 4, 6, 10]:
+for n_hop in [6]:
     mdf = plot_df.copy()
     mdf = mdf[mdf['train_hop'] == n_hop]
 
-    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='mean')
+    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='max')
     g.set_ylim(0.4, 1)
     g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
     g.set_title('Train hop: ' + str(n_hop))
 
-    plt.savefig(f'fig/prop_task_n_hop_{n_hop}.png')
+    # plt.savefig(f'fig/prop_task_n_hop_{n_hop}.png')
     plt.show()
 
 # <codecell>

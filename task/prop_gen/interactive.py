@@ -13,10 +13,11 @@ from util.proof import prove
 from util.out import format_example, start_lean
 from util.sample import gen_batch, n_combo
 
-n_combo(3, 5)
 
 # <codecell>
-prop = Implies(Atom('p1'), Or(PFalse(), PTrue()))
+# def or_elem(is_true): return Or(PFalse(), PTrue() if is_true else PFalse())
+
+prop = Implies(Atom('p1'), Or(Or(Atom('p2'), Atom('p2')), Or(Atom('p3'), Atom('p1'))))
 
 
 print('PROP', prop)

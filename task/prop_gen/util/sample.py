@@ -9,16 +9,6 @@ try:
 except ImportError:
     from data import *
 
-# ops = [And, Or, Implies]
-ops = [Implies]
-
-
-def gen_batch(n_atoms, n_nodes):
-    atoms = [PFalse(), PTrue()] + [Atom(f'p{i+1}') for i in range(n_atoms)]
-    
-    for node_set in it.product(*it.repeat(atoms, n_nodes)):
-        for example in catalan(node_set):
-            yield example
 
 def catalan(nodes):
     if len(nodes) == 1:
@@ -37,6 +27,40 @@ def catalan(nodes):
         for left, right in it.product(catalan(left_branch), catalan(right_branch)):
             for op in ops:
                 yield op(left, right)
+
+# ops = [And, Or, Implies]
+# ops = [Implies]
+ops = [Or]
+
+def gen_batch_or(n_atoms, n_nodes):
+    assert len(ops) == 1 and ops[0] == Or
+    
+    atoms = [Atom(f'p{i+1}') for i in range(n_atoms)]
+    for target_atom in atoms:
+        # rem_atoms = [a for a in atoms if a is not target_atom]
+        for node_set in it.product(*it.repeat(atoms, n_nodes)):
+            for example in catalan(node_set):
+                formula = Implies(target_atom, example)
+                yield formula
+
+
+def n_combo_or(n_atoms, n_nodes):
+    n = n_nodes - 1
+    fac1 = 1 / (n + 1)
+    fac2 = math.comb(2 * n, n)
+    cat = fac1 * fac2
+
+    by_ops = len(ops)**(n) * cat
+    by_atoms = n_atoms**n_nodes * by_ops
+    return n_atoms * by_atoms
+
+
+def gen_batch(n_atoms, n_nodes):
+    atoms = [PFalse(), PTrue()] + [Atom(f'p{i+1}') for i in range(n_atoms)]
+    
+    for node_set in it.product(*it.repeat(atoms, n_nodes)):
+        for example in catalan(node_set):
+            yield example
 
 
 def n_combo(n_atoms, n_nodes):

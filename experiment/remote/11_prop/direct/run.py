@@ -20,17 +20,20 @@ from task.prop import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 3
 
 batch_size = 64
 multistep_k = 1
-train_iters = 100_000
-warmup_iters = 2000
-eval_k = 12
+# train_iters = 100_000
+# warmup_iters = 2000
+train_iters = 20_000
+warmup_iters = 500
+eval_k = 20
 max_len = 1024
 
 # n_hops = [2, 3, 4, 5, 6, 10]
-n_hops = [2, 4, 6, 10]
+# n_hops = [2, 4, 6, 10]
+n_hops = [2, 4, 6]
 
 n_hidden = 768
 n_layer = 12
@@ -110,29 +113,52 @@ for n_hop in n_hops:
     
 
     all_cases.extend([
-        Case('Direct_full',
-                TransformerConfig(n_heads=n_head,
-                                  n_out=1,
-                                  n_layers=n_layer,
-                                  pos_emb=True, 
-                                  return_format='final_logit_up_to_pad',
-                                  n_mlp_layers=2,
-                                  layer_norm=True,
-                                  residual_connections=True,
-                                  mup_scale=True,
-                                  linear_att=False,
-                                  **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False, split='train', batch_size=batch_size, ds_path=full_ds_path),
-                test_task=make_chain(cot=False, split='test', batch_size=batch_size, ds_path=full_ds_path),
-                info={'n_hop': n_hop}
-        ), 
+        # Case('Direct_full',
+        #         TransformerConfig(n_heads=n_head,
+        #                           n_out=1,
+        #                           n_layers=n_layer,
+        #                         #   pos_emb=True, 
+        #                           pos_emb=False,
+        #                           return_format='final_logit_up_to_pad',
+        #                           n_mlp_layers=2,
+        #                           layer_norm=True,
+        #                           residual_connections=True,
+        #                           mup_scale=True,
+        #                           linear_att=False,
+        #                           **model_args),
+        #         train_args=make_train_args('bce'),
+        #         train_task=make_chain(cot=False, split='train', batch_size=batch_size, ds_path=full_ds_path),
+        #         test_task=make_chain(cot=False, split='test', batch_size=batch_size, ds_path=full_ds_path),
+        #         info={'n_hop': n_hop}
+        # ), 
 
-        Case('Direct_imply',
+        # Case('Direct_imply',
+        #         TransformerConfig(n_heads=n_head,
+        #                           n_out=1,
+        #                           n_layers=n_layer,
+        #                         #   pos_emb=True, 
+        #                           pos_emb=False,
+        #                           return_format='final_logit_up_to_pad',
+        #                           n_mlp_layers=2,
+        #                           layer_norm=True,
+        #                           residual_connections=True,
+        #                           mup_scale=True,
+        #                           linear_att=False,
+        #                           **model_args),
+        #         train_args=make_train_args('bce'),
+        #         # train_task=make_chain(cot=False, split='train', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
+        #         # test_task=make_chain(cot=False, split='test', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
+        #         train_task=make_chain(cot=False, split='train', batch_size=batch_size, ds_path=implies_ds_path),
+        #         test_task=make_chain(cot=False, split='test', batch_size=batch_size, ds_path=implies_ds_path),
+        #         info={'n_hop': n_hop}
+        # ), 
+
+        Case('Direct_or',
                 TransformerConfig(n_heads=n_head,
                                   n_out=1,
                                   n_layers=n_layer,
-                                  pos_emb=True, 
+                                #   pos_emb=True, 
+                                  pos_emb=False,
                                   return_format='final_logit_up_to_pad',
                                   n_mlp_layers=2,
                                   layer_norm=True,
@@ -141,10 +167,8 @@ for n_hop in n_hops:
                                   linear_att=False,
                                   **model_args),
                 train_args=make_train_args('bce'),
-                # train_task=make_chain(cot=False, split='train', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
-                # test_task=make_chain(cot=False, split='test', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
-                train_task=make_chain(cot=False, split='train', batch_size=batch_size, ds_path=implies_ds_path),
-                test_task=make_chain(cot=False, split='test', batch_size=batch_size, ds_path=implies_ds_path),
+                train_task=make_chain(cot=False, split='train', batch_size=batch_size, ds_path=or_ds_path),
+                test_task=make_chain(cot=False, split='test', batch_size=batch_size, ds_path=or_ds_path),
                 info={'n_hop': n_hop}
         ), 
     ])
