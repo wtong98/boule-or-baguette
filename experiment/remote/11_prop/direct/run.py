@@ -33,7 +33,7 @@ max_len = 1024
 
 # n_hops = [2, 3, 4, 5, 6, 10]
 # n_hops = [2, 4, 6, 10]
-n_hops = [2, 4, 6]
+n_hops = [4, 6, 8]
 
 n_hidden = 768
 n_layer = 12

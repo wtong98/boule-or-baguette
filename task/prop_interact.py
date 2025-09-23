@@ -2,7 +2,7 @@
 
 # <codecell>
 import numpy as np
-from prop import PropTask
+from prop import *
 
 # <codecell>
 
@@ -25,9 +25,10 @@ np.quantile(all_lens, [0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
 
 
 # <codecell>
-task = PropTask(10, batch_size=2, split='test', cot=True, grow_fac=1, max_len=1000)
+task = PropTask(5, batch_size=2, split='train', cot=True, ds_path=or_ds_path)
 next(task)
 
+filt_ds = task.ds
 # <codecell>
 max_len = 1000
 
@@ -72,8 +73,8 @@ t_cum = np.cumsum(t_lens[t_sort_idx]) / np.sum(t_lens)
 f_sort_idx = np.argsort(f_idx)
 f_cum = np.cumsum(f_lens[f_sort_idx]) / np.sum(f_lens)
 
-plt.plot(t_cum)
-plt.plot(f_cum)
+plt.plot(t_cum, 'o--')
+plt.plot(f_cum, 'o--')
 
 props = [0.2, 0.4, 0.5, 0.6, 0.8, 0.95]
 
@@ -81,8 +82,8 @@ idxs = []
 for p in props:
     # idx = np.sum(t_cum < p) - 1
     # idxs.append(t_idx[t_sort_idx][idx].item())
-    idx = np.sum(t_cum < p) - 1
-    idxs.append(t_idx[t_sort_idx][idx].item())
+    idx = np.sum(f_cum < p) - 1
+    idxs.append(f_idx[f_sort_idx][idx].item())
 
 idxs
 

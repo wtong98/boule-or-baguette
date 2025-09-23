@@ -20,7 +20,7 @@ from task.prop import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 9
+run_split = 3
 
 batch_size = 64
 multistep_k = 1
@@ -33,7 +33,7 @@ max_len = 1024
 
 # n_hops = [2, 3, 4, 5, 6, 10]
 # n_hops = [2, 4, 6, 10]
-n_hops = [2, 4, 6]
+n_hops = [4, 6, 8]
 
 n_hidden = 768
 n_layer = 12
