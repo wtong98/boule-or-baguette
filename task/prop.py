@@ -296,17 +296,33 @@ def fast_gen_acc_cot_prop(state, batch, seed, beta=1, return_preds=False):
     return res
         
 
+# def score(xs, preds):
+#     is_true = jnp.argmax(xs == yes_id, axis=-1) > 0
+#     pred_is_true = jnp.argmax(preds == yes_id, axis=-1) > 0
+#     pred_is_false = jnp.argmax(preds == no_id, axis=-1) > 0
+
+#     true_pos = is_true * pred_is_true
+#     true_neg = (1 - is_true) * pred_is_false
+#     false_pos = (1 - is_true) * pred_is_true
+#     false_neg = is_true * pred_is_false
+
+#     # return is_true * pred_is_true + (1 - is_true) * pred_is_false
+#     return true_pos, true_neg, false_pos, false_neg
+
+
 def score(xs, preds):
     is_true = jnp.argmax(xs == yes_id, axis=-1) > 0
-    pred_is_true = jnp.argmax(preds == yes_id, axis=-1) > 0
-    pred_is_false = jnp.argmax(preds == no_id, axis=-1) > 0
+    t = jnp.argmax(preds == yes_id, axis=-1)
+    f = jnp.argmax(preds == no_id, axis=-1)
+
+    pred_is_true = (t != 0) * ((f == 0) + (t < f))
+    pred_is_false = (f != 0) * ((t == 0) + (f < t))
 
     true_pos = is_true * pred_is_true
     true_neg = (1 - is_true) * pred_is_false
     false_pos = (1 - is_true) * pred_is_true
     false_neg = is_true * pred_is_false
 
-    # return is_true * pred_is_true + (1 - is_true) * pred_is_false
     return true_pos, true_neg, false_pos, false_neg
 
 

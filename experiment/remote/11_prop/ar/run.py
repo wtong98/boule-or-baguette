@@ -20,20 +20,20 @@ from task.prop import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 3
+run_split = 12
 
 batch_size = 64
 multistep_k = 1
-# train_iters = 100_000
-# warmup_iters = 2000
-train_iters = 20_000
-warmup_iters = 500
+train_iters = 100_000
+warmup_iters = 2000
+# train_iters = 20_000
+# warmup_iters = 500
 eval_k = 20
 max_len = 1024
 
 # n_hops = [2, 3, 4, 5, 6, 10]
-# n_hops = [2, 4, 6, 10]
-n_hops = [4, 6, 8]
+n_hops = [2, 4, 6, 10]
+# n_hops = [4, 6, 8]
 
 n_hidden = 768
 n_layer = 12
@@ -113,63 +113,7 @@ for n_hop in n_hops:
     
 
     all_cases.extend([
-        # Case('AR_full',
-        #         TransformerConfig(n_heads=n_head, 
-        #                           n_out=n_vocab,
-        #                           n_layers=n_layer,
-        #                           pos_emb=False, 
-        #                           return_format=None,
-        #                           n_mlp_layers=2,
-        #                           layer_norm=True,
-        #                           residual_connections=True,
-        #                           mup_scale=True,
-        #                           linear_att=False,
-        #                           **model_args),
-        #         train_args=make_train_args('ce_mask'),
-        #         train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path),
-        #         test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path),
-        #         info={'n_hop': n_hop}
-        # ), 
-
-        # Case('AR_imply',
-        #         TransformerConfig(n_heads=n_head, 
-        #                           n_out=n_vocab,
-        #                           n_layers=n_layer,
-        #                           pos_emb=False, 
-        #                           return_format=None,
-        #                           n_mlp_layers=2,
-        #                           layer_norm=True,
-        #                           residual_connections=True,
-        #                           mup_scale=True,
-        #                           linear_att=False,
-        #                           **model_args),
-        #         train_args=make_train_args('ce_mask'),
-        #         # train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
-        #         # test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
-        #         train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=implies_ds_path),
-        #         test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=implies_ds_path),
-        #         info={'n_hop': n_hop}
-        # ), 
-
-        # Case('AR_trunc',
-        #         TransformerConfig(n_heads=n_head, 
-        #                           n_out=n_vocab,
-        #                           n_layers=n_layer,
-        #                           pos_emb=False, 
-        #                           return_format=None,
-        #                           n_mlp_layers=2,
-        #                           layer_norm=True,
-        #                           residual_connections=True,
-        #                           mup_scale=True,
-        #                           linear_att=False,
-        #                           **model_args),
-        #         train_args=make_train_args('ce_mask'),
-        #         train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=trunc_ds_path),
-        #         test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=trunc_ds_path),
-        #         info={'n_hop': n_hop}
-        # ), 
-
-        Case('AR_or',
+        Case('AR_full',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,
@@ -182,10 +126,66 @@ for n_hop in n_hops:
                                   linear_att=False,
                                   **model_args),
                 train_args=make_train_args('ce_mask'),
-                train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=or_ds_path),
-                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=or_ds_path),
+                train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path),
+                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path),
                 info={'n_hop': n_hop}
         ), 
+
+        Case('AR_imply',
+                TransformerConfig(n_heads=n_head, 
+                                  n_out=n_vocab,
+                                  n_layers=n_layer,
+                                  pos_emb=False, 
+                                  return_format=None,
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('ce_mask'),
+                # train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
+                # test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path, filter_ops=PropTask.imply_ops),
+                train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=implies_ds_path),
+                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=implies_ds_path),
+                info={'n_hop': n_hop}
+        ), 
+
+        Case('AR_trunc',
+                TransformerConfig(n_heads=n_head, 
+                                  n_out=n_vocab,
+                                  n_layers=n_layer,
+                                  pos_emb=False, 
+                                  return_format=None,
+                                  n_mlp_layers=2,
+                                  layer_norm=True,
+                                  residual_connections=True,
+                                  mup_scale=True,
+                                  linear_att=False,
+                                  **model_args),
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=trunc_ds_path),
+                test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=trunc_ds_path),
+                info={'n_hop': n_hop}
+        ), 
+
+        # Case('AR_or',
+        #         TransformerConfig(n_heads=n_head, 
+        #                           n_out=n_vocab,
+        #                           n_layers=n_layer,
+        #                           pos_emb=False, 
+        #                           return_format=None,
+        #                           n_mlp_layers=2,
+        #                           layer_norm=True,
+        #                           residual_connections=True,
+        #                           mup_scale=True,
+        #                           linear_att=False,
+        #                           **model_args),
+        #         train_args=make_train_args('ce_mask'),
+        #         train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=or_ds_path),
+        #         test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=or_ds_path),
+        #         info={'n_hop': n_hop}
+        # ), 
     ])
     
 all_cases = split_cases(all_cases, run_split)

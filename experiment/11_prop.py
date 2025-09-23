@@ -134,7 +134,7 @@ for n_hop in [6]:
     mdf = mdf[mdf['train_hop'] == n_hop]
 
     # g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='max')
-    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_or', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='mean')
+    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_or', 'AR_or'], estimator='mean')
     g.set_ylim(0.4, 1)
     g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
     g.set_title('Train hop: ' + str(n_hop))
@@ -203,7 +203,5 @@ def score(xs, preds):
     false_pos = (1 - is_true) * pred_is_true
     false_neg = is_true * pred_is_false
 
-    # return is_true * pred_is_true + (1 - is_true) * pred_is_false
     return true_pos, true_neg, false_pos, false_neg
 
-score(xs, out['preds'])
