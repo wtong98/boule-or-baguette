@@ -163,7 +163,7 @@ class PropTask:
         if xs.shape[1] % 2 == 1:
             xs = np.concatenate((xs, np.zeros((xs.shape[0], 1))), axis=1)
 
-        return xs, ys
+        return xs.astype(np.int16), ys.astype(np.int16)
 
 
     def __iter__(self):
@@ -172,6 +172,8 @@ class PropTask:
 # task = PropTask(depth=10, batch_size=5, split='test', cot=True, ds_path=full_ds_path, padding='longest')
 # xs, ys = next(task)
 # xs.shape
+
+# xs.dtype
 
 # # <codecell>
 # all_lens = task.false_ds.map(lambda ex: {'len': len(ex['input_ids'])}, num_proc=16)['len']
