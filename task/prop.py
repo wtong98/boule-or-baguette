@@ -163,6 +163,9 @@ class PropTask:
         if xs.shape[1] % 2 == 1:
             xs = np.concatenate((xs, np.zeros((xs.shape[0], 1))), axis=1)
 
+            if self.cot:
+                ys = np.concatenate((ys, np.zeros((ys.shape[0], 1))), axis=1)
+
         return xs.astype(np.int16), ys.astype(np.int16)
 
 
