@@ -22,10 +22,10 @@ print('RUN ID', run_id)
 
 run_split = 4
 
-batch_size = 32
-multistep_k = 2
-train_iters = 100_000
-warmup_iters = 2000
+batch_size = 22
+multistep_k = 3
+train_iters = 50_000
+warmup_iters = 1000
 # train_iters = 20_000
 # warmup_iters = 500
 eval_k = 20
@@ -112,7 +112,7 @@ for n_hop in n_hops:
     
 
     all_cases.extend([
-        Case('AR_base',
+        Case('AR_base_xl',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,
@@ -130,7 +130,7 @@ for n_hop in n_hops:
                 info={'n_hop': n_hop}
         ), 
 
-        Case('AR_PE',
+        Case('AR_PE_xl',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,
@@ -148,7 +148,7 @@ for n_hop in n_hops:
                 info={'n_hop': n_hop}
         ), 
 
-        Case('AR_llr',
+        Case('AR_llr_xl',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,
@@ -166,7 +166,7 @@ for n_hop in n_hops:
                 info={'n_hop': n_hop}
         ), 
 
-        Case('AR_PE_llr',
+        Case('AR_PE_llr_xl',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,

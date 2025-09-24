@@ -22,8 +22,8 @@ print('RUN ID', run_id)
 
 run_split = 4
 
-batch_size = 64
-multistep_k = 1
+batch_size = 32
+multistep_k = 2
 train_iters = 50_000
 warmup_iters = 1000
 # train_iters = 20_000
@@ -33,13 +33,9 @@ max_len = 1024
 
 n_hops = [6]
 
-# n_hidden = 768
-# n_layer = 12
-# n_head = 12
-
-n_hidden = 1024
-n_layer = 24
-n_head = 16
+n_hidden = 1280
+n_layer = 36
+n_head = 20
 
 save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights') 
 
@@ -90,8 +86,8 @@ for n_hop in n_hops:
             'train_iters': train_iters,
             'k': multistep_k,
             'lr': optax.schedules.warmup_cosine_decay_schedule(
-                init_value=1e-4 if default_lr else 5e-5,
-                peak_value=3e-4 if default_lr else 1e-4,
+                init_value=6e-5 if default_lr else 3e-5,
+                peak_value=2e-4 if default_lr else 1e-4,
                 warmup_steps=warmup_iters,
                 decay_steps=train_iters,
                 end_value=5e-5 if default_lr else 2e-5
@@ -116,7 +112,7 @@ for n_hop in n_hops:
     
 
     all_cases.extend([
-        Case('AR_base_med',
+        Case('AR_base_lg',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,
@@ -134,7 +130,7 @@ for n_hop in n_hops:
                 info={'n_hop': n_hop}
         ), 
 
-        Case('AR_PE_med',
+        Case('AR_PE_lg',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,
@@ -152,7 +148,7 @@ for n_hop in n_hops:
                 info={'n_hop': n_hop}
         ), 
 
-        Case('AR_llr_med',
+        Case('AR_llr_lg',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,
@@ -170,7 +166,7 @@ for n_hop in n_hops:
                 info={'n_hop': n_hop}
         ), 
 
-        Case('AR_PE_llr',
+        Case('AR_PE_llr_lg',
                 TransformerConfig(n_heads=n_head, 
                                   n_out=n_vocab,
                                   n_layers=n_layer,
