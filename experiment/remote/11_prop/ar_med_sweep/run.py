@@ -22,8 +22,8 @@ print('RUN ID', run_id)
 
 run_split = 12
 
-batch_size = 8
-multistep_k = 8
+batch_size = 16
+multistep_k = 4
 train_iters = 100_000
 warmup_iters = 2000
 # train_iters = 20_000
@@ -75,6 +75,8 @@ for n_hop in n_hops:
     model_args = {
         'n_vocab': n_vocab,
         'n_hidden': n_hidden,
+        'flash_att': True,
+        'dtype': jnp.bfloat16
         # 'use_bias': False,
         # 'freeze_emb': True,
     }
