@@ -22,8 +22,8 @@ print('RUN ID', run_id)
 
 run_split = 4
 
-batch_size = 16
-multistep_k = 4
+batch_size = 64
+multistep_k = 1
 train_iters = 100_000
 warmup_iters = 2000
 # train_iters = 20_000
@@ -83,6 +83,7 @@ for n_hop in n_hops:
 
     def make_train_args(loss='ce_mask', default_lr=True):
         args = {
+            'use_tqdm': True,
             'loss': loss,
             'test_every': 1_000,
             'test_iters': 1,
@@ -108,6 +109,7 @@ for n_hop in n_hops:
             'split': split,
             'batch_size': batch_size,
             'max_len': max_len,
+            'padding': 'max_length'
         }
 
         return PropTask(cot=cot, **task_args, **kwargs)

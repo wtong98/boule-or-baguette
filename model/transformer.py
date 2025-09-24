@@ -145,20 +145,20 @@ class SimpleSelfAttention(nn.Module):
                                          name='value', 
                                          use_bias=False, 
                                          kernel_init=kernel_init,
-                                         param_dtype=self.config.dtype,
+                                        #  param_dtype=self.config.dtype,
                                          dtype=jnp.bfloat16 if self.config.flash_att else self.config.dtype)(inputs)
 
         query = prefac * nn.DenseGeneral(features=(n_heads, head_dim), 
                                          name='query', 
                                          use_bias=False, 
                                          kernel_init=kernel_init,
-                                         param_dtype=self.config.dtype,
+                                        #  param_dtype=self.config.dtype,
                                          dtype=jnp.bfloat16 if self.config.flash_att else self.config.dtype)(inputs)
         key = prefac * nn.DenseGeneral(features=(n_heads, head_dim), 
                                        name='key', 
                                        use_bias=False, 
                                        kernel_init=kernel_init,
-                                       param_dtype=self.config.dtype,
+                                    #    param_dtype=self.config.dtype,
                                        dtype=jnp.bfloat16 if self.config.flash_att else self.config.dtype)(inputs)
         fac = head_dim if self.config.mup_scale else np.sqrt(head_dim)
 
@@ -199,7 +199,7 @@ class SimpleSelfAttention(nn.Module):
                                        use_bias=False, 
                                        name='out', 
                                        kernel_init=kernel_init,
-                                       param_dtype=self.config.dtype,
+                                    #    param_dtype=self.config.dtype,
                                        dtype=self.config.dtype)(out)
         # out = out.squeeze()
 
@@ -246,15 +246,15 @@ class TransformerBlock(nn.Module):
                     x = prefac * nn.Dense(features=self.config.n_hidden, 
                                           use_bias=self.config.use_bias, 
                                           kernel_init=kernel_init,
-                                          dtype=self.config.dtype,
-                                          param_dtype=self.config.dtype)(pre_mlp_x)
+                                        #   param_dtype=self.config.dtype
+                                          dtype=self.config.dtype)(pre_mlp_x)
                 else:
                     x = nn.relu(x)
                     x = prefac * nn.Dense(features=self.config.n_hidden, 
                                           use_bias=self.config.use_bias, 
                                           kernel_init=kernel_init,
-                                          dtype=self.config.dtype,
-                                          param_dtype=self.config.dtype)(x)
+                                        #   param_dtype=self.config.dtype,
+                                          dtype=self.config.dtype)(x)
                 
                 self.sow('intermediates', f'layer_{i}', x)
             
@@ -288,8 +288,8 @@ class Transformer(nn.Module):
                 features=self.config.n_hidden,
                 # features=512,
                 name=name,
-                dtype=self.config.dtype,
-                param_dtype=self.config.dtype)(y)
+                # param_dtype=self.config.dtype,
+                dtype=self.config.dtype)(y)
 
         if config.pos_emb:
             y = AddPositionEmbs(config=config)(y)
@@ -309,13 +309,13 @@ class Transformer(nn.Module):
             logits = prefac * nn.Dense(config.n_out, 
                                        use_bias=self.config.use_bias, 
                                        kernel_init=kernel_init,
-                                       dtype=self.config.dtype,
-                                       param_dtype=self.config.dtype)(y)
+                                    #    param_dtype=self.config.dtype,
+                                       dtype=self.config.dtype)(y)
         else:
             logits = nn.Dense(config.n_out, 
                               use_bias=self.config.use_bias,
-                              dtype=self.config.dtype,
-                              param_dtype=self.config.dtype)(y)
+                              # param_dtype=self.config.dtype
+                              dtype=self.config.dtype)(y)
 
         if config.return_format is None:
             pass
