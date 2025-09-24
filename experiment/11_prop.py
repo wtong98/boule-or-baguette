@@ -21,16 +21,19 @@ n_hidden = 512
 batch_size = 128
 
 cot = False
-depth = 3
+depth = 8
 
-train_task = PropTask(depth, split='train', cot=cot, batch_size=batch_size)
-test_task = PropTask(depth, split='test', cot=cot, batch_size=batch_size)
+train_task = PropTask(depth, split='train', cot=cot, batch_size=batch_size, ds_path=or_ds_path)
+test_task = PropTask(depth, split='test', cot=cot, batch_size=batch_size, ds_path=or_ds_path)
 
 n_vocab = len(train_task.tokenizer)
 
 xs, ys = next(train_task)
 print(xs[:3])
 print(ys[:3])
+
+# <codecell>
+train_task.tokenizer.decode(xs[-19])
 
 # <codecell>
 # config = TrConfig(n_vocab=n_vocab, 
@@ -41,18 +44,18 @@ print(ys[:3])
 #                   n_hidden=n_hidden, 
 #                   return_format=None if cot else True)
 
-config = TransformerConfig(n_layers=2,
+config = TransformerConfig(n_layers=1,
                            n_vocab=n_vocab,
                            n_out=n_vocab if cot else 1,
                            n_hidden=n_hidden,
-                           pos_emb=False,
+                           pos_emb=True,
                            n_mlp_layers=2,
                            n_heads=1,
                            layer_norm=True,
                            as_rf_model=False,
                            residual_connections=True,
-                           freeze_emb=True,
-                           use_bias=False,
+                           freeze_emb=False,
+                           use_bias=True,
                            return_format=None if cot else 'final_logit_up_to_pad',
                            mup_scale=True,
                            linear_att=False
@@ -63,12 +66,13 @@ state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     loss='ce_mask' if cot else 'bce',
-                    test_every=1000,
+                    test_every=100,
                     test_iters=1,
                     train_iters=100_000,
                     use_tqdm=True,
                     eval_fns=[loss_and_acc, gen_acc_cot_prop] if cot else None,
                     print_fn=print_gen if cot else None,
+                    lr=3e-5
                     )
 
 
@@ -85,8 +89,8 @@ df
 
 # <codecell>
 # rand_idxs = np.random.choice(len(df), size=100, replace=False)
-for ex in df2['hist']:
-    vals = [p['acc'] for p in ex['train']]
+for ex in df1['hist']:
+    vals = [p['acc'] for p in ex['test']]
     plt.plot(vals, color='C0', alpha=0.1)
 
 # %%
@@ -129,12 +133,12 @@ plot_df
 
 # <codecell>
 # for n_hop in [2, 4, 6, 10]:
-for n_hop in [6]:
+for n_hop in [10]:
     mdf = plot_df.copy()
     mdf = mdf[mdf['train_hop'] == n_hop]
 
-    # g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='max')
-    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_or', 'AR_or'], estimator='mean')
+    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='max')
+    # g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_or', 'AR_or'], estimator='mean')
     g.set_ylim(0.4, 1)
     g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
     g.set_title('Train hop: ' + str(n_hop))
