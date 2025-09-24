@@ -50,6 +50,7 @@ class TransformerConfig:
     linear_att: bool = False
     remove_att: bool = False
     unif_att: bool = False
+    flash_att: bool = False
 
     def to_model(self):
         return Transformer(self)
@@ -137,26 +138,46 @@ class SimpleSelfAttention(nn.Module):
             kernel_init = nn.initializers.truncated_normal(1 / np.sqrt(head_dim))
             prefac = 1
         
-        value = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='value', use_bias=False, kernel_init=kernel_init)(inputs)
+        value = prefac * nn.DenseGeneral(features=(n_heads, head_dim), 
+                                         name='value', 
+                                         use_bias=False, 
+                                         kernel_init=kernel_init,
+                                         dtype=jnp.bfloat16 if self.config.flash_att else None)(inputs)
 
-        if self.config.unif_att:
-            attn_weights = jnp.ones((1, inputs.shape[1], inputs.shape[1]))
+        query = prefac * nn.DenseGeneral(features=(n_heads, head_dim), 
+                                         name='query', 
+                                         use_bias=False, 
+                                         kernel_init=kernel_init,
+                                         dtype=jnp.bfloat16 if self.config.flash_att else None)(inputs)
+        key = prefac * nn.DenseGeneral(features=(n_heads, head_dim), 
+                                       name='key', 
+                                       use_bias=False, 
+                                       kernel_init=kernel_init,
+                                       dtype=jnp.bfloat16 if self.config.flash_att else None)(inputs)
+        fac = head_dim if self.config.mup_scale else np.sqrt(head_dim)
+
+        if self.config.flash_att:
+            out = jax.nn.dot_product_attention(query, key, value, 
+                                                    bias=None, 
+                                                    scale=(1/fac), 
+                                                    is_causal=True,
+                                                    implementation='cudnn')
         else:
-            query = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='query', use_bias=False, kernel_init=kernel_init)(inputs)
-            key = prefac * nn.DenseGeneral(features=(n_heads, head_dim), name='key', use_bias=False, kernel_init=kernel_init)(inputs)
-            fac = head_dim if self.config.mup_scale else np.sqrt(head_dim)
-            attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key) / fac
-
-        if mask is not None:
-            if self.config.linear_att:
-                attn_weights = jnp.where(mask, attn_weights, 0)
+            if self.config.unif_att:
+                attn_weights = jnp.ones((1, inputs.shape[1], inputs.shape[1]))
             else:
-                attn_weights = jnp.where(mask, attn_weights, -jnp.inf)
-                attn_weights = jax.nn.softmax(attn_weights, axis=-1)
+                attn_weights = jnp.einsum('...qhd,...khd->...hqk', query, key) / fac
+
+            if mask is not None:
+                if self.config.linear_att:
+                    attn_weights = jnp.where(mask, attn_weights, 0)
+                else:
+                    attn_weights = jnp.where(mask, attn_weights, -jnp.inf)
+                    attn_weights = jax.nn.softmax(attn_weights, axis=-1)
 
 
-        self.sow('intermediates', 'attention_weights', attn_weights)
-        out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
+            self.sow('intermediates', 'attention_weights', attn_weights)
+            out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
 
         if self.config.mup_scale:
             # kernel_init = nn.initializers.normal(1)
@@ -420,93 +441,95 @@ class Tr(nn.Module):
 
 
 ### COORDINATE CHECKING
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-# import sys
-# sys.path.append('../')
-# from task.graph import *
-# from common import *
-# from train import *
-
-
-# base_lr = 1e-2
-# depth = 10
-# n_vocab = 2 * depth + 4
-
-# train_task = StarfishTask(depth=depth, n_arms=2, batch_size=512)
-
-# xs_init, _ = next(train_task)
-
-# state = None
-
-# all_norms = []
-# for n_steps in tqdm([3]):
-#     curr_norms = []
-#     curr_norms_att = []
-
-#     for n_hidden in [64, 128, 256, 512, 1024, 2048]:
-#         gamma = 100
-#         lr = base_lr * gamma
+import sys
+sys.path.append('../')
+from task.graph import *
+from common import *
+from train import *
 
 
-#         config = TransformerConfig(n_vocab=n_vocab,
-#                                 n_layers=1,
-#                                 n_hidden=n_hidden,
-#                                 n_heads=2,
-#                                 n_out=1,
-#                                 pos_emb=False,
-#                                 layer_norm=False,
-#                                 residual_connections=False,
-#                                 n_mlp_layers=2,
-#                                 return_format='final_logit',
-#                                 use_bias=False,
-#                                 freeze_emb=True,
-#                                 mup_scale=True,
-#                                 unif_att=True)
+base_lr = 1e-2
+depth = 10
+n_vocab = 2 * depth + 4
+
+train_task = StarfishTask(depth=depth, n_arms=2, batch_size=512)
+
+xs_init, _ = next(train_task)
+
+state = None
+
+all_norms = []
+for n_steps in tqdm([3]):
+    curr_norms = []
+    curr_norms_att = []
+
+    for n_hidden in [64, 128, 256, 512, 1024, 2048]:
+        gamma = 100
+        lr = base_lr * gamma
 
 
-#         state = create_train_state(jax.random.key(new_seed()),
-#                                 model=config.to_model(),
-#                                 dummy_input=xs_init,
-#                                 lr=lr,
-#                                 optim=optax.sign_sgd,
-#                                 gamma=gamma)
+        config = TransformerConfig(n_vocab=n_vocab,
+                                n_layers=1,
+                                n_hidden=n_hidden,
+                                n_heads=2,
+                                n_out=1,
+                                pos_emb=False,
+                                layer_norm=False,
+                                residual_connections=False,
+                                n_mlp_layers=2,
+                                return_format='final_logit',
+                                use_bias=False,
+                                freeze_emb=True,
+                                mup_scale=True,
+                                flash_att=True,
+                                unif_att=False)
 
-#         # logits_init = state.apply_fn({'params': state.params}, xs_init)
-#         logits_init, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
-#         # att_init = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
-#         w_init = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
+
+        state = create_train_state(jax.random.key(new_seed()),
+                                model=config.to_model(),
+                                dummy_input=xs_init,
+                                lr=lr,
+                                optim=optax.sign_sgd,
+                                gamma=gamma)
+
+        # logits_init = state.apply_fn({'params': state.params}, xs_init)
+        logits_init, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
+        # att_init = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
+        w_init = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
         
 
-#         state, hist = train(state,
-#                             train_iter=iter(train_task), 
-#                             loss='bce',
-#                             test_every=1000,
-#                             train_iters=n_steps, 
-#                             test_iters=1,
-#                             seed=None,
-#                             gamma=gamma)
+        state, hist = train(state,
+                            train_iter=iter(train_task), 
+                            loss='bce',
+                            test_every=1000,
+                            train_iters=n_steps, 
+                            test_iters=1,
+                            seed=None,
+                            gamma=gamma)
 
-#         logits, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
-#         # att = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
-#         w = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
+        logits, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
+        # att = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
+        w = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
 
-#         norm = np.std(logits - logits_init).item()
-#         # norm_att = np.std(att - att_init).item()
-#         norm_att = 0
-#         norm_w = np.std(w - w_init).item()
+        norm = np.std(logits - logits_init).item()
+        # norm_att = np.std(att - att_init).item()
+        norm_att = 0
+        norm_w = np.std(w - w_init).item()
 
-#         curr_norms.append((norm, norm_att, norm_w))
-#         # curr_norms_att.append(norm_att)
-#         del state
+        curr_norms.append((norm, norm_att, norm_w))
+        # curr_norms_att.append(norm_att)
+        del state
     
-#     all_norms.append(curr_norms)
+    all_norms.append(curr_norms)
 
 
-# for norms in all_norms:
-#     norms = np.array(norms)
-#     plt.plot(norms[:,0], 'o--')
-#     # plt.plot(norms[:,1], 'o--')
-#     plt.plot(norms[:,2], 'o--')
-#     # plt.yscale('log')
+for norms in all_norms:
+    norms = np.array(norms)
+    plt.plot(norms[:,0], 'o--')
+    # plt.plot(norms[:,1], 'o--')
+    plt.plot(norms[:,2], 'o--')
+    plt.savefig('tmp.png')
+    # plt.yscale('log')
 
