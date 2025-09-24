@@ -20,18 +20,18 @@ from task.prop import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 8
+run_split = 3
 
-batch_size = 64
+batch_size = 128
 multistep_k = 1
-train_iters = 20_000
+train_iters = 10_000
 warmup_iters = 500
 # train_iters = 20_000
 # warmup_iters = 500
 eval_k = 20
 max_len = 1024
 
-n_hops = [6]
+n_hops = [4, 6, 8]
 
 n_hidden = 768
 n_layer = 12
@@ -83,19 +83,20 @@ for n_hop in n_hops:
 
     def make_train_args(loss='ce_mask'):
         args = {
-            'tqdm': True,
+            'use_tqdm': True,
             'loss': loss,
-            'test_every': 100,
-            'test_iters': 1,
+            'test_every': 50,
+            'test_iters': 10,
             'train_iters': train_iters,
             'k': multistep_k,
-            'lr': optax.schedules.warmup_cosine_decay_schedule(
-                init_value=1e-4,
-                peak_value=3e-4,
-                warmup_steps=warmup_iters,
-                decay_steps=train_iters,
-                end_value=5e-5
-            )
+            'lr': 5e-5
+            # 'lr': optax.schedules.warmup_cosine_decay_schedule(
+            #     init_value=1e-4,
+            #     peak_value=3e-4,
+            #     warmup_steps=warmup_iters,
+            #     decay_steps=train_iters,
+            #     end_value=5e-5
+            # )
         }
 
         args['eval_fns'] = [loss_and_acc]
@@ -107,8 +108,8 @@ for n_hop in n_hops:
             'depth': n_hop,
             'split': split,
             'batch_size': batch_size,
-            'max_len': max_len,
-            'padding': 'max_length'
+            # 'max_len': max_len,
+            # 'padding': 'max_length'
         }
 
         return PropTask(cot=cot, **task_args, **kwargs)
