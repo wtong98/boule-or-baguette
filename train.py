@@ -285,8 +285,8 @@ def train(config, train_iter,
                 all_train.append(merge_dicts([fn(state, train_batch, loss=loss) for fn in eval_fns]))
                 all_test.append(merge_dicts([fn(state, test_batch, loss=loss) for fn in eval_fns]))
             
-            all_train = jax.tree.map(lambda *xs: np.mean(xs), *all_train)
-            all_test = jax.tree.map(lambda *xs: np.mean(xs), *all_test)
+            all_train = jax.tree.map(lambda *xs: jnp.mean(jnp.array(xs)).item(), *all_train)
+            all_test = jax.tree.map(lambda *xs: jnp.mean(jnp.array(xs)).item(), *all_test)
 
             hist['train'].append(all_train)
             hist['test'].append(all_test)

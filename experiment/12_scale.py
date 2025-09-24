@@ -83,7 +83,8 @@ config = TransformerConfig(n_layers=1,
                         #    return_format='final_logit_up_to_pad' if cot else 'final_logit',
                            return_format=None if cot else 'final_logit',
                            mup_scale=True,
-                           unif_att=True
+                           unif_att=True,
+                           dtype=jnp.bfloat16
                            )
 
 # <codecell>
@@ -97,7 +98,7 @@ def summarize(state):
 # lr = 1e-2
 # gamma = 100
 
-lr = 1e-2
+lr = 1e-1
 gamma = 1
 
 
