@@ -160,13 +160,16 @@ class PropTask:
         else:
             ys = batch['is_true'].astype(int)
 
+        if xs.shape[1] % 2 == 1:
+            xs = np.concatenate((xs, np.zeros((xs.shape[0], 1))), axis=1)
+
         return xs, ys
 
 
     def __iter__(self):
         return self
 
-# task = PropTask(depth=20, batch_size=5, split='test', cot=True, ds_path=full_ds_path, max_len=1024, padding='max_length')
+# task = PropTask(depth=10, batch_size=5, split='test', cot=True, ds_path=full_ds_path, padding='longest')
 # xs, ys = next(task)
 # xs.shape
 

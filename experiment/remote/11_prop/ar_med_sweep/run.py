@@ -20,7 +20,7 @@ from task.prop import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 4
 
 batch_size = 16
 multistep_k = 4
