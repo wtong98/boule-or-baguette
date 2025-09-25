@@ -9,6 +9,7 @@ import itertools
 from typing import Any, Iterable
 
 from flax import struct, traverse_util
+from flax.serialization import to_state_dict
 from flax.training import train_state
 import jax
 import jax.numpy as jnp
@@ -16,6 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optax
 from tqdm import tqdm
+import wandb
 
 from common import new_seed, merge_dicts, gen1, gen2
 
@@ -238,7 +240,7 @@ def train(config, train_iter,
           train_iters=10_000, test_iters=1, test_every=1_000, save_params=False,
           early_stop_n=None, early_stop_key='loss', early_stop_decision='min' ,
           optim=optax.adamw, k=1,
-          seed=None, use_tqdm=False,
+          seed=None, use_tqdm=False, wdb=None,
           **opt_kwargs):
 
     if seed is None:
@@ -296,6 +298,21 @@ def train(config, train_iter,
                 hist['summary'].append(summ)
 
             print_fn((step + 1) // k, hist)
+
+            if wdb is not None:
+                train_obj = hist['train'][-1]
+                test_obj = hist['test'][-1]
+                
+                train_log = {f'train_{k}': v for k, v in train_obj.items()}
+                test_log = {f'test_{k}': v for k, v in test_obj.items()}
+                log = train_log | test_log
+
+                if summary_fn is not None:
+                    summ_obj = hist['summary'][-1]
+                    summ_log = {f'summary_{k}': v for k, v in summ_obj.items()}
+                    log = log | summ_log
+                
+                wdb.log(log)
 
             if save_params:
                 hist['params'].append(state.params)
@@ -401,9 +418,15 @@ class Case:
     state: list = None
     hist: list = None
     info: dict = field(default_factory=dict)
+    wdb_proj: str = None
 
     def run(self):
-        self.state, self.hist = train(self.config, train_iter=self.train_task, test_iter=self.test_task, **self.train_args)
+        if self.wdb_proj is not None:
+            wdb = wandb.init(project=self.wdb_proj, config=to_state_dict(self.config))
+        else:
+            wdb = None
+
+        self.state, self.hist = train(self.config, train_iter=self.train_task, test_iter=self.test_task, wdb=wdb, **self.train_args)
     
     def get_flops(self):
         train_args = self.train_args
