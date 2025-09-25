@@ -9,6 +9,7 @@ old/
 *.json
 data/
 repl/
+wandb/
 
 # ignore slurm logging outputs
 *.err

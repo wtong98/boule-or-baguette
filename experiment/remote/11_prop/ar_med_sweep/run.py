@@ -21,11 +21,12 @@ run_id = new_seed()
 print('RUN ID', run_id)
 
 run_split = 4
+wdb_proj = 'ar_sweep'
 
-batch_size = 64
-multistep_k = 1
-train_iters = 50_000
-warmup_iters = 1000
+batch_size = 22
+multistep_k = 3
+train_iters = 100_000
+warmup_iters = 5000
 # train_iters = 20_000
 # warmup_iters = 500
 eval_k = 20
@@ -67,6 +68,30 @@ save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights')
 range_hops = [1] + [(h + 1) for h in n_hops] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
+
+def summarize_global_acc(state):
+    summary = {}
+    for r in ranges:
+        all_res = []
+        test_task = PropTask(depth=r, 
+                             split='range', 
+                             cot=False, 
+                             batch_size=batch_size, 
+                             ds_path=full_ds_path, 
+                             max_len=max_len,
+                             padding='max_length')
+
+        for _ in range(multistep_k):
+            batch = next(test_task)
+            res = gen_acc_cot_prop(state, batch)
+            all_res.append(res)
+
+        all_res = jax.tree.map(lambda *xs: jnp.mean(jnp.array(xs)).item(), *all_res)
+        summary[r] = all_res
+    
+    return summary
+
+
 all_cases = []
 
 for n_hop in n_hops:
@@ -90,16 +115,17 @@ for n_hop in n_hops:
             'train_iters': train_iters,
             'k': multistep_k,
             'lr': optax.schedules.warmup_cosine_decay_schedule(
-                init_value=1e-4 if default_lr else 5e-5,
-                peak_value=3e-4 if default_lr else 1e-4,
+                init_value=1e-8,
+                peak_value=5e-4 if default_lr else 3e-4,
                 warmup_steps=warmup_iters,
                 decay_steps=train_iters,
-                end_value=5e-5 if default_lr else 2e-5
+                end_value=5e-5 if default_lr else 3e-5
             )
         }
 
         args['eval_fns'] = [loss_and_acc, gen_acc_cot_prop]
         args['print_fn'] = print_gen
+        args['summary_fn'] = summarize_global_acc
         return args
 
 
@@ -131,7 +157,8 @@ for n_hop in n_hops:
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path),
                 test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path),
-                info={'n_hop': n_hop}
+                info={'n_hop': n_hop},
+                wdb_proj=wdb_proj
         ), 
 
         Case('AR_PE_med',
@@ -149,7 +176,8 @@ for n_hop in n_hops:
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path),
                 test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path),
-                info={'n_hop': n_hop}
+                info={'n_hop': n_hop},
+                wdb_proj=wdb_proj
         ), 
 
         Case('AR_llr_med',
@@ -167,7 +195,8 @@ for n_hop in n_hops:
                 train_args=make_train_args('ce_mask', default_lr=False),
                 train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path),
                 test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path),
-                info={'n_hop': n_hop}
+                info={'n_hop': n_hop},
+                wdb_proj=wdb_proj
         ), 
 
         Case('AR_PE_llr',
@@ -185,7 +214,8 @@ for n_hop in n_hops:
                 train_args=make_train_args('ce_mask', default_lr=False),
                 train_task=make_chain(cot=True, split='train', batch_size=batch_size, ds_path=full_ds_path),
                 test_task=make_chain(cot=True, split='test', batch_size=batch_size, ds_path=full_ds_path),
-                info={'n_hop': n_hop}
+                info={'n_hop': n_hop},
+                wdb_proj=wdb_proj
         ), 
     ])
     

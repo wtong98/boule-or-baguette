@@ -36,6 +36,7 @@ n_hops = [4, 6, 8]
 n_hidden = 768
 n_layer = 12
 n_head = 12
+flash_att = True
 
 # n_hidden = 1024
 # n_layer = 24
@@ -45,23 +46,24 @@ save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights')
 
 
 ### START TEST CONFIGS
-# run_split = 1
+run_split = 1
 
-# train_iters = 300
-# warmup_iters = 1
-# batch_size = 4
-# eval_k = 1
-# multistep_k = 2
+train_iters = 300
+warmup_iters = 1
+batch_size = 4
+eval_k = 1
+multistep_k = 2
 
-# n_hops = [2]
+n_hops = [2]
 
-# n_hidden = 64
-# n_layer = 1
-# n_head = 1
+n_hidden = 64
+n_layer = 1
+n_head = 1
+flash_att = False
 
-# max_len = None
+max_len = None
 
-# save_dir = Path('.').parent
+save_dir = Path('.').parent
 ### END TEST CONFIGS
 
 range_hops = [1] + [(h + 1) for h in n_hops] + [np.inf]
@@ -99,7 +101,7 @@ for n_hop in n_hops:
     model_args = {
         'n_vocab': n_vocab,
         'n_hidden': n_hidden,
-        # 'flash_att': True,
+        'flash_att': flash_att,
         'dtype': jnp.bfloat16
         # 'use_bias': False,
         # 'freeze_emb': True,
@@ -156,7 +158,8 @@ for n_hop in n_hops:
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False, split='train', batch_size=batch_size, ds_path=or_ds_path),
                 test_task=make_chain(cot=False, split='test', batch_size=batch_size, ds_path=or_ds_path),
-                info={'n_hop': n_hop}
+                info={'n_hop': n_hop},
+                wdb_proj='direct_or'
         ), 
     ])
     

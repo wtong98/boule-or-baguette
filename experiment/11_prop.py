@@ -90,7 +90,7 @@ df
 # <codecell>
 # rand_idxs = np.random.choice(len(df), size=100, replace=False)
 for ex in df1['hist']:
-    vals = [p['loss'] for p in ex['train']]
+    vals = [p['acc'] for p in ex['test']]
     plt.plot(vals, color='C0', alpha=0.1)
 
 # %%
@@ -137,7 +137,7 @@ for n_hop in [6]:
     mdf = plot_df.copy()
     mdf = mdf[mdf['train_hop'] == n_hop]
 
-    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='max')
+    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_full', 'Direct_imply', 'AR_full', 'AR_trunc', 'AR_imply'], estimator='mean')
     # g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_or', 'AR_or'], estimator='mean')
     g.set_ylim(0.4, 1)
     g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
@@ -150,12 +150,13 @@ for n_hop in [6]:
 # <codecell>
 df1 = collate_dfs('remote/11_prop/ar_med_sweep', show_progress=True)
 df2 = collate_dfs('remote/11_prop/ar_lg_sweep', show_progress=True)
-df = pd.concat([df1, df2], ignore_index=True)
+df3 = collate_dfs('remote/11_prop/ar_xl_sweep', show_progress=True)
+df = pd.concat([df1, df2, df3], ignore_index=True)
 df
 
 # <codecell>
-for ex in df2['hist']:
-    vals = [p['loss'] for p in ex['test']]
+for ex in df3['hist']:
+    vals = [p['gen_acc'] for p in ex['test']]
     plt.plot(vals, color='C0', alpha=0.1)
 
 # %%
