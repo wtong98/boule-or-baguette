@@ -13,5 +13,7 @@
 # #SBATCH --exclude=holygpu8a19205,holygpu8a19503
 
 source ../../../../../venv_imply/bin/activate
+export WANDB_API_KEY=$(cat ~/wandb.txt)
+wandb login
 python run.py ${SLURM_ARRAY_TASK_ID}
 

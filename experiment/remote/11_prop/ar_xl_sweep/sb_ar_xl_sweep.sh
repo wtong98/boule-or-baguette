@@ -12,6 +12,8 @@
 #SBATCH --account=kempner_pehlevan_lab
 # #SBATCH --exclude=holygpu8a19205,holygpu8a19503
 
+export WANDB_API_KEY=$(cat ~/wandb.txt)
 source ../../../../../venv_imply/bin/activate
+wandb login
 python run.py ${SLURM_ARRAY_TASK_ID}
 
