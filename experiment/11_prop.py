@@ -90,7 +90,7 @@ df
 # <codecell>
 # rand_idxs = np.random.choice(len(df), size=100, replace=False)
 for ex in df1['hist']:
-    vals = [p['acc'] for p in ex['test']]
+    vals = [p['loss'] for p in ex['train']]
     plt.plot(vals, color='C0', alpha=0.1)
 
 # %%
@@ -133,7 +133,7 @@ plot_df
 
 # <codecell>
 # for n_hop in [2, 4, 6, 10]:
-for n_hop in [10]:
+for n_hop in [6]:
     mdf = plot_df.copy()
     mdf = mdf[mdf['train_hop'] == n_hop]
 
@@ -145,6 +145,136 @@ for n_hop in [10]:
 
     # plt.savefig(f'fig/prop_task_n_hop_{n_hop}.png')
     plt.show()
+
+
+# <codecell>
+df1 = collate_dfs('remote/11_prop/ar_med_sweep', show_progress=True)
+df2 = collate_dfs('remote/11_prop/ar_lg_sweep', show_progress=True)
+df = pd.concat([df1, df2], ignore_index=True)
+df
+
+# <codecell>
+for ex in df2['hist']:
+    vals = [p['loss'] for p in ex['test']]
+    plt.plot(vals, color='C0', alpha=0.1)
+
+# %%
+def extract_plot_vals(row):
+    if 'n_hop' in row['info']:
+        train_hop = row['info']['n_hop']
+        new_info = row['info'].copy()
+        new_info.pop('n_hop')
+    else:
+        train_hop = 0
+        new_info = row['info']
+    
+    return pd.Series([
+        row['name'],
+        train_hop,
+        new_info
+    ], index=['name', 'train_hop', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+
+n_hop_val = [v[0] for v in plot_df['test_n_hop']]
+plot_df['test_n_hop'] = n_hop_val
+plot_df
+
+# <codecell>
+# for n_hop in [2, 4, 6, 10]:
+for n_hop in [6]:
+    mdf = plot_df.copy()
+    mdf = mdf[mdf['train_hop'] == n_hop]
+
+    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', estimator='max')
+    # g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_or', 'AR_or'], estimator='mean')
+    # g.set_ylim(0.4, 1)
+    g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
+    g.set_title('Train hop: ' + str(n_hop))
+
+    # plt.savefig(f'fig/prop_task_n_hop_{n_hop}.png')
+    plt.show()
+
+
+# <codecell>
+### OR experiment
+df = collate_dfs('remote/11_prop/direct_or', show_progress=True)
+df
+
+# <codecell>
+for ex in df['hist']:
+    vals = [p['acc'] for p in ex['test']]
+    plt.plot(vals, color='C0', alpha=0.1)
+
+# %%
+def extract_plot_vals(row):
+    if 'n_hop' in row['info']:
+        train_hop = row['info']['n_hop']
+        new_info = row['info'].copy()
+        new_info.pop('n_hop')
+    else:
+        train_hop = 0
+        new_info = row['info']
+    
+    return pd.Series([
+        row['name'],
+        train_hop,
+        new_info
+    ], index=['name', 'train_hop', 'info'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+# bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+
+n_hop_val = [v[0] for v in plot_df['test_n_hop']]
+plot_df['test_n_hop'] = n_hop_val
+plot_df
+
+# <codecell>
+# for n_hop in [2, 4, 6, 10]:
+for n_hop in [6]:
+    mdf = plot_df.copy()
+    mdf = mdf[mdf['train_hop'] == n_hop]
+
+    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', estimator='max')
+    # g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_or', 'AR_or'], estimator='mean')
+    # g.set_ylim(0.4, 1)
+    g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
+    g.set_title('Train hop: ' + str(n_hop))
+
+    # plt.savefig(f'fig/prop_task_n_hop_{n_hop}.png')
+    plt.show()
+
 
 # <codecell>
 ### MODEL INSPECTION

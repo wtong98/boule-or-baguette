@@ -47,7 +47,7 @@ save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights')
 ### START TEST CONFIGS
 # run_split = 1
 
-# train_iters = 2
+# train_iters = 300
 # warmup_iters = 1
 # batch_size = 4
 # eval_k = 1
@@ -59,13 +59,37 @@ save_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop_weights')
 # n_layer = 1
 # n_head = 1
 
-# max_len = 500
+# max_len = None
 
 # save_dir = Path('.').parent
 ### END TEST CONFIGS
 
 range_hops = [1] + [(h + 1) for h in n_hops] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
+
+
+def summarize_global_acc(state):
+    summary = {}
+    for r in ranges:
+        all_res = []
+        test_task = PropTask(depth=r, 
+                             split='range', 
+                             cot=False, 
+                             batch_size=batch_size, 
+                             ds_path=or_ds_path, 
+                             max_len=max_len,
+                             padding='max_length')
+
+        for _ in range(10):
+            batch = next(test_task)
+            res = loss_and_acc(state, batch)
+            all_res.append(res)
+
+        all_res = jax.tree.map(lambda *xs: jnp.mean(jnp.array(xs)).item(), *all_res)
+        summary[r] = all_res
+    
+    return summary
+
 
 all_cases = []
 
@@ -75,7 +99,7 @@ for n_hop in n_hops:
     model_args = {
         'n_vocab': n_vocab,
         'n_hidden': n_hidden,
-        'flash_att': True,
+        # 'flash_att': True,
         'dtype': jnp.bfloat16
         # 'use_bias': False,
         # 'freeze_emb': True,
@@ -100,6 +124,7 @@ for n_hop in n_hops:
         }
 
         args['eval_fns'] = [loss_and_acc]
+        args['summary_fn'] = summarize_global_acc
         return args
 
 
