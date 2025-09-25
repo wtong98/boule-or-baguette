@@ -418,7 +418,7 @@ class Case:
             batch = next(task)
             all_res.append(merge_dicts([fn(self.state, batch, loss=loss) for fn in eval_fns]))
 
-        all_res = jax.tree.map(lambda *xs: np.mean(xs), *all_res)
+        all_res = jax.tree.map(lambda *xs: jnp.mean(jnp.array(xs)).item(), *all_res)
         if prefix is not None:
             all_res = {prefix: all_res}
 
