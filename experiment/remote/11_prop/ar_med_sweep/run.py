@@ -14,17 +14,17 @@ import sys
 sys.path.append('../../../../')
 from common import *
 from train import *
-from model.transformer import TransformerConfig
+from model.transformer_std import TransformerConfig
 from task.prop import *
 
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 4
+run_split = 8
 wdb_proj = 'ar_sweep'
 
 batch_size = 22
-multistep_k = 3
+multistep_ks = [6, 12]
 train_iters = 100_000
 warmup_iters = 5000
 # train_iters = 20_000
@@ -81,7 +81,7 @@ def summarize_global_acc(state):
                              max_len=max_len,
                              padding='max_length')
 
-        for _ in range(multistep_k):
+        for _ in range(3):
             batch = next(test_task)
             res = gen_acc_cot_prop(state, batch)
             all_res.append(res)
@@ -94,7 +94,7 @@ def summarize_global_acc(state):
 
 all_cases = []
 
-for n_hop in n_hops:
+for n_hop, multistep_k in itertools.product(n_hops, multistep_ks):
     n_vocab = PropTask.n_vocab
 
     model_args = {

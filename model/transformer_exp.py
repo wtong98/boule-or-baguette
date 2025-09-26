@@ -29,6 +29,15 @@ import numpy as np
 import sys
 sys.path.append('../')
 from common import new_seed, t
+# from model.pe import RoPE
+
+import jax.numpy as jnp
+import jax.nn
+
+
+def swiglu(x, axis=-1):
+    a, b = jnp.split(x, 2, axis=axis)
+    return a * jax.nn.swish(b)
 
 
 @struct.dataclass
@@ -120,8 +129,7 @@ class AddPositionEmbs(nn.Module):
 
 class SimpleSelfAttention(nn.Module):
     config: TransformerConfig
-    # NOTE: muP scale implemented only for single head case
-
+    
     @nn.compact
     def __call__(self, inputs, mask=None, is_first=False):
         self.sow('intermediates', 'inputs', inputs)
@@ -218,16 +226,18 @@ class TransformerBlock(nn.Module):
 
         assert inputs.ndim == 3
 
+        # if self.config.layer_norm:
+        #     x = nn.RMSNorm()(inputs)
+
         x = SimpleSelfAttention(config=self.config)(inputs, mask=decoder_mask, is_first=is_first)
 
         if self.config.residual_connections:
-            if self.config.remove_att:
-                x = inputs
-            else:
-                x = x + inputs
+            x = x + inputs
+
+        pre_mlp_x = x
 
         if self.config.layer_norm:
-            x = nn.LayerNorm()(x)
+            x = nn.RMSNorm()(x)
         
         if self.config.mup_scale:
             # kernel_init = nn.initializers.normal(1)
@@ -240,16 +250,15 @@ class TransformerBlock(nn.Module):
 
         
         if self.config.n_mlp_layers > 0:
-            pre_mlp_x = x
             for i in range(self.config.n_mlp_layers):
                 if i == 0:
-                    x = prefac * nn.Dense(features=self.config.n_hidden, 
+                    x = prefac * nn.Dense(features=4 * self.config.n_hidden, 
                                           use_bias=self.config.use_bias, 
                                           kernel_init=kernel_init,
                                         #   param_dtype=self.config.dtype
                                           dtype=self.config.dtype)(pre_mlp_x)
                 else:
-                    x = nn.gelu(x)
+                    x = swiglu(x)
                     x = prefac * nn.Dense(features=self.config.n_hidden, 
                                           use_bias=self.config.use_bias, 
                                           kernel_init=kernel_init,
@@ -257,12 +266,13 @@ class TransformerBlock(nn.Module):
                                           dtype=self.config.dtype)(x)
                 
                 self.sow('intermediates', f'layer_{i}', x)
-            
+
+
             if self.config.residual_connections:
                 x = x + pre_mlp_x
-
+            
             if self.config.layer_norm:
-                x = nn.LayerNorm()(x)
+                x = nn.RMSNorm()(x)
 
         return x
 
@@ -293,6 +303,7 @@ class Transformer(nn.Module):
 
         if config.pos_emb:
             y = AddPositionEmbs(config=config)(y)
+            # y = RoPE(dim=self.config.n_hidden, num_heads=self.config.n_heads)(y)
         
         decoder_mask = nn.make_causal_mask(jnp.zeros(inputs.shape[:2]))
 
@@ -302,6 +313,8 @@ class Transformer(nn.Module):
             name = f'transformer_block_{i}_freeze' if self.config.as_rf_model else None
             y = TransformerBlock(config=config, name=name)(y, decoder_mask=decoder_mask, is_first=(i == 0))
         
+        # y = nn.RMSNorm()(y)
+
         if self.config.mup_scale:
             kernel_init = nn.initializers.normal(1)
             prefac = 1 / self.config.n_hidden
