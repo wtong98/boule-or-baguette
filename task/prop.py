@@ -256,7 +256,6 @@ class PropTask:
 
 
 # <codecell>
-# TODO: update IDs
 yes_id = 366
 no_id = 352
 state_id = 264

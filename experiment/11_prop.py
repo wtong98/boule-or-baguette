@@ -215,28 +215,31 @@ for n_hop in [6]:
 
 # <codecell>
 ### OR experiment
+def summarize_global_acc(state):
+    pass
+
 df = collate_dfs('remote/11_prop/direct_or', show_progress=True)
 df
 
-# <codecell>
-for ex in df['hist']:
-    vals = [p['acc'] for p in ex['test']]
-    plt.plot(vals, color='C0', alpha=0.1)
 
 # %%
+def sum_acc(summ):
+    tot = 0
+    for val in summ.values():
+        tot += val['acc']
+    return tot
+
 def extract_plot_vals(row):
-    if 'n_hop' in row['info']:
-        train_hop = row['info']['n_hop']
-        new_info = row['info'].copy()
-        new_info.pop('n_hop')
-    else:
-        train_hop = 0
-        new_info = row['info']
+    train_hop = row['info']['n_hop']
+    summary = row['hist']['summary']
+    accs = [sum_acc(summ) for summ in summary]
+    best_k = np.argmax(accs)
+    best_rec = summary[best_k]
     
     return pd.Series([
         row['name'],
         train_hop,
-        new_info
+        best_rec
     ], index=['name', 'train_hop', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
@@ -262,8 +265,7 @@ plot_df['test_n_hop'] = n_hop_val
 plot_df
 
 # <codecell>
-# for n_hop in [2, 4, 6, 10]:
-for n_hop in [6]:
+for n_hop in [4, 6, 8]:
     mdf = plot_df.copy()
     mdf = mdf[mdf['train_hop'] == n_hop]
 
@@ -273,7 +275,7 @@ for n_hop in [6]:
     g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
     g.set_title('Train hop: ' + str(n_hop))
 
-    # plt.savefig(f'fig/prop_task_n_hop_{n_hop}.png')
+    plt.savefig(f'fig/direct_or_n_hop_{n_hop}.png')
     plt.show()
 
 
@@ -283,7 +285,7 @@ with open('remote/11_prop/weights/AR_full_4_weights.pkl', 'rb') as fp:
     params = pickle.load(fp)
 
 # <codecell>
-task = PropTask(5, split='train', cot=True, batch_size=8, max_len=1024, padding='max_length', ds_path=full_ds_path)
+task = PropTask((7, np.inf), split='range', cot=True, batch_size=8, max_len=1024, padding='max_length', ds_path=full_ds_path)
 xs, ys = next(task)
 xs.shape
 
@@ -319,10 +321,14 @@ dec(out['preds'][-1])
 dec(xs[-1])
 
 # <codecell>
-yes_id = 13138
-no_id = 32165
+yes_id = 366
+no_id = 352
+state_id = 264
 
-np.argmax(out['preds'][1] == no_id)
+jnp.argmax(xs == yes_id, axis=-1)
+
+# <codecell>
+
 
 # <codecell>
 def score(xs, preds):

@@ -70,7 +70,7 @@ def summarize_global_acc(state):
         all_res = []
         test_task = PropTask(depth=r, 
                              split='range', 
-                             cot=False, 
+                             cot=True, 
                              batch_size=batch_size, 
                              ds_path=full_ds_path, 
                              max_len=max_len,

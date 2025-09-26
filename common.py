@@ -98,8 +98,9 @@ def collate_dfs(df_dir, show_progress=False, concat=True):
             try:
                 df = pd.read_pickle(f)
                 dfs.append(df)
-            except:
+            except Exception as e:
                 print(f'warn: fail to read {f}')
+                print(e)
 
     if concat:
         dfs = pd.concat(dfs)

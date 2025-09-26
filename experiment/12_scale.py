@@ -12,7 +12,7 @@ sys.path.append('../')
 from common import *
 from train import *
 from model.mlp import MlpConfig
-from model.transformer import *
+from model.transformer_std import *
 from task.graph import *
 
 n_arms = 50
