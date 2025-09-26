@@ -30,6 +30,7 @@ def create_train_state(rng=None,
                        lr=1e-4, 
                        optim=optax.adamw, 
                        with_multistep_k=None,
+                       clip=None,
                        **opt_kwargs):
     if params is None:
         params = model.init(rng, dummy_input)['params']
@@ -41,6 +42,12 @@ def create_train_state(rng=None,
          'freeze': optax.set_to_zero()},
          traverse_util.path_aware_map(lambda path, _: 'freeze' if np.any([s.endswith('freeze') for s in path]) else 'learn', params)
     )
+
+    if clip is not None:
+        tx_with_freeze = optax.chain(
+            optax.clip_by_global_norm(clip),
+            tx_with_freeze
+        )
 
     if with_multistep_k is not None:
         tx_with_freeze = optax.MultiSteps(tx_with_freeze, every_k_schedule=with_multistep_k)
