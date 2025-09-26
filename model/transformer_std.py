@@ -226,8 +226,8 @@ class TransformerBlock(nn.Module):
 
         assert inputs.ndim == 3
 
-        if self.config.layer_norm:
-            x = nn.RMSNorm()(inputs)
+        # if self.config.layer_norm:
+        #     x = nn.RMSNorm()(inputs)
 
         x = SimpleSelfAttention(config=self.config)(inputs, mask=decoder_mask, is_first=is_first)
 
@@ -266,9 +266,13 @@ class TransformerBlock(nn.Module):
                                           dtype=self.config.dtype)(x)
                 
                 self.sow('intermediates', f'layer_{i}', x)
-            
+
+
             if self.config.residual_connections:
                 x = x + pre_mlp_x
+            
+            if self.config.layer_norm:
+                x = nn.RMSNorm()(x)
 
         return x
 
@@ -309,7 +313,7 @@ class Transformer(nn.Module):
             name = f'transformer_block_{i}_freeze' if self.config.as_rf_model else None
             y = TransformerBlock(config=config, name=name)(y, decoder_mask=decoder_mask, is_first=(i == 0))
         
-        y = nn.RMSNorm()(y)
+        # y = nn.RMSNorm()(y)
 
         if self.config.mup_scale:
             kernel_init = nn.initializers.normal(1)
