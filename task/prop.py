@@ -28,6 +28,10 @@ or_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_or'
 # debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 debug_ds_path = None
 
+yes_id = 366
+no_id = 352
+state_id = 264
+
 
 class PropTask:
     n_vocab = 512
@@ -155,15 +159,20 @@ class PropTask:
         #     xs = new_xs
 
         if self.cot:
-            ys = xs[:,1:]
-            xs = xs[:,:-1]
+            if self.cot == 'final':
+                # TODO: technically retains some spare brackets
+                xs[(xs == yes_id) | (xs == no_id)] = 0
+                ys = batch['is_true'].astype(int)
+            else:
+                ys = xs[:,1:]
+                xs = xs[:,:-1]
         else:
             ys = batch['is_true'].astype(int)
 
         if xs.shape[1] % 2 == 1:
             xs = np.concatenate((xs, np.zeros((xs.shape[0], 1))), axis=1)
 
-            if self.cot:
+            if self.cot and self.cot != 'final':
                 ys = np.concatenate((ys, np.zeros((ys.shape[0], 1))), axis=1)
 
         return xs.astype(np.int16), ys.astype(np.int16)
@@ -172,9 +181,13 @@ class PropTask:
     def __iter__(self):
         return self
 
-# task = PropTask(depth=10, batch_size=5, split='test', cot=True, ds_path=full_ds_path, padding='longest')
+# task = PropTask(depth=10, batch_size=5, split='test', cot='final', ds_path=full_ds_path, padding='longest')
 # xs, ys = next(task)
 # xs.shape
+
+# print(task.tokenizer.decode(xs[-1]))
+
+# <codecell>
 
 # xs.dtype
 
@@ -256,9 +269,6 @@ class PropTask:
 
 
 # <codecell>
-yes_id = 366
-no_id = 352
-state_id = 264
 
 # NOTE: un-optimized and very expensive to run
 def _old_gen_acc_cot_prop(state, batch, loss=None):
