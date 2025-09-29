@@ -65,6 +65,8 @@ args = SFTConfig(
     weight_decay=0.0,
     report_to="none",
     completion_only_loss=True,
+    packing=True,
+    max_seq_length=4096,
 )
 
 trainer = SFTTrainer(
@@ -73,8 +75,6 @@ trainer = SFTTrainer(
     args=args,
     train_dataset=train_ds,
     eval_dataset=test_ds,
-    packing=True,             # pack many short samples to fill context
-    max_seq_length=4096,      # TODO: confirm
 )
 
 trainer.train()
