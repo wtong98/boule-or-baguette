@@ -83,13 +83,13 @@ state, hist = train(config,
 # df1 = collate_dfs('remote/11_prop/ar/set1_good', show_progress=True)
 # df2 = collate_dfs('remote/11_prop/direct/set1_good', show_progress=True)
 df1 = collate_dfs('remote/11_prop/ar', show_progress=True)
-df2 = collate_dfs('remote/11_prop/direct', show_progress=True)
+df2 = collate_dfs('remote/11_prop/direct/set4_nolim', show_progress=True)
 df = pd.concat([df1, df2], ignore_index=True)
 df
 
 # <codecell>
 # rand_idxs = np.random.choice(len(df), size=100, replace=False)
-for ex in df1['hist']:
+for ex in df2['hist']:
     vals = [p['acc'] for p in ex['test']]
     plt.plot(vals, color='C0', alpha=0.1)
 
@@ -133,7 +133,7 @@ plot_df
 
 # <codecell>
 # for n_hop in [2, 4, 6, 10]:
-for n_hop in [6]:
+for n_hop in [2]:
     mdf = plot_df.copy()
     mdf = mdf[mdf['train_hop'] == n_hop]
 

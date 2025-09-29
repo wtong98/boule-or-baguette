@@ -28,7 +28,9 @@ def split_by_len(dataset):
     print('info: assembling datasets')
     for key in tqdm(splits.keys()):
         for switch in [True, False]:
-            ds[f'{switch}_{key}'] = Dataset.from_list(splits[key][switch])
+            bundle = splits[key][switch]
+            if len(bundle) > 0:
+                ds[f'{switch}_{key}'] = Dataset.from_list(splits[key][switch])
 
     return DatasetDict(ds)
     
@@ -45,53 +47,57 @@ def count_ops(dataset):
     return counts
 
 if __name__ == '__main__':
-    # maxlens= [1024]
-    # dataset = load_dataset('json', data_dir='data/or', split='train', keep_in_memory=True, num_proc=16)
+    maxlens= [1024]
+    dataset = load_dataset('json', data_dir='data/raw_full', split='train', keep_in_memory=True, num_proc=16)
 
-    maxlens = [1024]
-    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or', split='train', keep_in_memory=True, num_proc=16)
+    dataset = dataset.rename_column('input', 'prompt')
+    dataset = dataset.rename_column('proof', 'completion')
 
-    if Path('data/tok').exists():
-        tokenizer = AutoTokenizer.from_pretrained('data/tok')
-    else:
-        tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
+    # maxlens = [1024]
+    # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or', split='train', keep_in_memory=True, num_proc=16)
 
-        def make_corps(batch_size):
-            for i in range(0, len(dataset), batch_size):
-                inp = dataset[i:i+batch_size]['input']
-                proof = dataset[i:i+batch_size]['proof']
-                full = [a + b for a, b in zip(inp, proof)]
-                yield full
+    # if Path('data/tok').exists():
+    #     tokenizer = AutoTokenizer.from_pretrained('data/tok')
+    # else:
+    #     tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
 
-        corps = make_corps(1000)
+    #     def make_corps(batch_size):
+    #         for i in range(0, len(dataset), batch_size):
+    #             inp = dataset[i:i+batch_size]['input']
+    #             proof = dataset[i:i+batch_size]['proof']
+    #             full = [a + b for a, b in zip(inp, proof)]
+    #             yield full
 
-        print('info: training tokenizer...')
-        tokenizer = tokenizer.train_new_from_iterator(corps, vocab_size=512)
+    #     corps = make_corps(1000)
 
-        tokenizer.save_pretrained('data/tok')
+    #     print('info: training tokenizer...')
+    #     tokenizer = tokenizer.train_new_from_iterator(corps, vocab_size=512)
+
+    #     tokenizer.save_pretrained('data/tok')
 
     ds = split_by_len(dataset)
+    ds.save_to_disk('data/hf_full_text')
 
-    def to_toks(ex):
-        inp_toks = tokenizer(ex['input'], return_attention_mask=False)
-        inp_and_proof_toks = tokenizer(ex['input'] + ex['proof'], return_attention_mask=False)
+    # def to_toks(ex):
+    #     inp_toks = tokenizer(ex['input'], return_attention_mask=False)
+    #     inp_and_proof_toks = tokenizer(ex['input'] + ex['proof'], return_attention_mask=False)
 
-        return {
-            'input_ids': inp_toks['input_ids'],
-            'full_ids': inp_and_proof_toks['input_ids'],
-        }
+    #     return {
+    #         'input_ids': inp_toks['input_ids'],
+    #         'full_ids': inp_and_proof_toks['input_ids'],
+    #     }
 
-    ds = ds.map(to_toks, batched=False, num_proc=16)
+    # ds = ds.map(to_toks, batched=False, num_proc=16)
 
-    for maxlen in maxlens:
-        print(f'info: filtering by length {maxlen}')
+    # for maxlen in maxlens:
+    #     print(f'info: filtering by length {maxlen}')
 
-        def filter_len(example):
-            return len(example['full_ids']) <= maxlen
+    #     def filter_len(example):
+    #         return len(example['full_ids']) <= maxlen
         
-        ds_small = ds.filter(filter_len, num_proc=16)
+    #     ds_small = ds.filter(filter_len, num_proc=16)
 
-        ds_small = DatasetDict({k: dataset.remove_columns(column_names=['proof', 'input']) for k, dataset in ds_small.items() if len(dataset) > 0})
-        # ds_small.save_to_disk(f'data/hf_or_small_{maxlen}')
-        ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_or_{maxlen}')
+    #     ds_small = DatasetDict({k: dataset.remove_columns(column_names=['proof', 'input']) for k, dataset in ds_small.items() if len(dataset) > 0})
+    #     # ds_small.save_to_disk(f'data/hf_or_small_{maxlen}')
+    #     ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_or_{maxlen}')
 

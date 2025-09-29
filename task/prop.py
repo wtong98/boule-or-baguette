@@ -25,6 +25,8 @@ trunc_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_trunc'
 full_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full'
 implies_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_implies'
 or_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_or'
+
+full_text_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full_text'
 # debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 debug_ds_path = None
 
@@ -113,14 +115,15 @@ class PropTask:
         if self.max_true <= 1 or self.max_false <= 1:
             print(f'warn: insufficient examples: max_true={self.max_true} and max_false={self.max_false}')
 
-        if self.cot:
-            self.true_ds = self.true_ds.remove_columns(['input_ids']) \
-                               .rename_columns({'full_ids': 'input_ids'})
-            self.false_ds = self.false_ds.remove_columns(['input_ids']) \
+        if self.cot != 'text':
+            if self.cot:
+                self.true_ds = self.true_ds.remove_columns(['input_ids']) \
                                 .rename_columns({'full_ids': 'input_ids'})
-        else:
-            self.true_ds = self.true_ds.remove_columns(['full_ids'])
-            self.false_ds = self.false_ds.remove_columns(['full_ids'])
+                self.false_ds = self.false_ds.remove_columns(['input_ids']) \
+                                    .rename_columns({'full_ids': 'input_ids'})
+            else:
+                self.true_ds = self.true_ds.remove_columns(['full_ids'])
+                self.false_ds = self.false_ds.remove_columns(['full_ids'])
     
 
     def del_ds(self):
