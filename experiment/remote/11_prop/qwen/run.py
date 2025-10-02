@@ -3,28 +3,91 @@ Big qwen run
 """
 
 # <codecell>
+from pathlib import Path
+import os
+
 import datasets
+import numpy as np
+import pandas as pd
 from peft import LoraConfig
-from transformers import AutoModelForCausalLM, TrainingArguments, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, TrainingArguments, BitsAndBytesConfig, DataCollatorWithPadding
+from transformers.integrations import WandbCallback
 from trl import SFTTrainer, SFTConfig
 import torch
+from tqdm import tqdm
+import wandb
 
 import sys
 sys.path.append('../../../../')
-from common import *
-from task.prop import *
+from task.prop import PropTask, full_text_ds_path
 
 model_name = "Qwen/Qwen2.5-Coder-7B"
+
+with (Path(os.environ['HOME']) / 'wandb.txt').open() as fp:
+    key = fp.read().strip()
+
+os.environ['WANDB_API_KEY'] = key
+os.environ['WANDB_PROJECT'] = 'qwen'
+os.environ['WANDB_LOG_MODEL'] = 'false'
+
+wandb.login()
+
+
+def score(preds, labels, succ_id, fail_id):
+    is_true = torch.argmax((labels == succ_id).int(), axis=-1) > 0
+
+    t = torch.argmax((preds == succ_id).int(), axis=-1)
+    f = torch.argmax((preds == fail_id).int(), axis=-1)
+
+    pred_is_true = (t != 0) * ((f == 0) + (t < f))
+    pred_is_false = (f != 0) * ((t == 0) + (f < t))
+
+    true_pos = is_true * pred_is_true
+    true_neg = (~is_true) * pred_is_false
+    false_pos = (~is_true) * pred_is_true
+    false_neg = is_true * pred_is_false
+
+    true_pos = torch.mean(true_pos.float())
+    true_neg = torch.mean(true_neg.float())
+    false_pos = torch.mean(false_pos.float())
+    false_neg = torch.mean(false_neg.float())
+    
+    return {
+        'gen_acc': true_pos + true_neg,
+        'true_pos': true_pos,
+        'true_neg': true_neg,
+        'false_pos': false_pos,
+        'false_neg': false_neg
+    }
+
 
 def make_ds(depth, split):
     task = PropTask(depth=depth, split=split, cot='text', ds_path=full_text_ds_path)
     task.load_ds()
 
-    ds = datasets.concatenate_datasets([task.true_ds, task.false_ds]).shuffle(seed=new_seed())
+    ds = datasets.concatenate_datasets([task.true_ds, task.false_ds]).shuffle()
+
+    # temporarily reduce size for debugging
+    # ds = ds.select(range(1000))
+
+    # TODO: reformat permanently in dataset
+    # ds = ds.map(lambda x: {'text': x['prompt'] + x['completion']}, num_proc=16)
+    # ds = ds.rename_column('prompt', 'proposition')
+    # ds = ds.remove_columns(['completion'])
     return ds
 
-train_ds = make_ds(6, 'train')
-test_ds = make_ds(6, 'test')
+
+train_split = 4
+test_splits = [2, 4, 6, 10]
+range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
+ranges = list(zip(range_hops[:-1], range_hops[1:]))
+
+train_ds = make_ds(train_split, 'train')
+test_ds = make_ds(train_split, 'test')
+test_ds = test_ds.select(range(500))  # TODO: should preferably incorporate logic by subsampling during training
+
+val_ds_set = [make_ds(r, split='range') for r in ranges]
+
 
 quant_config = BitsAndBytesConfig(
     load_in_4bit=True,
@@ -50,23 +113,25 @@ peft_config = LoraConfig(
 
 args = SFTConfig(
     output_dir="~/scratch/qwen25_coder7b_prop_qlora", # TODO: pick destination
-    num_train_epochs=5,
-    per_device_train_batch_size=8,
+    num_train_epochs=1,
+    per_device_train_batch_size=4,
     gradient_accumulation_steps=8,      
     learning_rate=2e-4,                  # QLoRA LR baseline
     lr_scheduler_type="cosine",
     warmup_ratio=0.05,
-    logging_steps=10,
-    save_steps=500,
-    bf16=True,                           
+    logging_steps=100,
+    save_steps=1000,
+    bf16=True,
     gradient_checkpointing=True,
-    optim="adamw_bnb_8bit",              # QLoRA-friendly optimizer. Consider paging?
+    optim="adamw_bnb_8bit",
+    # optim="paged_adamw_8bit",
     max_grad_norm=0.3,
     weight_decay=0.0,
-    report_to="none",
     completion_only_loss=True,
     packing=True,
-    max_seq_length=4096,
+    max_length=2048,
+    eval_strategy='steps',
+    torch_compile=False   
 )
 
 trainer = SFTTrainer(
@@ -74,9 +139,51 @@ trainer = SFTTrainer(
     peft_config=peft_config,
     args=args,
     train_dataset=train_ds,
-    eval_dataset=test_ds,
+    eval_dataset=test_ds
 )
 
-trainer.train()
 
-# TODO: perform evaluation
+class WandbEvalCallback(WandbCallback):
+    def __init__(self, trainer, val_ds_set, num_samples=100):
+        super().__init__()
+        self.trainer = trainer
+        self.tokenizer = self.trainer.processing_class
+        self.val_ds_set = val_ds_set
+        self.num_samples = num_samples
+        
+        self.succ_id = self.tokenizer.encode('success')[0]
+        self.fail_id = self.tokenizer.encode('failure')[0]
+        
+
+    def on_evaluate(self, args, state, control, **kwargs):
+        super().on_evaluate(args, state, control, **kwargs)
+        
+        all_res = {}
+        for r, val_ds in tqdm(zip(ranges, self.val_ds_set), total=len(self.val_ds_set)):
+            ds = val_ds.shuffle().select(range(self.num_samples))
+            self.tokenizer.padding_side = 'left'
+            coll = DataCollatorWithPadding(tokenizer=self.tokenizer)
+            inp_ids = [self.tokenizer(text) for text in ds['prompt']]
+            lab_ids = [self.tokenizer(text) for text in ds['completion']]
+            inp = coll(inp_ids)
+            lab = coll(lab_ids)
+            self.tokenizer.padding_side = 'right'
+
+            inp['input_ids'] = inp['input_ids'].to(device='cuda')
+            inp['attention_mask'] = inp['attention_mask'].to(device='cuda')
+            lab['input_ids'] = lab['input_ids'].to(device='cuda')
+
+            with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+                preds = trainer.model.generate(**inp, max_new_tokens=trainer.args.max_length)
+
+            res = score(preds, lab['input_ids'], self.succ_id, self.fail_id)
+            all_res[f'range_{r}'] = res
+            
+        self._wandb.log(all_res)
+
+        
+eval_callback = WandbEvalCallback(trainer, val_ds_set)
+trainer.add_callback(eval_callback)
+
+trainer.train()
+wandb.finish()

@@ -6,14 +6,15 @@
 #SBATCH --mem=128000
 #SBATCH -o log.%A.%a.out
 #SBATCH -e log.%A.%a.err
-#SBATCH --array=1-8
+#SBATCH --array=1
 #SBATCH --mail-type=END
 #SBATCH --mail-user=wtong@g.harvard.edu
-#SBATCH --account=kempner_pehlevan_lab
-# #SBATCH --exclude=holygpu8a19205,holygpu8a19503
+#SBATCH --account=kempner_grads
 
-export WANDB_API_KEY=$(cat ~/wandb.txt)
+
 source ../../../../../venv_imply/bin/activate
-wandb login
-python run.py ${SLURM_ARRAY_TASK_ID}
+# export WANDB_API_KEY=$(cat ~/wandb.txt)
+# wandb login
+# python run.py ${SLURM_ARRAY_TASK_ID}
+python run.py 4
 
