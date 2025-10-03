@@ -164,7 +164,7 @@ def evaluate(full=False):
             out = model(**inp)
 
             preds = out.logits.argmax(-1)
-            acc = torch.mean((preds == labels).float())
+            acc = torch.mean((preds == labels).float()).to('cpu').item()
             all_res[f'range_{r}'] = {'gen_acc': acc}
             
     model.train()

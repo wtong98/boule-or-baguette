@@ -19,6 +19,7 @@ import wandb
 
 import sys
 sys.path.append('../../../../')
+from common import new_seed
 from task.prop import PropTask, full_text_ds_path
 
 model_name = "Qwen/Qwen2.5-Coder-7B"
@@ -27,7 +28,7 @@ with (Path(os.environ['HOME']) / 'wandb.txt').open() as fp:
     key = fp.read().strip()
 
 os.environ['WANDB_API_KEY'] = key
-os.environ['WANDB_PROJECT'] = 'qwen'
+os.environ['WANDB_PROJECT'] = 'qwen_ar'
 os.environ['WANDB_LOG_MODEL'] = 'false'
 
 wandb.login()
@@ -47,17 +48,17 @@ def score(preds, labels, succ_id, fail_id):
     false_pos = (~is_true) * pred_is_true
     false_neg = is_true * pred_is_false
 
-    true_pos = torch.mean(true_pos.float())
-    true_neg = torch.mean(true_neg.float())
-    false_pos = torch.mean(false_pos.float())
-    false_neg = torch.mean(false_neg.float())
+    true_pos = torch.mean(true_pos.float()).to('cpu').item()
+    true_neg = torch.mean(true_neg.float()).to('cpu').item()
+    false_pos = torch.mean(false_pos.float()).to('cpu').item()
+    false_neg = torch.mean(false_neg.float()).to('cpu').item()
     
     return {
         'gen_acc': true_pos + true_neg,
-        'true_pos': true_pos,
-        'true_neg': true_neg,
-        'false_pos': false_pos,
-        'false_neg': false_neg
+        # 'true_pos': true_pos,
+        # 'true_neg': true_neg,
+        # 'false_pos': false_pos,
+        # 'false_neg': false_neg
     }
 
 
@@ -77,14 +78,20 @@ def make_ds(depth, split):
     return ds
 
 
-train_split = 4
+try:
+    split = int(sys.argv[1])
+except:
+    print("warn: unrecognized train split, defaulting to split=6")
+
+print(f'info: using split={split}')
+train_split = split
 test_splits = [2, 4, 6, 10]
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
 train_ds = make_ds(train_split, 'train')
 test_ds = make_ds(train_split, 'test')
-test_ds = test_ds.select(range(500))  # TODO: should preferably incorporate logic by subsampling during training
+test_ds = test_ds.select(range(100))  # TODO: should preferably incorporate logic by subsampling during training
 
 val_ds_set = [make_ds(r, split='range') for r in ranges]
 
@@ -143,6 +150,36 @@ trainer = SFTTrainer(
 )
 
 
+def evaluate(succ_id, fail_id, num_samples=100):
+    tokenizer = trainer.processing_class
+    model.eval()
+
+    with torch.no_grad():
+        all_res = {}
+        for r, val_ds in tqdm(zip(ranges, val_ds_set), total=len(val_ds_set)):
+            ds = val_ds.shuffle().select(range(num_samples))
+            tokenizer.padding_side = 'left'
+            coll = DataCollatorWithPadding(tokenizer=tokenizer)
+            inp_ids = [tokenizer(text) for text in ds['prompt']]
+            lab_ids = [tokenizer(text) for text in ds['completion']]
+            inp = coll(inp_ids)
+            lab = coll(lab_ids)
+            tokenizer.padding_side = 'right'
+
+            inp['input_ids'] = inp['input_ids'].to(device='cuda')
+            inp['attention_mask'] = inp['attention_mask'].to(device='cuda')
+            lab['input_ids'] = lab['input_ids'].to(device='cuda')
+
+            with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+                preds = trainer.model.generate(**inp, max_new_tokens=trainer.args.max_length)
+
+            res = score(preds, lab['input_ids'], succ_id, fail_id)
+            all_res[f'range_{r}'] = res
+        
+    model.train()
+    return all_res
+
+
 class WandbEvalCallback(WandbCallback):
     def __init__(self, trainer, val_ds_set, num_samples=100):
         super().__init__()
@@ -157,28 +194,7 @@ class WandbEvalCallback(WandbCallback):
 
     def on_evaluate(self, args, state, control, **kwargs):
         super().on_evaluate(args, state, control, **kwargs)
-        
-        all_res = {}
-        for r, val_ds in tqdm(zip(ranges, self.val_ds_set), total=len(self.val_ds_set)):
-            ds = val_ds.shuffle().select(range(self.num_samples))
-            self.tokenizer.padding_side = 'left'
-            coll = DataCollatorWithPadding(tokenizer=self.tokenizer)
-            inp_ids = [self.tokenizer(text) for text in ds['prompt']]
-            lab_ids = [self.tokenizer(text) for text in ds['completion']]
-            inp = coll(inp_ids)
-            lab = coll(lab_ids)
-            self.tokenizer.padding_side = 'right'
-
-            inp['input_ids'] = inp['input_ids'].to(device='cuda')
-            inp['attention_mask'] = inp['attention_mask'].to(device='cuda')
-            lab['input_ids'] = lab['input_ids'].to(device='cuda')
-
-            with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
-                preds = trainer.model.generate(**inp, max_new_tokens=trainer.args.max_length)
-
-            res = score(preds, lab['input_ids'], self.succ_id, self.fail_id)
-            all_res[f'range_{r}'] = res
-            
+        all_res = evaluate(self.succ_id, self.fail_id, self.num_samples)
         self._wandb.log(all_res)
 
         
@@ -187,3 +203,12 @@ trainer.add_callback(eval_callback)
 
 trainer.train()
 wandb.finish()
+
+final_res = evaluate(eval_callback.succ_id, eval_callback.fail_id, num_samples=100)
+df = pd.DataFrame([{
+    'name': 'AR Qwen',
+    'train_hop': train_split,
+    'info': final_res
+}])
+
+df.to_pickle(f'res.{new_seed()}.pkl')
