@@ -20,7 +20,7 @@ import wandb
 import sys
 sys.path.append('../../../../')
 from common import new_seed
-from task.prop import PropTask, full_text_ds_path
+from task.prop import PropTask, full_text_ds_path, or_text_ds_path
 
 model_name = "Qwen/Qwen2.5-Coder-7B"
 
@@ -28,7 +28,7 @@ with (Path(os.environ['HOME']) / 'wandb.txt').open() as fp:
     key = fp.read().strip()
 
 os.environ['WANDB_API_KEY'] = key
-os.environ['WANDB_PROJECT'] = 'qwen_ar'
+os.environ['WANDB_PROJECT'] = 'qwen_ar_or'
 os.environ['WANDB_LOG_MODEL'] = 'false'
 
 wandb.login()
@@ -62,8 +62,24 @@ def score(preds, labels, succ_id, fail_id):
     }
 
 
+ds_path = full_text_ds_path
+
+try:
+    split = sys.argv[2]
+
+    if split == 'full':
+        ds_path = full_text_ds_path
+    elif split == 'or':
+        ds_path = or_text_ds_path
+    else:
+        raise ValueError(f"unrecognized ds_path {split}")
+
+except:
+    print("warn: unrecognized ds_path, defaulting to full_text_ds_path")
+
+
 def make_ds(depth, split):
-    task = PropTask(depth=depth, split=split, cot='text', ds_path=full_text_ds_path)
+    task = PropTask(depth=depth, split=split, cot='text', ds_path=ds_path)
     task.load_ds()
 
     ds = datasets.concatenate_datasets([task.true_ds, task.false_ds]).shuffle()

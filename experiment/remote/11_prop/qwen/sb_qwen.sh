@@ -15,6 +15,6 @@
 source ../../../../../venv_imply/bin/activate
 # export WANDB_API_KEY=$(cat ~/wandb.txt)
 # wandb login
-python run.py ${SLURM_ARRAY_TASK_ID}
+python run.py ${SLURM_ARRAY_TASK_ID} or
 
 

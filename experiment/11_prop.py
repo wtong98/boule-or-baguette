@@ -77,8 +77,9 @@ state, hist = train(config,
 
 
 # <codecell>
-df = collate_dfs('remote/11_prop/qwen_direct', show_progress=True)
-df
+df1 = collate_dfs('remote/11_prop/qwen', show_progress=True)
+df2 = collate_dfs('remote/11_prop/qwen_direct', show_progress=True)
+df = pd.concat([df1, df2], ignore_index=True)
 
 df.iloc[0]['info']['range_(1, 3)']['gen_acc']
 
@@ -89,7 +90,10 @@ def extract_plot_vals(row):
 
     for key, val in row['info'].items():
         upr = key.split(',')[-1].strip()[:-1]
-        acc = val['gen_acc'].to('cpu').item()
+        try:
+            acc = val['gen_acc'].to('cpu').item()
+        except:
+            acc = val['gen_acc']
 
         try:
             upr = int(upr) - 1
@@ -114,7 +118,7 @@ plot_df = df.apply(extract_plot_vals, axis=1) \
 plot_df
 
 # <codecell>
-for n_hop in [4]:
+for n_hop in [2, 4, 6, 10]:
     mdf = plot_df.copy()
     mdf = mdf[mdf['train_hop'] == n_hop]
 
@@ -124,7 +128,7 @@ for n_hop in [4]:
     # g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
     g.set_title('Train hop: ' + str(n_hop))
 
-    # plt.savefig(f'fig/prop_task_n_hop_{n_hop}.png')
+    plt.savefig(f'fig/qwen_prop_task_n_hop_{n_hop}.png')
     plt.show()
 
 # <codecell>
