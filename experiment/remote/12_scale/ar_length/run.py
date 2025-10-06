@@ -64,6 +64,8 @@ for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props
         'n_hidden': n_hidden,
         'use_bias': False,
         'freeze_emb': True,
+        'flash_att': True,
+        'dtype': jnp.bfloat16
     }
 
     def make_train_args(loss='ce_mask'):
