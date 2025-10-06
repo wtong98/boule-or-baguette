@@ -1052,8 +1052,31 @@ plot_df
 # <codecell>
 mdf = plot_df.copy()
 
+depth = 30
+n_hop_prop = 0.25
+
+train_split = np.round(depth * n_hop_prop)
+
 mdf = mdf[
-    (mdf['n_hop_prop'] == 0.25)
-    & (mdf['depth'] == 50)
+    (mdf['n_hop_prop'] == n_hop_prop)
+    & (mdf['depth'] == depth)
 ]
-sns.barplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='full')
+
+g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='full')
+g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
+g.set_title('DP generalization')
+
+plt.savefig(f'fig/dp_gen_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
+
+# <codecell>
+adf = mdf[mdf['test_n_hop'] < 15]
+
+g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5, marker='o')
+g.set_xscale('log')
+g.set_yscale('log')
+
+xs = np.linspace(np.log(7), np.log(25))
+g.plot(np.exp(xs), np.exp(-0.5 * xs + 0.95), color='cyan', linestyle='dashed')
+# g.plot(np.exp(xs), np.exp(-1 * xs + 2), color='blue', linestyle='dashed')
+
+plt.savefig(f'fig/dp_gen_arms_pred_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')

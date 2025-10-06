@@ -29,15 +29,31 @@ import wandb
 import sys
 sys.path.append('../../../../')
 from common import new_seed
-from task.prop import PropTask, full_text_ds_path
+from task.prop import PropTask, full_text_ds_path, or_text_ds_path
 
 model_name = "Qwen/Qwen2.5-Coder-7B"
 
 wandb.login()
 
 
+ds_path = full_text_ds_path
+
+try:
+    split = sys.argv[2]
+
+    if split == 'full':
+        ds_path = full_text_ds_path
+    elif split == 'or':
+        ds_path = or_text_ds_path
+    else:
+        raise ValueError(f"unrecognized ds_path {split}")
+
+except:
+    print("warn: unrecognized ds_path, defaulting to full_text_ds_path")
+
+
 def make_ds(depth, split):
-    task = PropTask(depth=depth, split=split, cot='text', ds_path=full_text_ds_path)
+    task = PropTask(depth=depth, split=split, cot='text', ds_path=ds_path)
     task.load_ds()
 
     ds = datasets.concatenate_datasets([task.true_ds, task.false_ds]).shuffle()

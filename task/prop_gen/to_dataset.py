@@ -47,11 +47,15 @@ def count_ops(dataset):
     return counts
 
 if __name__ == '__main__':
-    maxlens= [1024]
-    dataset = load_dataset('json', data_dir='data/raw_full', split='train', keep_in_memory=True, num_proc=16)
+    # maxlens= [1024]
+    # dataset = load_dataset('json', data_dir='data/raw_full', split='train', keep_in_memory=True, num_proc=16)
+    dataset = load_dataset('json', data_dir='data/raw_or', split='train', keep_in_memory=True, num_proc=16)
 
-    dataset = dataset.rename_column('input', 'prompt')
-    dataset = dataset.rename_column('proof', 'completion')
+    # add separator to distinguish prompt and completion
+    dataset = dataset.map(lambda x: {'prompt': x['input'] + '|'}, num_proc=16)
+    dataset = dataset.remove_columns(['input'])
+    dataset.rename_column('proof', 'completion')
+    # dataset = dataset.map(lambda x: {'completion': x['proof']}, num_proc=16)
 
     # maxlens = [1024]
     # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or', split='train', keep_in_memory=True, num_proc=16)
@@ -76,7 +80,8 @@ if __name__ == '__main__':
     #     tokenizer.save_pretrained('data/tok')
 
     ds = split_by_len(dataset)
-    ds.save_to_disk('data/hf_full_text')
+    # ds.save_to_disk('data/hf_full_text')
+    ds.save_to_disk('data/hf_or_text')
 
     # def to_toks(ex):
     #     inp_toks = tokenizer(ex['input'], return_attention_mask=False)

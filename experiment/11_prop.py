@@ -77,11 +77,57 @@ state, hist = train(config,
 
 
 # <codecell>
-# df = collate_dfs('remote/11_prop/length', show_progress=True)
-# df = collate_dfs('remote/11_prop/width', show_progress=True)
-# df = collate_dfs('remote/11_prop/width/set2_imply', show_progress=True)
-# df1 = collate_dfs('remote/11_prop/ar/set1_good', show_progress=True)
-# df2 = collate_dfs('remote/11_prop/direct/set1_good', show_progress=True)
+df = collate_dfs('remote/11_prop/qwen_direct', show_progress=True)
+df
+
+df.iloc[0]['info']['range_(1, 3)']['gen_acc']
+
+# <codecell>
+def extract_plot_vals(row):
+    upr_labs = []
+    accs = []
+
+    for key, val in row['info'].items():
+        upr = key.split(',')[-1].strip()[:-1]
+        acc = val['gen_acc'].to('cpu').item()
+
+        try:
+            upr = int(upr) - 1
+        except:
+            pass
+
+        upr_labs.append(upr)
+        accs.append(acc)
+    
+    
+    return pd.Series([
+        row['name'],
+        row['train_hop'],
+        *accs
+    ], index=['name', 'train_hop', *upr_labs])
+
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+            .melt(id_vars=['name', 'train_hop'], var_name='test_n_hop', value_name='acc')
+
+plot_df
+
+# <codecell>
+for n_hop in [4]:
+    mdf = plot_df.copy()
+    mdf = mdf[mdf['train_hop'] == n_hop]
+
+    g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', estimator='mean')
+    # g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_or', 'AR_or'], estimator='mean')
+    # g.set_ylim(0.4, 1)
+    # g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
+    g.set_title('Train hop: ' + str(n_hop))
+
+    # plt.savefig(f'fig/prop_task_n_hop_{n_hop}.png')
+    plt.show()
+
+# <codecell>
 df1 = collate_dfs('remote/11_prop/ar', show_progress=True)
 df2 = collate_dfs('remote/11_prop/direct/set4_nolim', show_progress=True)
 df = pd.concat([df1, df2], ignore_index=True)
@@ -133,7 +179,7 @@ plot_df
 
 # <codecell>
 # for n_hop in [2, 4, 6, 10]:
-for n_hop in [2]:
+for n_hop in [4]:
     mdf = plot_df.copy()
     mdf = mdf[mdf['train_hop'] == n_hop]
 
