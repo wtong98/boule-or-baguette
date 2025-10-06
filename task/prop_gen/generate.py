@@ -62,13 +62,11 @@ print('RUN_ID', run_id)
 # total number of tokens with this configuration is ?
 # NOTE: generation ops set to Or only
 n_atoms = 3
-max_nodes = 7
+max_nodes = 8
 n_cores = 16 * 16
 keep = 'until_success'
 
 run_split = 24
-
-out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or')
 
 ### START TEST CONFIG
 # out_dir = Path('test_data')
@@ -77,18 +75,22 @@ out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or')
 # max_nodes = 4
 ### END TEST CONFIG
 
-if not out_dir.exists():
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-out_path = out_dir / f'{run_id}.json'
-
 # all_ex = itertools.chain(*[gen_batch(n_atoms, n) for n in range(1, max_nodes + 1)])
 all_ex = itertools.chain(*[gen_batch_or(n_atoms, n) for n in range(1, max_nodes + 1)])
 all_ex = split(all_ex, run_split)
 # total_ex = sum(n_combo(n_atoms, n) for n in range(1, max_nodes + 1))
 total_ex = sum(n_combo_or(n_atoms, n) for n in range(1, max_nodes + 1))
 
+total_ex
+
 pbar = tqdm(total=total_ex // run_split)
+
+out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_big')
+
+if not out_dir.exists():
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+out_path = out_dir / f'{run_id}.json'
 
 def write_example(prop):
     proof = prove(prop, keep=keep)
