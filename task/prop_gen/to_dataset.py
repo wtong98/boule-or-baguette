@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # add separator to distinguish prompt and completion
     dataset = dataset.map(lambda x: {'prompt': x['input'] + '|'}, num_proc=16)
     dataset = dataset.remove_columns(['input'])
-    dataset.rename_column('proof', 'completion')
+    dataset = dataset.rename_column('proof', 'completion')
     # dataset = dataset.map(lambda x: {'completion': x['proof']}, num_proc=16)
 
     # maxlens = [1024]

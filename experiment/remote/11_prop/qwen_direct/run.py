@@ -10,7 +10,7 @@ with (Path(os.environ['HOME']) / 'wandb.txt').open() as fp:
     key = fp.read().strip()
 
 os.environ['WANDB_API_KEY'] = key
-os.environ['WANDB_PROJECT'] = 'qwen_dp'
+os.environ['WANDB_PROJECT'] = 'qwen_dp_or'
 os.environ['WANDB_LOG_MODEL'] = 'false'
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
@@ -73,8 +73,10 @@ except:
     print("warn: unrecognized train split, defaulting to split=6")
 
 print(f'info: using split={split}')
+os.environ['WANDB_NAME'] = f'split={split}'
 train_split = split
-test_splits = [2, 4, 6, 10]
+# test_splits = [2, 4, 6, 10]
+test_splits = [4, 6, 8]
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
@@ -213,7 +215,7 @@ wandb.finish()
 
 final_res = evaluate(full=False) # TODO: may require batching for full evaluation
 df = pd.DataFrame([{
-    'name': 'DP Qwen',
+    'name': 'DP Qwen (or)',
     'train_hop': train_split,
     'info': final_res
 }])
