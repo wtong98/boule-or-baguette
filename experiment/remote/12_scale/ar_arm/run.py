@@ -67,7 +67,6 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
         'n_hidden': n_hidden,
         'use_bias': False,
         'freeze_emb': True,
-        'flash_att': True,
         'dtype': jnp.bfloat16
     }
 
