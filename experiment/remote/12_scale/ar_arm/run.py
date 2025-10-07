@@ -67,6 +67,8 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
         'n_hidden': n_hidden,
         'use_bias': False,
         'freeze_emb': True,
+        'flash_att': True,
+        'dtype': jnp.bfloat16
     }
 
     def make_train_args(loss='ce_mask'):
@@ -101,21 +103,38 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
     
 
     all_cases.extend([
-        Case(f'AR (direct)',
+        # Case(f'AR (direct)',
+        #         TransformerConfig(n_heads=1,
+        #                         n_out=1,
+        #                         n_layers=n_layer,
+        #                         pos_emb=False, 
+        #                         return_format='final_logit_up_to_pad',
+        #                         n_mlp_layers=2,
+        #                         layer_norm=False,
+        #                         residual_connections=False,
+        #                         mup_scale=True,
+        #                         unif_att=True,
+        #                         linear_att=False,
+        #                         **model_args),
+        #         train_args=make_train_args('bce'),
+        #         train_task=make_chain(cot=True, ttr=True, force_bin_label=True)
+        # ), 
+
+        Case(f'AR',
                 TransformerConfig(n_heads=1,
-                                n_out=1,
+                                n_out=n_vocab,
                                 n_layers=n_layer,
                                 pos_emb=False, 
-                                return_format='final_logit_up_to_pad',
+                                return_format=None,
                                 n_mlp_layers=2,
                                 layer_norm=False,
-                                residual_connections=False,
+                                residual_connections=True,
                                 mup_scale=True,
-                                unif_att=True,
+                                unif_att=False,
                                 linear_att=False,
                                 **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=True, ttr=True, force_bin_label=True)
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True, ttr=True, force_bin_label=False)
         ), 
     ])
 

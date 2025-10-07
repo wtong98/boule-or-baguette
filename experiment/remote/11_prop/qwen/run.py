@@ -101,7 +101,8 @@ except:
 
 print(f'info: using split={split}')
 train_split = split
-test_splits = [2, 4, 6, 10]
+# test_splits = [2, 4, 6, 10]
+test_splits = [4, 6, 8]
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
