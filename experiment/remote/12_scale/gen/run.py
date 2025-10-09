@@ -20,11 +20,12 @@ run_split = 12
 
 train_iters = 100_000
 
-n_arms = [2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 50]
-n_depths = [10, 20, 30, 50, 100]
+# n_arms = [2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 50]
+n_arms = np.arange(2, 51)
+n_depths = [30]
 n_widths = [512]
 
-n_hop_props = [0.25, 0.5, 0.75]
+n_hop_props = [0.25]
 lrs = [1e-2]
 
 all_n_layer = [1]
