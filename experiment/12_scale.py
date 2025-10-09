@@ -15,11 +15,11 @@ from model.mlp import MlpConfig
 from model.transformer_std import *
 from task.graph import *
 
-n_arms = 50
+n_arms = 100
 depth = 10
-n_hidden = 100
+n_hidden = 16
 
-cot = False
+cot = True
 ttr = True
 nouveau = True
 force_bin_label = False
@@ -83,7 +83,7 @@ config = TransformerConfig(n_layers=1,
                         #    return_format='final_logit_up_to_pad' if cot else 'final_logit',
                            return_format=None if cot else 'final_logit',
                            mup_scale=True,
-                           unif_att=True,
+                           unif_att=False,
                            dtype=jnp.bfloat16
                            )
 
@@ -109,7 +109,7 @@ state, hist = train(config,
                     loss='ce_mask' if cot else 'bce',
                     # loss='bce',
                     test_every=1000,
-                    train_iters=10_000,
+                    train_iters=100_000,
                     eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     # eval_fns=None,
                     print_fn=print_gen if cot else None,
@@ -659,8 +659,8 @@ plt.hist(proj[4,:], bins=50)
 
 
 # <codecell>
-df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
+df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -674,7 +674,7 @@ def extract_plot_vals(row):
         row['config']['residual_connections'],
         row['config']['n_layers'],
         row['train_args']['lr'],
-        row['hist']['test'][5]['acc'].item(),
+        row['hist']['test'][10]['acc'],
         row['train_args']['gamma'] if 'gamma' in row['train_args'] else -1,
         row['info'],
     ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'n_layers',  'lr', 'acc_hist', 'gamma', 'info'])
@@ -692,8 +692,8 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
@@ -708,14 +708,15 @@ mdf = mdf[(mdf['test_n_hop'] == 5)
         #   & (mdf['resid'] == False)
           ]
 
-mdf = mdf[['n_arms', 'n_hidden', 'acc_hist']]
+# TODO: track generative historical accuracy, too
+mdf = mdf[['n_arms', 'n_hidden', 'acc']]
 mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
-mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc_hist')
+mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
-# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+# g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
@@ -727,12 +728,16 @@ g.plot(xs, 30 - 2 * xs, color='cyan', linestyle='dashed')
 # xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
 
-g.set_ylabel('n_arms')
-g.set_xlabel('n_hidden')
+g.set_ylabel('Breadth (B)')
+g.set_xlabel('Hidden (H)')
 
-plt.title('Zero short training')
+plt.title('AR early')
+plt.text(9, 5, r'$\propto H^2$', color='cyan')
+plt.text(22, 5, r'$\propto H$', color='cyan')
+# plt.savefig(f'fig/ar_mlp_BH_early.png', bbox_inches='tight')
 # plt.savefig(f'fig/zero_mlp_arms_v_size_short.png', bbox_inches='tight')
 # plt.savefig(f'fig/ar_mlp_arms_v_size_debug.png', bbox_inches='tight')
+plt.savefig('fig/debug.png', bbox_inches='tight')
 plt.show()
 
 
@@ -810,16 +815,17 @@ xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs + np.log(xs), 40 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 20 - 0.67 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 27 - 1 * xs, color='cyan', linestyle='dashed')
-g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 29 - 1 * xs, color='cyan', linestyle='dashed')
+# g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 # g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 
-g.set_ylabel('depth')
-g.set_xlabel('n_hidden')
+g.set_ylabel('Depth (D)')
+g.set_xlabel('Hidden (H)')
+plt.text(20, 5, r'$\propto H$', color='cyan')
 
-plt.title('Zero long')
-# plt.savefig(f'fig/zero_mlp_depth_v_size_long.png', bbox_inches='tight')
+plt.title('DP early')
+plt.savefig(f'fig/dp_mlp_DH_early.png', bbox_inches='tight')
 plt.show()
 
 # <codecell>
@@ -853,7 +859,7 @@ def extract_plot_vals(row):
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         row['config']['n_layers'],
-        row['hist']['test'][10]['acc'].item(),
+        row['hist']['test'][10]['acc'],
         n_hop_prop,
         row['info'],
     ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_layers', 'acc_hist', 'n_hop_prop', 'info'])
@@ -871,8 +877,8 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
+bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
@@ -893,8 +899,8 @@ mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
-# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
+# g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+g = sns.heatmap(mdf, square=False, vmin=0.9, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
@@ -903,14 +909,17 @@ g.plot(xs, 20 - 2 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 38 - 1 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
 
-g.plot(xs, 20 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 18 - 0.5 * xs, color='cyan', linestyle='dashed')
 # g.plot(xs, 28 - 0.33 * xs, color='cyan', linestyle='dashed')
 
-g.set_ylabel('depth')
-g.set_xlabel('n_hidden')
+g.set_ylabel('Depth (D)')
+g.set_xlabel('Hidden (H)')
 
-plt.title('AR full')
-# plt.savefig(f'fig/ar_mlp_depth_v_size_long.png', bbox_inches='tight')
+plt.text(5, 5, r'$\propto H^2$', color='cyan')
+plt.text(16, 9, r'$\propto H^{1/2}$', color='cyan')
+
+plt.title('AR late')
+# plt.savefig(f'fig/ar_mlp_DH_late.png', bbox_inches='tight')
 plt.show()
 
 # <codecell>
@@ -1075,8 +1084,9 @@ g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5, marker='
 g.set_xscale('log')
 g.set_yscale('log')
 
-xs = np.linspace(np.log(7), np.log(25))
-g.plot(np.exp(xs), np.exp(-0.5 * xs + 0.95), color='cyan', linestyle='dashed')
+xs = np.linspace(np.log(8), np.log(27))
+g.plot(np.exp(xs), np.exp(-0.5 * xs + 1), color='red', linestyle='dashed')
+g.text(12, 0.8, r'$\propto B^{-1/2}$', color='red')
 # g.plot(np.exp(xs), np.exp(-1 * xs + 2), color='blue', linestyle='dashed')
 
 plt.savefig(f'fig/dp_gen_arms_pred_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')

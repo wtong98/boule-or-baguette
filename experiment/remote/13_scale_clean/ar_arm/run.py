@@ -127,7 +127,7 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
                                 return_format=None,
                                 n_mlp_layers=2,
                                 layer_norm=False,
-                                residual_connections=False,
+                                residual_connections=True,
                                 mup_scale=True,
                                 unif_att=False,
                                 linear_att=False,

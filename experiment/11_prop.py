@@ -77,11 +77,13 @@ state, hist = train(config,
 
 
 # <codecell>
+# df1 = collate_dfs('remote/11_prop/qwen/set1_full', show_progress=True)
+# df2 = collate_dfs('remote/11_prop/qwen_direct/set1_full', show_progress=True)
 df1 = collate_dfs('remote/11_prop/qwen', show_progress=True)
 df2 = collate_dfs('remote/11_prop/qwen_direct', show_progress=True)
 df = pd.concat([df1, df2], ignore_index=True)
 
-df.iloc[0]['info']['range_(1, 3)']['gen_acc']
+df
 
 # <codecell>
 def extract_plot_vals(row):
@@ -118,7 +120,7 @@ plot_df = df.apply(extract_plot_vals, axis=1) \
 plot_df
 
 # <codecell>
-for n_hop in [2, 4, 6, 10]:
+for n_hop in [4]:
     mdf = plot_df.copy()
     mdf = mdf[mdf['train_hop'] == n_hop]
 
@@ -126,10 +128,13 @@ for n_hop in [2, 4, 6, 10]:
     # g = sns.barplot(mdf, x='test_n_hop', y='acc', hue='name', hue_order=['Direct_or', 'AR_or'], estimator='mean')
     # g.set_ylim(0.4, 1)
     # g.axhline(y=0.5, color='brown', linestyle='dashed', alpha=0.5)
-    g.set_title('Train hop: ' + str(n_hop))
+    g.set_title('Or dataset; train hop: ' + str(n_hop))
 
-    plt.savefig(f'fig/qwen_prop_task_n_hop_{n_hop}.png')
+    g.get_legend().remove()
+
+    plt.savefig(f'fig/qwen_prop_task_or_n_hop_{n_hop}.png')
     plt.show()
+
 
 # <codecell>
 df1 = collate_dfs('remote/11_prop/ar', show_progress=True)

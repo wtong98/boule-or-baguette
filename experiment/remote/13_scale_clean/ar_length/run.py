@@ -29,7 +29,7 @@ all_n_layer = [1]
 test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]
 
-max_batch_size = 128
+max_batch_size = 256
 
 shuffle_seed = 100
 
@@ -106,7 +106,7 @@ for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props
                                 return_format=None,
                                 n_mlp_layers=2,
                                 layer_norm=False,
-                                residual_connections=False,
+                                residual_connections=True,
                                 mup_scale=True,
                                 linear_att=False,
                                 unif_att=False,
