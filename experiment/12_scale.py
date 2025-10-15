@@ -737,7 +737,7 @@ plt.text(22, 5, r'$\propto H$', color='cyan')
 # plt.savefig(f'fig/ar_mlp_BH_early.png', bbox_inches='tight')
 # plt.savefig(f'fig/zero_mlp_arms_v_size_short.png', bbox_inches='tight')
 # plt.savefig(f'fig/ar_mlp_arms_v_size_debug.png', bbox_inches='tight')
-plt.savefig('fig/debug.png', bbox_inches='tight')
+# plt.savefig('fig/debug.png', bbox_inches='tight')
 plt.show()
 
 
@@ -899,8 +899,8 @@ mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-# g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
-g = sns.heatmap(mdf, square=False, vmin=0.9, vmax=1)
+g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
 # g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
@@ -1034,7 +1034,7 @@ def extract_plot_vals(row):
         row['train_task'].samp_dist[1],
         row['config']['n_hidden'],
         row['config']['n_layers'],
-        row['hist']['test'][5]['acc'].item(),
+        row['hist']['test'][5]['acc'],
         n_hop_prop,
         row['info'],
     ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_layers', 'acc_hist', 'n_hop_prop', 'info'])
@@ -1071,14 +1071,15 @@ mdf = mdf[
     & (mdf['depth'] == depth)
 ]
 
-g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='full')
+g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms')
 g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
 g.set_title('DP generalization')
 
-plt.savefig(f'fig/dp_gen_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
+# plt.savefig(f'fig/dp_gen_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
 
 # <codecell>
 adf = mdf[mdf['test_n_hop'] < 15]
+# adf = mdf.copy()
 
 g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5, marker='o')
 g.set_xscale('log')
@@ -1089,4 +1090,4 @@ g.plot(np.exp(xs), np.exp(-0.5 * xs + 1), color='red', linestyle='dashed')
 g.text(12, 0.8, r'$\propto B^{-1/2}$', color='red')
 # g.plot(np.exp(xs), np.exp(-1 * xs + 2), color='blue', linestyle='dashed')
 
-plt.savefig(f'fig/dp_gen_arms_pred_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
+# plt.savefig(f'fig/dp_gen_arms_pred_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
