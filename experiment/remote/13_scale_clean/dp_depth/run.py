@@ -16,11 +16,11 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 36
+run_split = 72
 
 train_iters = 100_000
 
-n_arms = [2, 10, 20, 100]
+n_arms = [2, 10, 20]
 n_depths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
 n_widths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
 n_layers = 1
@@ -114,7 +114,7 @@ for n_hop_prop, n_arm, depth, n_hidden in itertools.product(n_hop_props, n_arms,
     ])
 
     
-all_cases = split_cases(all_cases, run_split)
+all_cases = split_cases(all_cases, run_split, shuffle_seed=200)
 print('CASES', all_cases)
 
 for case in tqdm(all_cases):

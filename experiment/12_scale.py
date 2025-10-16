@@ -660,7 +660,8 @@ plt.hist(proj[4,:], bins=50)
 
 # <codecell>
 # df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
-df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
+df = collate_dfs('remote/13_scale_clean/dp_breadth', show_progress=True)
+# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
 # df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
@@ -674,7 +675,7 @@ def extract_plot_vals(row):
         row['config']['residual_connections'],
         row['config']['n_layers'],
         row['train_args']['lr'],
-        row['hist']['test'][10]['acc'],
+        row['hist']['test'][-1]['acc'],
         row['train_args']['gamma'] if 'gamma' in row['train_args'] else -1,
         row['info'],
     ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'n_layers',  'lr', 'acc_hist', 'gamma', 'info'])
@@ -692,8 +693,8 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-bdf = bdf.drop('gen_acc', axis=1)
+# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
