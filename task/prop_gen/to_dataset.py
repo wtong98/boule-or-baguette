@@ -49,7 +49,8 @@ def count_ops(dataset):
 if __name__ == '__main__':
     # maxlens= [1024]
     # dataset = load_dataset('json', data_dir='data/raw_full', split='train', keep_in_memory=True, num_proc=16)
-    dataset = load_dataset('json', data_dir='data/raw_or', split='train', keep_in_memory=True, num_proc=16)
+    # dataset = load_dataset('json', data_dir='data/raw_or', split='train', num_proc=16)
+    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_big', split='train', num_proc=16)
 
     # add separator to distinguish prompt and completion
     dataset = dataset.map(lambda x: {'prompt': x['input'] + '|'}, num_proc=16)
@@ -81,7 +82,8 @@ if __name__ == '__main__':
 
     ds = split_by_len(dataset)
     # ds.save_to_disk('data/hf_full_text')
-    ds.save_to_disk('data/hf_or_text')
+    # ds.save_to_disk('data/hf_or_text')
+    ds.save_to_disk('/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data/hf_or_big_text')
 
     # def to_toks(ex):
     #     inp_toks = tokenizer(ex['input'], return_attention_mask=False)
