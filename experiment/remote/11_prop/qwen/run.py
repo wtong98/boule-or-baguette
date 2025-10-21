@@ -5,6 +5,7 @@ Big qwen run
 # <codecell>
 from pathlib import Path
 import os
+import sys
 
 import datasets
 import numpy as np
@@ -17,10 +18,9 @@ import torch
 from tqdm import tqdm
 import wandb
 
-import sys
 sys.path.append('../../../../')
 from common import new_seed
-from task.prop import PropTask, full_text_ds_path, or_text_ds_path
+from task.prop import PropTask, full_text_ds_path, or_text_ds_path, imply_text_ds_path
 
 model_name = "Qwen/Qwen2.5-Coder-7B"
 
@@ -28,8 +28,17 @@ with (Path(os.environ['HOME']) / 'wandb.txt').open() as fp:
     key = fp.read().strip()
 
 os.environ['WANDB_API_KEY'] = key
-os.environ['WANDB_PROJECT'] = 'qwen_ar_or'
+os.environ['WANDB_PROJECT'] = 'qwen_imply'
 os.environ['WANDB_LOG_MODEL'] = 'false'
+
+split = 6
+try:
+    split = int(sys.argv[1])
+except:
+    print("warn: unrecognized train split, defaulting to split=6")
+
+print(f'info: using split={split}')
+os.environ['WANDB_NAME'] = f'Qwen-7b-coder AR split={split}'
 
 wandb.login()
 
@@ -71,12 +80,15 @@ try:
         ds_path = full_text_ds_path
     elif split == 'or':
         ds_path = or_text_ds_path
+    elif split == 'imply':
+        ds_path = imply_text_ds_path
     else:
         raise ValueError(f"unrecognized ds_path {split}")
 
 except:
     print("warn: unrecognized ds_path, defaulting to full_text_ds_path")
 
+print('info: using ds_path =', ds_path)
 
 def make_ds(depth, split):
     task = PropTask(depth=depth, split=split, cot='text', ds_path=ds_path)
@@ -102,7 +114,7 @@ except:
 print(f'info: using split={split}')
 train_split = split
 # test_splits = [2, 4, 6, 10]
-test_splits = [4, 6, 8]
+test_splits = [4, 6, 10]
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
@@ -223,7 +235,7 @@ wandb.finish()
 
 final_res = evaluate(eval_callback.succ_id, eval_callback.fail_id, num_samples=100)
 df = pd.DataFrame([{
-    'name': 'AR Qwen',
+    'name': 'AR Qwen (imply)',
     'train_hop': train_split,
     'info': final_res
 }])
