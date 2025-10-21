@@ -5,6 +5,7 @@ Big DP qwen run
 # <codecell>
 from pathlib import Path
 import os
+import sys
 
 with (Path(os.environ['HOME']) / 'wandb.txt').open() as fp:
     key = fp.read().strip()
@@ -13,6 +14,16 @@ os.environ['WANDB_API_KEY'] = key
 os.environ['WANDB_PROJECT'] = 'qwen_dp_or'
 os.environ['WANDB_LOG_MODEL'] = 'false'
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
+split = 6
+try:
+    split = int(sys.argv[1])
+    print(f'info: using split={split}')
+except:
+    print("warn: unrecognized train split, defaulting to split=6")
+    print('info: received kwargs:', sys.argv)
+
+os.environ['WANDB_NAME'] = f'split={split}'
 
 import datasets
 import evaluate
@@ -26,7 +37,6 @@ import torch
 from tqdm import tqdm
 import wandb
 
-import sys
 sys.path.append('../../../../')
 from common import new_seed
 from task.prop import PropTask, full_text_ds_path, or_text_ds_path
@@ -36,17 +46,24 @@ model_name = "Qwen/Qwen2.5-Coder-7B"
 wandb.login()
 
 
+train_split = split
+# test_splits = [2, 4, 6, 10]
+test_splits = [4, 6, 8]
+range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
+ranges = list(zip(range_hops[:-1], range_hops[1:]))
+
+
 ds_path = full_text_ds_path
 
 try:
-    split = sys.argv[2]
+    ds_type = sys.argv[2]
 
-    if split == 'full':
+    if ds_type == 'full':
         ds_path = full_text_ds_path
-    elif split == 'or':
+    elif ds_type == 'or':
         ds_path = or_text_ds_path
     else:
-        raise ValueError(f"unrecognized ds_path {split}")
+        raise ValueError(f"unrecognized ds_path {ds_type}")
 
 except:
     print("warn: unrecognized ds_path, defaulting to full_text_ds_path")
@@ -66,19 +83,6 @@ def make_ds(depth, split):
     ds = ds.remove_columns(['completion'])
     return ds
 
-
-try:
-    split = int(sys.argv[1])
-except:
-    print("warn: unrecognized train split, defaulting to split=6")
-
-print(f'info: using split={split}')
-os.environ['WANDB_NAME'] = f'split={split}'
-train_split = split
-# test_splits = [2, 4, 6, 10]
-test_splits = [4, 6, 8]
-range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
-ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
 train_ds = make_ds(train_split, 'train')
 test_ds = make_ds(train_split, 'test')
