@@ -17,11 +17,13 @@ from util.sample import gen_batch, n_combo
 
 # def or_elem(is_true): return Or(PFalse(), PTrue() if is_true else PFalse())
 
-prop = Implies(Atom('p1'), Or(Atom('p1'), Atom('p2')))
+# prop = Implies(Atom('p1'), Or(Atom('p1'), Atom('p2')))
 # prop = Implies(Or(Atom('p1'), Implies(PTrue(), Implies(Atom('p3'), PFalse()))), Atom('p1'))
+prop = Implies(Implies(Implies(Implies(Implies(Atom('p1'), Atom('p2')), Atom('p1')), Atom('p1')), Atom('p2')), Atom('p2'))
 
 print('PROP', prop)
-proof = prove(prop, keep='until_success')
+# proof = prove(prop, keep='until_success')
+proof = prove(prop, keep='simplest')
 print('PROOF', proof)
 
 ex = format_example(3, prop, proof, proof_to_string=False)

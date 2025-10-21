@@ -28,6 +28,7 @@ or_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_or'
 
 full_text_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_full_text'
 or_text_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_or_text'
+imply_text_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_implies_text'
 # debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 debug_ds_path = None
 
