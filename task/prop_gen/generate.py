@@ -76,19 +76,24 @@ run_split = 24
 ### END TEST CONFIG
 
 # all_ex = itertools.chain(*[gen_batch(n_atoms, n) for n in range(1, max_nodes + 1)])
-all_ex = itertools.chain(*[gen_batch_or(n_atoms, n) for n in range(1, max_nodes + 1)])
+# all_ex = itertools.chain(*[gen_batch_or(n_atoms, n) for n in range(1, max_nodes + 1)])
+all_ex = gen_php(seed=3011)
 all_ex = split(all_ex, run_split)
 # total_ex = sum(n_combo(n_atoms, n) for n in range(1, max_nodes + 1))
-total_ex = sum(n_combo_or(n_atoms, n) for n in range(1, max_nodes + 1))
+# total_ex = sum(n_combo_or(n_atoms, n) for n in range(1, max_nodes + 1))
+total_ex = len(all_ex)
+print('TOTAL EXAMPLES:', total_ex)
 
 total_ex
 
 pbar = tqdm(total=total_ex // run_split)
 
-out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_big')
+# out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_big')
+out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/php')
+
 
 if not out_dir.exists():
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=False)
 
 out_path = out_dir / f'{run_id}.json'
 

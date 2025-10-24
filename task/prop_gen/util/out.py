@@ -45,14 +45,20 @@ def format_example(n_atoms: int, prop: Proposition, proof: Proof, proof_to_strin
 
 
 def build_state(tactic_state, state_id):
-    lines = tactic_state.split('\n')
+    # lines = tactic_state.split('\n')
+    premise, conclusion = tactic_state.split('⊢')
+    lines = premise.split('\n')
+    conclusion = conclusion.strip().replace('\n', ' ').split()
+    conclusion = ' '.join(conclusion)
+
     state = et.Element('state', id=str(state_id))
-    for line in lines[:-1]:
-        if_elem = et.SubElement(state, 'if')
-        if_elem.text = line
+    for line in lines:
+        if len(line) > 0:
+            if_elem = et.SubElement(state, 'if')
+            if_elem.text = line
 
     then_elem = et.SubElement(state, 'then')
-    then_elem.text = lines[-1]
+    then_elem.text = conclusion
     return state
 
 
@@ -105,17 +111,24 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int) ->
     def repeat_previous_state() -> None:
         ctx.push_state(ctx.get_cur_state_text())
     def show_current_tactic_state() -> None:
-        lines = ctx.get_cur_tactic_state().split('\n')
+        tactic_state = ctx.get_cur_tactic_state()
         state = et.Element('state', id=str(ctx.get_cur_state_num()))
-        if len(lines) == 1 and lines[0] == 'goal complete':
+
+        if tactic_state == 'goal complete':
             et.SubElement(state, 'complete')
         else:
-            for line in lines[:-1]:
-                if_elem = et.SubElement(state, 'if')
-                if_elem.text = line
+            premise, conclusion = tactic_state.split('⊢')
+            lines = premise.split('\n')
+            conclusion = conclusion.strip().replace('\n', ' ').split()
+            conclusion = ' '.join(conclusion)
+
+            for line in lines:
+                if len(line) > 0:
+                    if_elem = et.SubElement(state, 'if')
+                    if_elem.text = line
 
             then_elem = et.SubElement(state, 'then')
-            then_elem.text = lines[-1]
+            then_elem.text = conclusion
 
         result.append(state)
         
