@@ -78,11 +78,12 @@ run_split = 24
 # all_ex = itertools.chain(*[gen_batch(n_atoms, n) for n in range(1, max_nodes + 1)])
 # all_ex = itertools.chain(*[gen_batch_or(n_atoms, n) for n in range(1, max_nodes + 1)])
 all_ex = gen_php(seed=3011)
+total_ex = len(all_ex)
+print('TOTAL EXAMPLES:', total_ex)
+
 all_ex = split(all_ex, run_split)
 # total_ex = sum(n_combo(n_atoms, n) for n in range(1, max_nodes + 1))
 # total_ex = sum(n_combo_or(n_atoms, n) for n in range(1, max_nodes + 1))
-total_ex = len(all_ex)
-print('TOTAL EXAMPLES:', total_ex)
 
 total_ex
 
