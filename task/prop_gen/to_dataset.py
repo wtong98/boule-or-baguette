@@ -56,11 +56,10 @@ if __name__ == '__main__':
     dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/php', split='train', num_proc=16)
 
     # add separator to distinguish prompt and completion
-    dataset = dataset.map(lambda x: {'prompt': x['input'] + '|'}, num_proc=16)
-    dataset = dataset.remove_columns(['input'])
+    dataset = dataset.map(lambda x: {'prompt': x['input'] + '|'}, remove_columns=['input'], num_proc=16)
     dataset = dataset.rename_column('proof', 'completion')
     # dataset = dataset.map(lambda x: {'completion': x['proof']}, num_proc=16)
-
+    
     # maxlens = [1024]
     # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or', split='train', keep_in_memory=True, num_proc=16)
 
@@ -90,7 +89,7 @@ if __name__ == '__main__':
 
         def filter_len(example):
             toks = tokenizer(example['prompt'] + example['completion'], return_attention_mask=False)
-            return len(toks) <= maxlen
+            return len(toks['input_ids']) <= maxlen
         
         ds_small = ds.filter(filter_len, num_proc=16)
         ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_php_text_{maxlen}')
