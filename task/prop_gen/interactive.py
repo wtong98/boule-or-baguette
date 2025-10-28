@@ -110,15 +110,15 @@ def pigeon(n_pigeons, n_holes, pigeon_occupation_ablation_prop=None, roommate_ab
     php = catalan([pigeons_in_a_hole, all_pigeon_roommates], Implies)
     return php
 
-tot = 0
-for _ in tqdm(pigeon(3, 4, 
-                     pigeon_occupation_ablation_prop=0.5,
-                     roommate_ablation_prop=0.5)):
-    tot += 1
+# tot = 0
+# for _ in tqdm(pigeon(3, 4, 
+#                      pigeon_occupation_ablation_prop=0.5,
+#                      roommate_ablation_prop=0.5)):
+#     tot += 1
 
-print(tot)
+# print(tot)
 
-php = gen_php()
+# php = gen_php()
 # <codecell>
 # tot_pigeons = 4
 # tot_holes = 4
@@ -149,7 +149,7 @@ print(prop)
 # prop = Implies(left, right)
 # prop = atoms[-1]
 
-prop = php[5000]
+# prop = php[5000]
 print('PROP', prop)
 # proof = prove(prop, keep='until_success')
 proof = prove(prop, keep='simplest')

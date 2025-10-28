@@ -1,18 +1,56 @@
 """Measuring different statistics of the prop task"""
 
 # <codecell>
+import datasets
 import numpy as np
+from transformers import AutoTokenizer
 from prop import *
 
 # <codecell>
-
-task = PropTask(depth=20, batch_size=5, split='test', cot=True, grow_fac=1, max_len=2000)
-# task = PropTask(depth=3, batch_size=5, split='test', cot=True, filter_ops=PropTask.imply_ops, grow_fac=1)
-xs, ys = next(task)
-xs.shape
+# task = PropTask(depth=20, batch_size=5, split='test', cot=True, grow_fac=1, max_len=2000)
+# # task = PropTask(depth=3, batch_size=5, split='test', cot=True, filter_ops=PropTask.imply_ops, grow_fac=1)
+# xs, ys = next(task)
+# xs.shape
 
 # <codecell>
-all_lens = task.false_ds.map(lambda ex: {'len': len(ex['input_ids'])}, num_proc=16)['len']
+task = PropTask(100, 
+                batch_size=2, 
+                split='train', 
+                cot='text', 
+                ds_path='prop_gen/data/hf_php_text')
+task.load_ds()
+# next(task)
+
+filt_ds = task.ds
+filt_ds['True_9'][0]
+
+# <codecell>
+full_ds = datasets.concatenate_datasets(list(filt_ds.values()))
+
+# <codecell>
+tokenizer = AutoTokenizer.from_pretrained('Qwen/Qwen2.5-Coder-7B')
+
+def to_toks(ex):
+    inp_and_proof_toks = tokenizer(ex['prompt'] + ex['completion'], return_attention_mask=False)
+
+    return {
+        # 'input_ids': inp_toks['input_ids'],
+        # 'full_ids': inp_and_proof_toks['input_ids'],
+        'len': len(inp_and_proof_toks['input_ids']),
+    }
+
+full_ds = full_ds.map(to_toks, batched=False, num_proc=16)
+full_ds[0]
+
+
+# <codecell>
+from multiprocessing import Pool
+
+def get_len(ex):
+    return ex['len']
+
+# all_lens = [ex['len'] for ex in tqdm(all_lens)]
+all_lens = Pool(16).map(get_len, tqdm(full_ds))
 all_lens
 
 # <codecell>
@@ -24,11 +62,6 @@ np.quantile(all_lens, [0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
 # quantiles for depth 20: array([ 779., 1073., 1659., 2269., 2599., 4025.])
 
 
-# <codecell>
-task = PropTask(5, batch_size=2, split='train', cot=True, ds_path=or_ds_path)
-next(task)
-
-filt_ds = task.ds
 # <codecell>
 max_len = 1000
 
@@ -73,8 +106,8 @@ t_cum = np.cumsum(t_lens[t_sort_idx]) / np.sum(t_lens)
 f_sort_idx = np.argsort(f_idx)
 f_cum = np.cumsum(f_lens[f_sort_idx]) / np.sum(f_lens)
 
-plt.plot(t_cum, 'o--')
-plt.plot(f_cum, 'o--')
+plt.plot(np.sort(t_idx), t_cum, 'o--')
+plt.plot(np.sort(f_idx), f_cum, 'o--')
 
 props = [0.2, 0.4, 0.5, 0.6, 0.8, 0.95]
 

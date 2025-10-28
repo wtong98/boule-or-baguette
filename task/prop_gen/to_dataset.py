@@ -47,7 +47,9 @@ def count_ops(dataset):
     return counts
 
 if __name__ == '__main__':
-    # maxlens= [1024]
+    maxlens= [2048, 32768]
+    tokenizer = AutoTokenizer.from_pretrained('Qwen/Qwen2.5-Coder-7B')
+
     # dataset = load_dataset('json', data_dir='data/raw_full', split='train', keep_in_memory=True, num_proc=16)
     # dataset = load_dataset('json', data_dir='data/raw_or', split='train', num_proc=16)
     # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/implies', split='train', num_proc=16)
@@ -82,9 +84,18 @@ if __name__ == '__main__':
     #     tokenizer.save_pretrained('data/tok')
 
     ds = split_by_len(dataset)
-    # ds.save_to_disk('data/hf_full_text')
-    # ds.save_to_disk('data/hf_or_text')
-    ds.save_to_disk('/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data/hf_php_text')
+
+    for maxlen in maxlens:
+        print(f'info: filtering by length {maxlen}')
+
+        def filter_len(example):
+            toks = tokenizer(example['prompt'] + example['completion'], return_attention_mask=False)
+            return len(toks) <= maxlen
+        
+        ds_small = ds.filter(filter_len, num_proc=16)
+        ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_php_text_{maxlen}')
+
+    # ds.save_to_disk('/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data/hf_php_text')
 
     # def to_toks(ex):
     #     inp_toks = tokenizer(ex['input'], return_attention_mask=False)
@@ -97,15 +108,4 @@ if __name__ == '__main__':
 
     # ds = ds.map(to_toks, batched=False, num_proc=16)
 
-    # for maxlen in maxlens:
-    #     print(f'info: filtering by length {maxlen}')
-
-    #     def filter_len(example):
-    #         return len(example['full_ids']) <= maxlen
-        
-    #     ds_small = ds.filter(filter_len, num_proc=16)
-
-    #     ds_small = DatasetDict({k: dataset.remove_columns(column_names=['proof', 'input']) for k, dataset in ds_small.items() if len(dataset) > 0})
-    #     # ds_small.save_to_disk(f'data/hf_or_small_{maxlen}')
-    #     ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_or_{maxlen}')
 

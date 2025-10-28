@@ -195,6 +195,6 @@ def gen_php(seed=5):
     all_pigeons = list(it.chain.from_iterable([pigeon_set(**params) for params in tqdm(param_sets)]))
     return all_pigeons
 
-php = gen_php(seed=3011)
-print('TOTAL PHP', len(php))
-print('EX 5000', php[5000])
+# php = gen_php(seed=3011)
+# print('TOTAL PHP', len(php))
+# print('EX 5000', php[5000])
