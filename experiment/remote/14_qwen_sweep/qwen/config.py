@@ -44,8 +44,8 @@ configs = []
 for model_name, task, prompt in itertools.product(model_names, tasks, prompt_styles):
     base_config = {
         'model_name': model_name,
-        'batch_size': 16 if '7B' in model_name else 32,
-        'accum_steps': 2 if '7B' in model_name else 1,
+        'batch_size': 16,
+        'accum_steps': 2,
         'num_samples': 50,
         'max_length': 2048,
         'ds_path': task_to_ds_path[task],
@@ -59,7 +59,7 @@ for model_name, task, prompt in itertools.product(model_names, tasks, prompt_sty
         curr = base_config.copy()
         curr['train_split'] = split
         curr['run_name'] = f"{base_config['run_name_prefix']} (split={split})"
-        curr['output_dir'] = f"~/scratch/model/{curr['project_name']}/{curr['run_name'].replace(' ', '_')}"
+        curr['output_dir'] = f"~/scratch/ckpt/{curr['project_name']}/{curr['run_name'].replace(' ', '_')}"
         configs.append(curr)
 
 len(configs)
