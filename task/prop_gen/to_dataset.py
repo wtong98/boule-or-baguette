@@ -91,7 +91,8 @@ if __name__ == '__main__':
             toks = tokenizer(example['prompt'] + example['completion'], return_attention_mask=False)
             return len(toks['input_ids']) <= maxlen
         
-        ds_small = ds.filter(filter_len, num_proc=16)
+        filtered = ds.filter(filter_len, num_proc=16)
+        ds_small = DatasetDict({name: subset for name, subset in filtered.items() if len(subset) > 0})
         ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_php_text_{maxlen}')
 
     # ds.save_to_disk('/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data/hf_php_text')
