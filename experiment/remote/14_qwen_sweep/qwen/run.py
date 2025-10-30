@@ -31,7 +31,7 @@ except:
     print("warn: unrecognized run_idx, defaulting to run_idx=0")
     print('info: received kwargs:', sys.argv)
 
-run_config = configs[run_idx]
+run_config = configs[run_idx % len(configs)]
 print(f'info: using config: ', run_config)
 
 def score(preds, labels, succ_id, fail_id):
