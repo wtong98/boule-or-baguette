@@ -16,9 +16,9 @@ model_names = [
 ]
 
 prompt_styles = [
-    'ar_cot',
-    'dp',
-    # 'dp_full'
+    # 'ar_cot',
+    # 'dp',
+    'dp_full'
 ]
 
 tasks = [

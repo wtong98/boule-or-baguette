@@ -175,8 +175,25 @@ def evaluate(succ_id, fail_id, num_samples=100):
             coll = DataCollatorWithPadding(tokenizer=tokenizer)
             inp_ids = [tokenizer(text) for text in ds['prompt']]
             lab_ids = [tokenizer(text) for text in ds['completion']]
+
+            filtered = [
+                (inp, lab)
+                for inp, lab in zip(inp_ids, lab_ids)
+                if len(inp['input_ids']) + len(lab['input_ids']) <= trainer.args.max_length
+            ]
+
+            if not filtered:
+                print('warn: filtered everything out for range', r, 'with num_samples', num_samples)
+                all_res[f'range_{r}'] = {}
+                continue
+
+            inp_ids, lab_ids = zip(*filtered)
+            inp_ids = list(inp_ids)
+            lab_ids = list(lab_ids)
+
             inp = coll(inp_ids)
             lab = coll(lab_ids)
+
             tokenizer.padding_side = 'right'
 
             inp['input_ids'] = inp['input_ids'].to(device='cuda')
