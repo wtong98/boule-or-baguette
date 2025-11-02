@@ -25,6 +25,9 @@ from common import new_seed
 from task.prop import PropTask, full_text_ds_path, or_text_ds_path, imply_text_ds_path
 
 from config import configs
+
+datasets.disable_caching()
+
 run_idx = 0
 try:
     run_idx = int(sys.argv[1])

@@ -16,9 +16,9 @@ model_names = [
 ]
 
 prompt_styles = [
-    # 'ar_cot',
+    'ar_cot',
     # 'dp',
-    'dp_full'
+    # 'dp_full'
 ]
 
 tasks = [
@@ -49,7 +49,10 @@ for model_name, task, prompt in itertools.product(model_names, tasks, prompt_sty
     elif '7B' in model_name:
         batch_size = 16
     
-    accum_steps = 32 // batch_size
+    accum_steps = 128 // batch_size
+
+    if prompt == 'dp':
+        accum_steps = 32 // batch_size
 
     base_config = {
         'model_name': model_name,
@@ -61,7 +64,7 @@ for model_name, task, prompt in itertools.product(model_names, tasks, prompt_sty
         'splits': task_to_splits[task],
         'prompt': prompt,
         'project_name': f'big_prop_{task}',
-        'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}"
+        'run_name_prefix': f"big_batch-{model_name.split('/')[-1]}-{prompt}"
     }
 
     for split in base_config['splits']:
@@ -71,4 +74,4 @@ for model_name, task, prompt in itertools.product(model_names, tasks, prompt_sty
         curr['output_dir'] = f"~/scratch/ckpt/{curr['project_name']}/{curr['run_name'].replace(' ', '_')}"
         configs.append(curr)
 
-# len(configs)
+len(configs)
