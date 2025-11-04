@@ -16,8 +16,8 @@ model_names = [
 ]
 
 prompt_styles = [
-    'ar_cot',
-    # 'dp',
+    # 'ar_cot',
+    'dp',
     # 'dp_full'
 ]
 
@@ -43,16 +43,19 @@ task_to_splits = {
 
 configs = []
 for model_name, task, prompt in itertools.product(model_names, tasks, prompt_styles):
-    batch_size = 32
-    if '14B' in model_name:
-        batch_size = 4
-    elif '7B' in model_name:
-        batch_size = 16
-    
-    accum_steps = 128 // batch_size
+    # temporary config for DP only run
+    assert prompt == 'dp'
+    batch_size = 8
+    accum_steps = 1
 
-    if prompt == 'dp':
-        accum_steps = 32 // batch_size
+    # batch_size = 32
+    # if '14B' in model_name:
+    #     batch_size = 4
+    # elif '7B' in model_name:
+    #     batch_size = 16
+    
+    # if prompt == 'dp':
+    #     accum_steps = 32 // batch_size
 
     base_config = {
         'model_name': model_name,
@@ -64,7 +67,7 @@ for model_name, task, prompt in itertools.product(model_names, tasks, prompt_sty
         'splits': task_to_splits[task],
         'prompt': prompt,
         'project_name': f'big_prop_{task}',
-        'run_name_prefix': f"big_batch-{model_name.split('/')[-1]}-{prompt}"
+        'run_name_prefix': f"small_batch-{model_name.split('/')[-1]}-{prompt}"
     }
 
     for split in base_config['splits']:
