@@ -6,7 +6,7 @@
 #SBATCH --mem=128000
 #SBATCH -o log.%A.%a.out
 #SBATCH -e log.%A.%a.err
-#SBATCH --array=0
+#SBATCH --array=1-12
 #SBATCH --mail-type=END
 #SBATCH --mail-user=wtong@g.harvard.edu
 #SBATCH --account=kempner_pehlevan_lab
@@ -18,6 +18,6 @@ module load cuda/12.9
 source /n/netscratch/pehlevan_lab/Lab/wlt/envs/venv_imply_uv_local/bin/activate
 # export WANDB_API_KEY=$(cat ~/wandb.txt)
 # wandb login
-python eval.py
+python eval.py ${SLURM_ARRAY_TASK_ID} 
 
 

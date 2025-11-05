@@ -3,7 +3,6 @@ Big qwen run
 """
 
 # <codecell>
-from pathlib import Path
 import os
 import sys
 
@@ -13,7 +12,7 @@ import datasets
 import numpy as np
 import pandas as pd
 from peft import LoraConfig
-from transformers import AutoModelForCausalLM, TrainingArguments, BitsAndBytesConfig, DataCollatorWithPadding
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig, DataCollatorWithPadding
 from transformers.integrations import WandbCallback
 from trl import SFTTrainer, SFTConfig
 import torch
@@ -22,7 +21,7 @@ import wandb
 
 sys.path.append('../../../../')
 from common import new_seed
-from task.prop import PropTask, full_text_ds_path, or_text_ds_path, imply_text_ds_path
+from task.prop import PropTask
 
 from config import configs
 
@@ -32,12 +31,13 @@ run_idx = 0
 try:
     run_idx = int(sys.argv[1])
     print(f'info: using run_idx={run_idx}')
-except:
+except Exception as e:
+    print('warn: could not parse run_idx from argv:', e)
     print("warn: unrecognized run_idx, defaulting to run_idx=0")
     print('info: received kwargs:', sys.argv)
 
 run_config = configs[run_idx % len(configs)]
-print(f'info: using config: ', run_config)
+print('info: using config:', run_config)
 
 wandb.init(
     project=run_config['project_name'],
@@ -141,9 +141,8 @@ args = SFTConfig(
     learning_rate=2e-4,                  # QLoRA LR baseline
     lr_scheduler_type="cosine",
     warmup_ratio=0.05,
-    logging_steps=100,
-    # logging_steps=1,
-    save_steps=1000,
+    logging_steps=run_config['log_every'],
+    save_steps=run_config['save_every'],
     bf16=True,
     gradient_checkpointing=True,
     # optim="adamw_bnb_8bit",
@@ -152,7 +151,7 @@ args = SFTConfig(
     weight_decay=0.0,
     completion_only_loss=True,
     packing=True,
-    max_length=2048,
+    max_length=run_config['max_length'],
     eval_strategy='steps',
     torch_compile=True   
 )
@@ -166,106 +165,120 @@ trainer = SFTTrainer(
 )
 
 
-def evaluate(succ_id, fail_id, num_samples=100):
-    tokenizer = trainer.processing_class
-    model.eval()
-
-    with torch.no_grad():
-        all_res = {}
-        for r, val_ds in tqdm(zip(ranges, val_ds_set), total=len(val_ds_set)):
-            ds = val_ds.shuffle().select(range(num_samples))
-            tokenizer.padding_side = 'left'
-            coll = DataCollatorWithPadding(tokenizer=tokenizer)
-            inp_ids = [tokenizer(text) for text in ds['prompt']]
-            lab_ids = [tokenizer(text) for text in ds['completion']]
-
-            filtered = [
-                (inp, lab)
-                for inp, lab in zip(inp_ids, lab_ids)
-                if len(inp['input_ids']) + len(lab['input_ids']) <= trainer.args.max_length
-            ]
-
-            if not filtered:
-                print('warn: filtered everything out for range', r, 'with num_samples', num_samples)
-                all_res[f'range_{r}'] = {}
-                continue
-
-            inp_ids, lab_ids = zip(*filtered)
-            inp_ids = list(inp_ids)
-            lab_ids = list(lab_ids)
-
-            inp = coll(inp_ids)
-            lab = coll(lab_ids)
-
-            tokenizer.padding_side = 'right'
-
-            inp['input_ids'] = inp['input_ids'].to(device='cuda')
-            inp['attention_mask'] = inp['attention_mask'].to(device='cuda')
-            lab['input_ids'] = lab['input_ids'].to(device='cuda')
-
-            with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
-                preds = trainer.model.generate(**inp, max_length=trainer.args.max_length, max_new_tokens=None)
-
-            res = score(preds, lab['input_ids'], succ_id, fail_id)
-            all_res[f'range_{r}'] = res
-        
-    model.train()
-    return all_res
-
-
-# TODO: test batched evaluate
-# def evaluate(succ_id, fail_id, num_samples=100, batch_size=16):
+# def evaluate(succ_id, fail_id, num_samples=100):
 #     tokenizer = trainer.processing_class
 #     model.eval()
 
 #     with torch.no_grad():
 #         all_res = {}
 #         for r, val_ds in tqdm(zip(ranges, val_ds_set), total=len(val_ds_set)):
-#             shuffled_ds = val_ds.shuffle()
-#             num_eval_samples = min(num_samples, len(shuffled_ds))
-#             if num_eval_samples == 0:
+#             ds = val_ds.shuffle().select(range(num_samples))
+#             tokenizer.padding_side = 'left'
+#             coll = DataCollatorWithPadding(tokenizer=tokenizer)
+#             inp_ids = [tokenizer(text) for text in ds['prompt']]
+#             lab_ids = [tokenizer(text) for text in ds['completion']]
+
+#             filtered = [
+#                 (inp, lab)
+#                 for inp, lab in zip(inp_ids, lab_ids)
+#                 if len(inp['input_ids']) + len(lab['input_ids']) <= trainer.args.max_length
+#             ]
+
+#             if not filtered:
+#                 print('warn: filtered everything out for range', r, 'with num_samples', num_samples)
 #                 all_res[f'range_{r}'] = {}
 #                 continue
 
-#             ds = shuffled_ds.select(list(range(num_eval_samples)))
-#             metric_sums = {}
-#             total_examples = 0
-#             effective_batch_size = max(1, batch_size)
+#             inp_ids, lab_ids = zip(*filtered)
+#             inp_ids = list(inp_ids)
+#             lab_ids = list(lab_ids)
 
-#             tokenizer.padding_side = 'left'
-#             coll = DataCollatorWithPadding(tokenizer=tokenizer)
-
-#             for start in range(0, num_eval_samples, effective_batch_size):
-#                 end = min(start + effective_batch_size, num_eval_samples)
-#                 batch_ds = ds.select(list(range(start, end)))
-
-#                 inp_ids = [tokenizer(text) for text in batch_ds['prompt']]
-#                 lab_ids = [tokenizer(text) for text in batch_ds['completion']]
-#                 inp = coll(inp_ids)
-#                 lab = coll(lab_ids)
-
-#                 inp['input_ids'] = inp['input_ids'].to(device='cuda')
-#                 inp['attention_mask'] = inp['attention_mask'].to(device='cuda')
-#                 lab['input_ids'] = lab['input_ids'].to(device='cuda')
-
-#                 with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
-#                     preds = trainer.model.generate(**inp, max_length=trainer.args.max_length, max_new_tokens=None)
-
-#                 res = score(preds, lab['input_ids'], succ_id, fail_id)
-#                 batch_count = preds.shape[0]
-#                 total_examples += batch_count
-#                 for key, value in res.items():
-#                     metric_sums[key] = metric_sums.get(key, 0.0) + value * batch_count
+#             inp = coll(inp_ids)
+#             lab = coll(lab_ids)
 
 #             tokenizer.padding_side = 'right'
-#             all_res[f'range_{r}'] = (
-#                 {key: value / total_examples for key, value in metric_sums.items()}
-#                 if total_examples
-#                 else {}
-#             )
 
+#             inp['input_ids'] = inp['input_ids'].to(device='cuda')
+#             inp['attention_mask'] = inp['attention_mask'].to(device='cuda')
+#             lab['input_ids'] = lab['input_ids'].to(device='cuda')
+
+#             with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+#                 preds = trainer.model.generate(**inp, max_length=trainer.args.max_length, max_new_tokens=None)
+
+#             res = score(preds, lab['input_ids'], succ_id, fail_id)
+#             all_res[f'range_{r}'] = res
+        
 #     model.train()
 #     return all_res
+
+
+def evaluate(succ_id, fail_id, num_samples=100, batch_size=16):
+    tokenizer = trainer.processing_class
+    model.eval()
+
+    with torch.autograd.grad_mode.inference_mode():
+        all_res = {}
+        for r, val_ds in tqdm(zip(ranges, val_ds_set), total=len(val_ds_set)):
+            shuffled_ds = val_ds.shuffle()
+            num_eval_samples = min(num_samples, len(shuffled_ds))
+            if num_eval_samples == 0:
+                all_res[f'range_{r}'] = {}
+                continue
+
+            ds = shuffled_ds.select(list(range(num_eval_samples)))
+            metric_sums = {}
+            total_examples = 0
+            effective_batch_size = max(1, batch_size)
+
+            tokenizer.padding_side = 'left'
+            coll = DataCollatorWithPadding(tokenizer=tokenizer)
+
+            for start in range(0, num_eval_samples, effective_batch_size):
+                end = min(start + effective_batch_size, num_eval_samples)
+                batch_ds = ds.select(list(range(start, end)))
+
+                inp_ids = [tokenizer(text) for text in batch_ds['prompt']]
+                lab_ids = [tokenizer(text) for text in batch_ds['completion']]
+
+                filtered = [
+                    (inp, lab)
+                    for inp, lab in zip(inp_ids, lab_ids)
+                    if len(inp['input_ids']) + len(lab['input_ids']) <= trainer.args.max_length
+                ]
+
+                if not filtered:
+                    print('warn: filtered everything out for range', r, 'with num_samples', num_samples)
+                    continue
+
+                inp_ids, lab_ids = zip(*filtered)
+                inp_ids = list(inp_ids)
+                lab_ids = list(lab_ids)
+
+                inp = coll(inp_ids)
+                lab = coll(lab_ids)
+
+                inp['input_ids'] = inp['input_ids'].to(device='cuda')
+                inp['attention_mask'] = inp['attention_mask'].to(device='cuda')
+                lab['input_ids'] = lab['input_ids'].to(device='cuda')
+
+                with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+                    preds = trainer.model.generate(**inp, max_length=trainer.args.max_length, max_new_tokens=None)
+
+                res = score(preds, lab['input_ids'], succ_id, fail_id)
+                batch_count = preds.shape[0]
+                total_examples += batch_count
+                for key, value in res.items():
+                    metric_sums[key] = metric_sums.get(key, 0.0) + value * batch_count
+
+            tokenizer.padding_side = 'right'
+            all_res[f'range_{r}'] = (
+                {key: value / total_examples for key, value in metric_sums.items()}
+                if total_examples
+                else {}
+            )
+
+    model.train()
+    return all_res
 
 
 class WandbEvalCallback(WandbCallback):
@@ -285,12 +298,12 @@ class WandbEvalCallback(WandbCallback):
 
     def on_evaluate(self, args, state, control, **kwargs):
         super().on_evaluate(args, state, control, **kwargs)
-        all_res = evaluate(self.succ_id, self.fail_id, num_samples=self.num_samples)
+        all_res = evaluate(self.succ_id, self.fail_id, num_samples=self.num_samples, batch_size=self.batch_size)
         self._wandb.log(all_res)
         self.hist.append(all_res)
 
         
-eval_callback = WandbEvalCallback(trainer, val_ds_set, num_samples=run_config['num_samples'])
+eval_callback = WandbEvalCallback(trainer, val_ds_set, num_samples=run_config['num_samples'], batch_size=run_config['batch_size'])
 trainer.add_callback(eval_callback)
 
 trainer.train()
