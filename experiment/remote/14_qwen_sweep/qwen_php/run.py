@@ -25,6 +25,10 @@ from task.prop import PropTask
 
 from config import configs
 
+
+import torch._dynamo
+torch._dynamo.config.suppress_errors = True
+
 datasets.disable_caching()
 
 run_idx = 0

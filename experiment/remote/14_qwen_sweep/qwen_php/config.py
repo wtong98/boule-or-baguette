@@ -8,7 +8,7 @@ from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, ph
 
 
 model_sets = [
-    {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 64, '32k_bs': 4},
+    {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 2},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 16, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 4, '32k_bs': 1},
 ]
@@ -57,6 +57,9 @@ for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_style
         batch_size = model_set['32k_bs']
 
     accum_steps = total_batch_size // batch_size
+    if accum_steps < 1:
+        accum_steps = 1
+        batch_size = total_batch_size
     
 
     base_config = {
