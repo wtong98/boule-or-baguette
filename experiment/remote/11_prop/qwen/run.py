@@ -34,7 +34,8 @@ os.environ['WANDB_LOG_MODEL'] = 'false'
 split = 6
 try:
     split = int(sys.argv[1])
-except:
+except Exception as e:
+    print('warn: unable to parse split from args:', e)
     print("warn: unrecognized train split, defaulting to split=6")
 
 print(f'info: using split={split}')

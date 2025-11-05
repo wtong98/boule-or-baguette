@@ -59,6 +59,7 @@ for model_name, task, prompt in itertools.product(model_names, tasks, prompt_sty
 
     base_config = {
         'model_name': model_name,
+        'task_name': task,
         'batch_size': batch_size,
         'accum_steps': accum_steps,
         'num_samples': 50,
@@ -67,7 +68,7 @@ for model_name, task, prompt in itertools.product(model_names, tasks, prompt_sty
         'splits': task_to_splits[task],
         'prompt': prompt,
         'project_name': f'big_prop_{task}',
-        'run_name_prefix': f"small_batch-{model_name.split('/')[-1]}-{prompt}"
+        'run_name_prefix': f"small_batch-{model_name.split('/')[-1]}-{prompt}",
     }
 
     for split in base_config['splits']:

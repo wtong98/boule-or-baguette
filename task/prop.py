@@ -16,9 +16,9 @@ sys.path.append('../')
 from common import generate, new_seed
 
 try:
-    from .prop_gen.to_dataset import get_tokenizer, count_ops
+    from .prop_gen.to_dataset import get_tokenizer
 except ImportError:
-    from prop_gen.to_dataset import get_tokenizer, count_ops
+    from prop_gen.to_dataset import get_tokenizer
 
 
 trunc_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_trunc'
@@ -78,6 +78,9 @@ class PropTask:
             if start <= i < stop and name == prefix:
                 all_ds.append(self.ds[key])
         
+        if len(all_ds) == 0:
+            return self.ds.select(range(0))  # empty dataset
+
         return concatenate_datasets(all_ds)
     
 
