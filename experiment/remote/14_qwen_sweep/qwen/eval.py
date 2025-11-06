@@ -119,9 +119,10 @@ params = SamplingParams(max_tokens=max_length, temperature=0)
 
 all_res = []
 
-for ckpt, split in itertools.product(ckpts, test_splits):
+# TODO: second split is extraneous
+for ckpt in itertools.product(ckpts, test_splits):
     ckpt_name = ckpt.name
-    print(f'info: processing split={split}, ckpt={ckpt_name}')
+    print(f'info: processing ckpt={ckpt_name}')
     ckpt_num = int(ckpt_name.split('-')[-1])
 
     lora_path = str(ckpt.absolute())
@@ -133,7 +134,6 @@ for ckpt, split in itertools.product(ckpts, test_splits):
         'project_name': run_config['project_name'],  # TODO: convert to task name
         'model_name': model_name,
         'train_split': run_config['train_split'],
-        'test_split': split,
         'ckpt': ckpt.name,
         'ckpt_num': ckpt_num,
         'res': res

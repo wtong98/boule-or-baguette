@@ -16,7 +16,7 @@ model_sets = [
 prompt_styles = [
     'ar_cot',
     'dp',
-    'dp_full'
+    # 'dp_full'
 ]
 
 tasks = [
@@ -44,12 +44,8 @@ task_to_splits = {
 
 configs = []
 for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_styles):
-    total_batch_size = 128
+    total_batch_size = 32
     model_name = model_set['name']
-
-    if prompt == 'dp':
-        # TODO: need firmer estimate of size difference in packed examples, per dataset
-        total_batch_size = 32
 
     if task != 'php':
         batch_size = model_set['2k_bs']
@@ -69,13 +65,14 @@ for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_style
         'accum_steps': accum_steps,
         'num_samples': 15,
         'max_length': 32768 if task == 'php' else 2048,
-        'log_every': 100,
-        'save_every': 250,
+        'log_every': 10,
+        'save_every': 25,
         'ds_path': task_to_ds_path[task],
         'splits': task_to_splits[task],
         'prompt': prompt,
         'project_name': f'prop_{task}',
         'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
+        'packing': True if prompt != 'dp' else False
     }
 
     for split in base_config['splits']:
