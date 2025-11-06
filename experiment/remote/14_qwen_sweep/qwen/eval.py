@@ -35,7 +35,7 @@ def make_ds(ds_path, depth, split):
 
 
 def score(preds, labs, succ_id, fail_id):
-    is_true = torch.tensor(labs).to('cuda')
+    is_true = torch.tensor(labs)
 
     t = torch.argmax((preds == succ_id).int(), axis=-1)
     f = torch.argmax((preds == fail_id).int(), axis=-1)
@@ -48,10 +48,10 @@ def score(preds, labs, succ_id, fail_id):
     false_pos = (~is_true) * pred_is_true
     false_neg = is_true * pred_is_false
 
-    true_pos = torch.mean(true_pos.float()).to('cpu').item()
-    true_neg = torch.mean(true_neg.float()).to('cpu').item()
-    false_pos = torch.mean(false_pos.float()).to('cpu').item()
-    false_neg = torch.mean(false_neg.float()).to('cpu').item()
+    true_pos = torch.mean(true_pos.float()).item()
+    true_neg = torch.mean(true_neg.float()).item()
+    false_pos = torch.mean(false_pos.float()).item()
+    false_neg = torch.mean(false_neg.float()).item()
     
     return {
         'gen_acc': true_pos + true_neg,
@@ -71,7 +71,7 @@ def evaluate(model, params, lora_req, succ_id, fail_id, num_samples=100):
         labs = [ex['is_true'] for ex in ds]
         
         outputs = model.generate(prompts, params, lora_request=lora_req)
-        preds = torch.nested.nested_tensor([o.outputs[0].token_ids for o in outputs], layout=torch.jagged).to('cuda')
+        preds = torch.nested.nested_tensor([o.outputs[0].token_ids for o in outputs], layout=torch.jagged)
         preds = preds.to_padded_tensor(0)
         
         res = score(preds, labs, succ_id, fail_id)
