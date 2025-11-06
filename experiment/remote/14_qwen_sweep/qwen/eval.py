@@ -19,7 +19,7 @@ from task.prop import PropTask
 
 from config import configs
 
-num_eval_samples = 5
+num_eval_samples = 1000
 
 
 datasets.disable_caching()
@@ -93,7 +93,7 @@ print('info: received kwargs:', sys.argv)
 run_config = configs[run_idx % len(configs)]
 print('info: using config:', run_config)
 
-ckpt_dir = Path(run_config['output_dir'])
+ckpt_dir = Path(run_config['output_dir']).expanduser().resolve()
 ckpts = sorted(
     [f for f in ckpt_dir.iterdir() 
      if f.is_dir() and f.name.startswith('checkpoint-')])
@@ -144,6 +144,6 @@ for ckpt, split in itertools.product(ckpts, test_splits):
 
 print('RES', all_res)
 df = pd.DataFrame(all_res)
-df.to_pickle(f'eval.{new_seed()}.pkl')
+df.to_pickle(f'res_eval.{new_seed()}.pkl')
     
 
