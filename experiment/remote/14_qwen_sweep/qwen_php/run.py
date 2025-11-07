@@ -157,7 +157,7 @@ args = SFTConfig(
     packing=run_config['packing'],
     max_length=run_config['max_length'],
     eval_strategy='steps',
-    torch_compile=True   
+    torch_compile=False   
 )
 
 trainer = SFTTrainer(

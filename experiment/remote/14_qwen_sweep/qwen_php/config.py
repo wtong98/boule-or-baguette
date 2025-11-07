@@ -8,7 +8,7 @@ from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, ph
 
 
 model_sets = [
-    {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 2},
+    {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 16, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 4, '32k_bs': 1},
 ]
@@ -63,10 +63,10 @@ for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_style
         'task_name': task,
         'batch_size': batch_size,
         'accum_steps': accum_steps,
-        'num_samples': 15,
+        'num_samples': 25,
         'max_length': 32768 if task == 'php' else 2048,
-        'log_every': 10,
-        'save_every': 25,
+        'log_every': 100 if prompt == 'dp' else 1_000_000,  # set very large to disable
+        'save_every': 250,
         'ds_path': task_to_ds_path[task],
         'splits': task_to_splits[task],
         'prompt': prompt,
