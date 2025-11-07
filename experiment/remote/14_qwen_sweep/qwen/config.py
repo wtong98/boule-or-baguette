@@ -8,7 +8,7 @@ from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, ph
 
 
 model_sets = [
-    {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 2},
+    {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 16, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 16, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 4, '32k_bs': 1},
 ]
