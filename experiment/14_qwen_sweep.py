@@ -18,9 +18,11 @@ from task.prop import *
 
 
 # <codecell>
-df = collate_dfs('remote/14_qwen_sweep/qwen', show_progress=True)
-df
+df1 = collate_dfs('remote/14_qwen_sweep/qwen', show_progress=True)
+df2 = collate_dfs('remote/14_qwen_sweep/qwen_php', show_progress=True)
 
+df = pd.concat([df1, df2], ignore_index=True)
+df
 # <codecell>
 def extract_plot_vals(row):
     run_name = row['model_name'].rsplit('/', 1)[-1].split('-')[-1]
@@ -49,11 +51,27 @@ mdf = mdf[
     (mdf['task'] == 'prop_full')
     & (mdf['split'] == 4)
     & (mdf['range'] == 'range_(5, 9)')
+    # & (mdf['range'] == 'range_(9, inf)')
 ]
 
 g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
 g.set_ylim((0.6, 0.97))
+plt.title('Full dataset')
+plt.savefig('fig/qwen_full_time.png')
 
+# <codecell>
+# last_ckpt = (
+#     mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(1)
+# )
+
+# sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type')
+
+first_ckpt = mdf[mdf['ckpt'] == 250]
+sns.barplot(data=first_ckpt, x='name', y='acc', hue='prompt_type')
+
+plt.ylim((0.6, 0.97))
+plt.title('Full dataset (early)')
+plt.savefig('fig/qwen_full_first.png')
 
 # <codecell>
 mdf = plot_df.copy()
@@ -67,6 +85,24 @@ mdf = mdf[
 g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
 g.set_ylim((0.6, 0.97))
 
+plt.title('Imply dataset')
+plt.savefig('fig/qwen_imply_time.png')
+
+# <codecell>
+last_ckpt = (
+    mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(1)
+)
+
+sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type')
+
+# first_ckpt = mdf[mdf['ckpt'] == 250]
+
+sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type')
+# plt.ylim((0.6, 0.97))
+plt.title('Imply dataset')
+plt.savefig('fig/qwen_impy_last.png')
+
+
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
@@ -77,3 +113,43 @@ mdf = mdf[
 ]
 
 sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+
+plt.title('Or dataset')
+plt.savefig('fig/qwen_or_time.png')
+
+# <codecell>
+last_ckpt = (
+    mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(1)
+)
+
+first_ckpt = mdf[mdf['ckpt'] == 250]
+
+sns.barplot(data=first_ckpt, x='name', y='acc', hue='prompt_type')
+# plt.ylim((0.6, 1.1))
+plt.title('Or dataset (early)')
+plt.savefig('fig/qwen_or_early.png')
+
+# %%
+mdf = plot_df.copy()
+mdf = mdf[
+    (mdf['task'] == 'prop_php')
+    & (mdf['split'] == 60)
+    & (mdf['range'] == 'range_(61, 121)')
+    # & (mdf['range'] == 'range_(121, inf)')
+]
+
+sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+plt.title('PHP dataset')
+plt.savefig('fig/qwen_php_time.png')
+
+# <codecell>
+last_ckpt = (
+    mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(1)
+)
+
+first_ckpt = mdf[mdf['ckpt'] == 250]
+
+sns.barplot(data=first_ckpt, x='name', y='acc', hue='prompt_type')
+# plt.ylim((0.6, 1.1))
+plt.title('PHP dataset (early)')
+plt.savefig('fig/qwen_php_early.png')

@@ -667,6 +667,9 @@ df
 
 # %%
 def extract_plot_vals(row):
+    info = df.iloc[0]['info'].copy()
+    n_hop_prop = info.pop('n_hop_prop', None)
+
     return pd.Series([
         row['name'],
         row['train_task'].n_arms,
@@ -677,8 +680,9 @@ def extract_plot_vals(row):
         row['train_args']['lr'],
         row['hist']['test'][-1]['acc'],
         row['train_args']['gamma'] if 'gamma' in row['train_args'] else -1,
-        row['info'],
-    ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'n_layers',  'lr', 'acc_hist', 'gamma', 'info'])
+        n_hop_prop,
+        info
+    ], index=['name', 'n_arms', 'n_hop', 'n_hidden', 'resid', 'n_layers',  'lr', 'acc_hist', 'gamma', 'n_hop_prop', 'info'])
 
 plot_df = df.apply(extract_plot_vals, axis=1) \
             .reset_index(drop=True) \
