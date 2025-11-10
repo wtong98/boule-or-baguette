@@ -16,20 +16,20 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 400
+run_split = 300
 
 train_iters = 50_000
 
-n_arms = [10]
-n_depths = (2**np.linspace(3, 8.5, num=20)).astype(int) * 2
-n_widths = (2**np.linspace(3, 8.5, num=20)).astype(int) * 2
+n_arms = [10, 20, 50]
+n_depths = (2**np.linspace(3, 8, num=10)).astype(int) * 2
+n_widths = (2**np.linspace(3, 8, num=10)).astype(int) * 2
 
 all_n_layer = [1]
 
 test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
 n_hop_props = [0.5]
 
-max_batch_size = 256
+max_batch_size = 512
 
 shuffle_seed = 100
 
@@ -106,7 +106,7 @@ for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props
                                 return_format=None,
                                 n_mlp_layers=2,
                                 layer_norm=False,
-                                residual_connections=True,
+                                residual_connections=False,
                                 mup_scale=True,
                                 linear_att=False,
                                 unif_att=False,

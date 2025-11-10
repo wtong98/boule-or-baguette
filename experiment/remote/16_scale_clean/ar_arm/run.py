@@ -16,39 +16,35 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 36
+run_split = 72
 
-train_iters = 100_000
-# warmup_iters = 2000
+train_iters = 50_000
 
-depth = 10
-n_hop = 5
-n_hops_test = [5, 6, 7, 8, 9]
+n_arms = (2**np.linspace(3, 9, num=15)).astype(int) * 2
+n_depths = [10, 20, 50]
+n_widths = (2**np.linspace(3, 9, num=15)).astype(int) * 2
 
 all_n_layer = [1]
 
-n_arms = (2**np.linspace(3, 9, num=30)).astype(int) * 2
-n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
-
-lrs = [1e-2]
-gammas = [1]
+test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
+n_hop_props = [0.5]
 
 max_batch_size = 512
 
+shuffle_seed = 50
+
 ### START TEST CONFIGS
-# run_split = 1
-# train_iters = 500
+# run_split = 2
+# train_iters = 100
+# batch_size = 10
 
-# depth = 10
-# n_hop = 5
-# n_hops_test = [7]
+# n_arms = [10]
+# n_depths = [10]
+# n_widths = [32]
 
-# all_n_layer = [2]
-# n_arms = [100]
-# n_widths = [256]
+# all_n_layer = [1]
+# n_hop_props = [0.25, 0.5, 0.75, 0.95]
 
-# lrs = [1e-2]
-# gammas = [1]
 # max_batch_size = 27
 ### END TEST CONFIGS
 
@@ -56,7 +52,8 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
 
-for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms, n_widths, all_n_layer):
+for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props, n_arms, n_widths, n_depths, all_n_layer):
+    n_hop = np.round(n_hop_prop * depth).astype(int)
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
 
     batch_size = n_arm * depth
@@ -75,8 +72,7 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
             'loss': loss,
             'test_every': 1000,
             'train_iters': train_iters,
-            'lr': lr * gamma / n_layer,
-            'gamma': gamma,
+            'lr': 1e-2 / n_layer,
             'k': k
         }
 
@@ -102,7 +98,25 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
     
 
     all_cases.extend([
-        # Case(f'AR (direct)',
+        Case(f'AR',
+                TransformerConfig(n_heads=1,
+                                n_out=n_vocab,
+                                n_layers=1,
+                                pos_emb=False, 
+                                return_format=None,
+                                n_mlp_layers=2,
+                                layer_norm=False,
+                                residual_connections=False,
+                                mup_scale=True,
+                                linear_att=False,
+                                unif_att=False,
+                                **model_args),
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True, ttr=True),
+                info={'n_hop_prop': n_hop_prop}
+        ), 
+
+        # Case(f'AR direct',
         #         TransformerConfig(n_heads=1,
         #                         n_out=1,
         #                         n_layers=n_layer,
@@ -112,85 +126,49 @@ for lr, gamma, n_arm, n_hidden, n_layer in itertools.product(lrs, gammas, n_arms
         #                         layer_norm=False,
         #                         residual_connections=False,
         #                         mup_scale=True,
-        #                         unif_att=True,
         #                         linear_att=False,
+        #                         unif_att=True,
         #                         **model_args),
         #         train_args=make_train_args('bce'),
-        #         train_task=make_chain(cot=True, ttr=True, force_bin_label=True)
+        #         train_task=make_chain(cot=True, ttr=True, force_bin_label=True),
+        #         info={'n_hop_prop': n_hop_prop}
         # ), 
-
-        Case(f'AR',
-                TransformerConfig(n_heads=1,
-                                n_out=n_vocab,
-                                n_layers=n_layer,
-                                pos_emb=False, 
-                                return_format=None,
-                                n_mlp_layers=2,
-                                layer_norm=False,
-                                residual_connections=True,
-                                mup_scale=True,
-                                unif_att=False,
-                                linear_att=False,
-                                **model_args),
-                train_args=make_train_args('ce_mask'),
-                train_task=make_chain(cot=True, ttr=True, force_bin_label=False)
-        ), 
     ])
-
-        # if n_layers == 1 and resid == True and cot == True:
-        #     all_cases.extend([
-        #         Case(f'(cot={cot},n_layers={n_layers},resid={resid},LN={layer_norm},unif_att)',
-        #                 TransformerConfig(n_heads=1,
-        #                                 n_out=n_vocab if cot else 1,
-        #                                 n_layers=n_layers,
-        #                                 pos_emb=False, 
-        #                                 return_format=None if cot else 'final_logit',
-        #                                 n_mlp_layers=2,
-        #                                 layer_norm=layer_norm,
-        #                                 residual_connections=resid,
-        #                                 mup_scale=True,
-        #                                 linear_att=False,
-        #                                 unif_att=True,
-        #                                 **model_args),
-        #                 train_args=make_train_args('ce_mask' if cot else 'bce'),
-        #                 train_task=make_chain(cot=cot, ttr=True)
-        #         ), 
-        #     ])
     
     
     
-all_cases = split_cases(all_cases, run_split, shuffle_seed=10)
-
+all_cases = split_cases(all_cases, run_split, shuffle_seed=shuffle_seed)
 print('CASES', all_cases)
 
 for case in tqdm(all_cases):
     print('RUNNING', case.name)
     case.run()
 
-    for n_hop in n_hops_test:
+    for n_hop_prop in test_n_hop_props:
         tt = case.train_task
+        n_hop = np.round(tt.depth * n_hop_prop).astype(int)
         test_task = StarfishTask(n_arms=tt.n_arms, 
                                  depth=tt.depth, 
                                  samp_dist=n_hop, 
                                  cot=tt.cot, 
                                  trace_to_start=tt.trace_to_start, 
                                  nouveau=tt.nouveau, 
-                                 force_bin_label=tt.force_bin_label,
-                                 batch_size=1024)
+                                 batch_size=1024, 
+                                 force_bin_label=tt.force_bin_label)
 
         case.eval(
             test_task,
             eval_fns=case.train_args['eval_fns'],
-            prefix=n_hop
+            prefix=n_hop_prop,
+            n_iters=1
         )
 
     case.state = None
     case.train_args['eval_fns'] = None
+    case.train_args['lr'] = None
 
 
 df = pd.DataFrame(all_cases)
 df.to_pickle(f'res.{run_id}.pkl')
 
 print('done!')
-
-# %%
