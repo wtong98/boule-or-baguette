@@ -11,6 +11,6 @@
 #SBATCH --mail-user=wtong@g.harvard.edu
 #SBATCH --account=kempner_grads
 
-source ../../../../../venv_imply/bin/activate
+source ../../../../../venv_imply_stable/bin/activate
 python run.py ${SLURM_ARRAY_TASK_ID}
 
