@@ -119,8 +119,7 @@ params = SamplingParams(max_tokens=max_length, temperature=0)
 
 all_res = []
 
-# TODO: second split is extraneous
-for ckpt in itertools.product(ckpts, test_splits):
+for ckpt in ckpts:
     ckpt_name = ckpt.name
     print(f'info: processing ckpt={ckpt_name}')
     ckpt_num = int(ckpt_name.split('-')[-1])
