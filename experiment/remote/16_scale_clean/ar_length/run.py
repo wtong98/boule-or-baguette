@@ -153,14 +153,14 @@ for case in tqdm(all_cases):
                                  cot=tt.cot, 
                                  trace_to_start=tt.trace_to_start, 
                                  nouveau=tt.nouveau, 
-                                 batch_size=1024, 
+                                 batch_size=max_batch_size, 
                                  force_bin_label=tt.force_bin_label)
 
         case.eval(
             test_task,
             eval_fns=case.train_args['eval_fns'],
             prefix=n_hop_prop,
-            n_iters=1
+            n_iters=1024 // max_batch_size
         )
 
     case.state = None

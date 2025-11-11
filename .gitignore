@@ -10,6 +10,7 @@ old/
 data/
 repl/
 wandb/
+*.ipynb_checkpoints/
 
 # ignore slurm logging outputs
 *.err
