@@ -16,13 +16,13 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 72
+run_split = 200
 
-train_iters = 50_000
+train_iters = 25_000
 
-n_arms = (2**np.linspace(3, 9, num=15)).astype(int) * 2
-n_depths = [10, 20, 50]
-n_widths = (2**np.linspace(3, 9, num=15)).astype(int) * 2
+n_arms = [10, 20]
+n_depths = (2**np.linspace(3, 8, num=10)).astype(int) * 2
+n_widths = (2**np.linspace(3, 8, num=10)).astype(int) * 2
 
 all_n_layer = [1]
 
@@ -31,7 +31,7 @@ n_hop_props = [0.5]
 
 max_batch_size = 512
 
-shuffle_seed = 50
+shuffle_seed = 100
 
 ### START TEST CONFIGS
 # run_split = 2
@@ -105,8 +105,8 @@ for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props
                                 pos_emb=False, 
                                 return_format=None,
                                 n_mlp_layers=2,
-                                layer_norm=False,
-                                residual_connections=False,
+                                layer_norm=True,
+                                residual_connections=True,
                                 mup_scale=True,
                                 linear_att=False,
                                 unif_att=False,
@@ -153,14 +153,14 @@ for case in tqdm(all_cases):
                                  cot=tt.cot, 
                                  trace_to_start=tt.trace_to_start, 
                                  nouveau=tt.nouveau, 
-                                 batch_size=1024, 
+                                 batch_size=max_batch_size, 
                                  force_bin_label=tt.force_bin_label)
 
         case.eval(
             test_task,
             eval_fns=case.train_args['eval_fns'],
             prefix=n_hop_prop,
-            n_iters=1
+            n_iters=1024 // max_batch_size
         )
 
     case.state = None
