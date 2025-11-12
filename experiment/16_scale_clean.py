@@ -278,7 +278,7 @@ mdf = mdf.iloc[::-1]
 g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 11 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('Depth (D)')
 g.set_xlabel('Hidden (H)')

@@ -6,7 +6,7 @@ import sys
 sys.path.append('../../../../')
 from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_text_ds_path
 
-n_iters = 3
+n_iters = 1
 
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 16, '32k_bs': 1},
@@ -34,17 +34,17 @@ task_to_ds_path = {
     'php': php_text_ds_path,
 }
 
-# Corresponds roughly to 50 percentiles
+# Corresponds roughly to 50, 90th percentiles
 task_to_splits = {
-    'full': [4],
-    'or': [6],
-    'imply': [6],
+    'full': [4, 9],
+    'or': [9, 28],
+    'imply': [6, 12],
 }
 
 task_to_test_splits = {
     'full': [4, 9],
-    'imply': [6, 40],
-    'or': [6, 14]
+    'or': [9, 28],
+    'imply': [6, 12],
 }
 
 configs = []
@@ -82,7 +82,7 @@ for i in range(n_iters):
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],
             'prompt': prompt,
-            'project_name': f'it_prop_{task}',
+            'project_name': f'prop_{task}',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
         }
 

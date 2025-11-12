@@ -37,11 +37,11 @@ task_to_ds_path = {
 
 # Corresponds roughly to 50,90 percentiles
 task_to_splits = {
-    'php': [60]
+    'php': [58, 92]
 }
 
 task_to_test_splits = {
-    'php': [60, 100]
+    'php': [58, 92]
 }
 
 
@@ -49,7 +49,7 @@ configs = []
 
 for i in range(n_iters):
     for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_styles):
-        total_batch_size = 32
+        total_batch_size = 128
         model_name = model_set['name']
 
         if task != 'php':
@@ -70,13 +70,13 @@ for i in range(n_iters):
             'accum_steps': accum_steps,
             'num_samples': 25,
             'max_length': 32768 if task == 'php' else 2048,
-            'log_every': 100 if prompt == 'dp' else 1_000_000,  # set very large to disable
-            'save_every': 250,
+            'log_every': 25 if prompt == 'dp' else 1_000_000,  # set very large to disable
+            'save_every': 50,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],
             'prompt': prompt,
-            'project_name': f'it_prop_{task}',
+            'project_name': f'prop_{task}',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
             'packing': False
             # 'packing': True if prompt != 'dp' else False
