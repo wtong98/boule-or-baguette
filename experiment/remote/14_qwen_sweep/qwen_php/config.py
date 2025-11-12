@@ -6,7 +6,7 @@ import sys
 sys.path.append('../../../../')
 from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_text_ds_path
 
-n_iters = 3
+n_iters = 1
 
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '32k_bs': 1},
