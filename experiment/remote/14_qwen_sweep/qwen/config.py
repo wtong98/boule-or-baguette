@@ -41,6 +41,11 @@ task_to_splits = {
     'imply': [6],
 }
 
+task_to_test_splits = {
+    'full': [4, 9],
+    'imply': [6, 40],
+    'or': [6, 14]
+}
 
 configs = []
 
@@ -75,6 +80,7 @@ for i in range(n_iters):
             'save_every': 250,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],
+            'test_splits': task_to_test_splits[task],
             'prompt': prompt,
             'project_name': f'it_prop_{task}',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",

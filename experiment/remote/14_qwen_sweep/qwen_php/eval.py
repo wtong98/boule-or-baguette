@@ -98,7 +98,7 @@ ckpts = sorted(
     [f for f in ckpt_dir.iterdir() 
      if f.is_dir() and f.name.startswith('checkpoint-')])
 
-test_splits = run_config['splits']
+test_splits = run_config['test_splits']
 ds_path = run_config['ds_path']
 
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]

@@ -40,6 +40,10 @@ task_to_splits = {
     'php': [60]
 }
 
+task_to_test_splits = {
+    'php': [60, 100]
+}
+
 
 configs = []
 
@@ -70,6 +74,7 @@ for i in range(n_iters):
             'save_every': 250,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],
+            'test_splits': task_to_test_splits[task],
             'prompt': prompt,
             'project_name': f'it_prop_{task}',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
