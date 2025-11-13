@@ -18,7 +18,7 @@ print('RUN ID', run_id)
 
 run_split = 72
 
-train_iters = 25_000
+train_iters = 100_000
 
 n_arms = (2**np.linspace(3, 9, num=15)).astype(int) * 2
 n_depths = [10, 20, 50]
@@ -105,11 +105,11 @@ for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props
                                 pos_emb=False, 
                                 return_format=None,
                                 n_mlp_layers=2,
-                                layer_norm=True,
-                                residual_connections=True,
+                                layer_norm=False,
+                                residual_connections=False,
                                 mup_scale=True,
                                 linear_att=False,
-                                unif_att=False,
+                                unif_att=True,
                                 **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(cot=True, ttr=True),
