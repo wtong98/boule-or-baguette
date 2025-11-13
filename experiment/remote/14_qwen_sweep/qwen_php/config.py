@@ -6,7 +6,7 @@ import sys
 sys.path.append('../../../../')
 from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_text_ds_path
 
-n_iters = 1
+n_iters = 3
 
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '32k_bs': 1},
@@ -16,7 +16,7 @@ model_sets = [
 ]
 
 prompt_styles = [
-    'ar_cot',
+    # 'ar_cot',
     'dp',
     # 'dp_full'
 ]
@@ -37,11 +37,11 @@ task_to_ds_path = {
 
 # Corresponds roughly to 50,90 percentiles
 task_to_splits = {
-    'php': [58, 92]
+    'php': [60, 100]
 }
 
 task_to_test_splits = {
-    'php': [58, 92]
+    'php': [60, 100]
 }
 
 
@@ -49,7 +49,7 @@ configs = []
 
 for i in range(n_iters):
     for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_styles):
-        total_batch_size = 128
+        total_batch_size = 32
         model_name = model_set['name']
 
         if task != 'php':
@@ -76,9 +76,9 @@ for i in range(n_iters):
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],
             'prompt': prompt,
-            'project_name': f'prop_{task}',
+            'project_name': f'dp_prop_{task}',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
-            'packing': False
+            'packing': True
             # 'packing': True if prompt != 'dp' else False
         }
 
