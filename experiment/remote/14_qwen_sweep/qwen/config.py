@@ -6,7 +6,7 @@ import sys
 sys.path.append('../../../../')
 from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_text_ds_path
 
-n_iters = 1
+n_iters = 3
 
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 16, '32k_bs': 1},
@@ -36,27 +36,28 @@ task_to_ds_path = {
 
 # Corresponds roughly to 50, 90th percentiles
 task_to_splits = {
-    'full': [4, 9],
-    'or': [9, 28],
-    'imply': [6, 12],
+    'full': [4],
+    'imply': [8],
+    'or': [6],
 }
 
 task_to_test_splits = {
     'full': [4, 9],
-    'or': [9, 28],
-    'imply': [6, 12],
+    'imply': [8, 28],
+    'or': [6, 12],
 }
+
 
 configs = []
 
 for i in range(n_iters):
     for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_styles):
-        total_batch_size = 128
+        total_batch_size = 32
         model_name = model_set['name']
 
         if prompt == 'dp':
             # TODO: need firmer estimate of size difference in packed examples, per dataset
-            total_batch_size = 32
+            total_batch_size = 8
 
         if task != 'php':
             batch_size = model_set['2k_bs']
@@ -76,8 +77,8 @@ for i in range(n_iters):
             'accum_steps': accum_steps,
             'num_samples': 25,
             'max_length': 2048,
-            'log_every': 100,
-            'save_every': 250,
+            'log_every': 250,
+            'save_every': 500,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],

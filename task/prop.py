@@ -79,7 +79,7 @@ class PropTask:
                 all_ds.append(self.ds[key])
         
         if len(all_ds) == 0:
-            return self.ds.select(range(0))  # empty dataset
+            return self.ds[key].select(range(0))  # empty dataset
 
         return concatenate_datasets(all_ds)
     

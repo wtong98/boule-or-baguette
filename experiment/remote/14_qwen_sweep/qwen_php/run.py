@@ -313,12 +313,12 @@ trainer.add_callback(eval_callback)
 trainer.train()
 wandb.finish()
 
-final_res = evaluate(eval_callback.succ_id, eval_callback.fail_id, num_samples=run_config['num_samples'])
-df = pd.DataFrame([{
-    'name': run_config['run_name'],
-    'train_hop': train_split,
-    'info': final_res,
-    'hist': eval_callback.hist
-}])
+# final_res = evaluate(eval_callback.succ_id, eval_callback.fail_id, num_samples=run_config['num_samples'])
+# df = pd.DataFrame([{
+#     'name': run_config['run_name'],
+#     'train_hop': train_split,
+#     'info': final_res,
+#     'hist': eval_callback.hist
+# }])
 
-df.to_pickle(f'res.{new_seed()}.pkl')
+# df.to_pickle(f'res.{new_seed()}.pkl')
