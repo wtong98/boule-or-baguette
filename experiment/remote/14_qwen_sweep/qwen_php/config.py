@@ -49,7 +49,7 @@ configs = []
 
 for i in range(n_iters):
     for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_styles):
-        total_batch_size = 32
+        total_batch_size = 4
         model_name = model_set['name']
 
         if task != 'php':
@@ -70,7 +70,7 @@ for i in range(n_iters):
             'accum_steps': accum_steps,
             'num_samples': 25,
             'max_length': 32768 if task == 'php' else 2048,
-            'log_every': 25 if prompt == 'dp' else 1_000_000,  # set very large to disable
+            'log_every': 5 if prompt == 'dp' else 1_000_000,  # set very large to disable
             'save_every': 50,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],

@@ -23,13 +23,13 @@ train_iters = 100_000
 # n_arms = [2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 50]
 n_arms = np.arange(2, 31, step=4)
 n_depths = [10, 20, 30]
-n_widths = [16_384]
+n_widths = [4096]
 
 n_hop_props = [0.25]
 lrs = [1e-2]
 
 all_n_layer = [1]
-max_batch_size = 1024
+max_batch_size = 128
 
 
 ### START TEST CONFIGS
@@ -97,24 +97,6 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
     
 
     all_cases.extend([
-        Case(f'DP',
-                TransformerConfig(n_heads=1,
-                                n_out=1,
-                                n_layers=n_layer,
-                                pos_emb=False, 
-                                return_format='final_logit',
-                                n_mlp_layers=2,
-                                layer_norm=False,
-                                residual_connections=False,
-                                mup_scale=True,
-                                linear_att=False,
-                                unif_att=False,
-                                **model_args),
-                train_args=make_train_args('bce'),
-                train_task=make_chain(cot=False),
-                info={'n_hop_prop': n_hop_prop, 'n_hop': n_hop}
-        ), 
-
         Case(f'AR',
                 TransformerConfig(n_heads=1,
                                 n_out=n_vocab,
@@ -130,6 +112,24 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
                                 **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(cot=True, ttr=True),
+                info={'n_hop_prop': n_hop_prop, 'n_hop': n_hop}
+        ), 
+
+        Case(f'DP',
+                TransformerConfig(n_heads=1,
+                                n_out=1,
+                                n_layers=n_layer,
+                                pos_emb=False, 
+                                return_format='final_logit',
+                                n_mlp_layers=2,
+                                layer_norm=False,
+                                residual_connections=False,
+                                mup_scale=True,
+                                linear_att=False,
+                                unif_att=False,
+                                **model_args),
+                train_args=make_train_args('bce'),
+                train_task=make_chain(cot=False),
                 info={'n_hop_prop': n_hop_prop, 'n_hop': n_hop}
         ), 
     ])
