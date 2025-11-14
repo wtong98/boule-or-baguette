@@ -15,18 +15,18 @@ from model.mlp import MlpConfig
 from model.transformer_std import *
 from task.graph import *
 
-n_arms = 100
-depth = 10
-n_hidden = 16
+n_arms = 10
+depth = 20
+n_hidden = 4096
 
 cot = True
 ttr = True
 nouveau = True
 force_bin_label = False
 n_hop = 5
-test_n_hop = 7
+test_n_hop = 18
 
-batch_size = n_arms * depth
+batch_size = n_arms * depth // 4
 
 n_vocab = n_arms * depth + 1 + StarfishTask.offset
 
@@ -76,8 +76,8 @@ config = TransformerConfig(n_layers=1,
                            n_heads=1,
                            layer_norm=False,
                            as_rf_model=False,
-                           residual_connections=True if cot else False,
-                        #    residual_connections=False,
+                        #    residual_connections=False if cot else False,
+                           residual_connections=False,
                            freeze_emb=True,
                            use_bias=False,
                         #    return_format='final_logit_up_to_pad' if cot else 'final_logit',
@@ -117,7 +117,8 @@ state, hist = train(config,
                     lr=lr * gamma,
                     gamma=gamma,
                     optim=optax.adamw,
-                    summary_fn=summarize,
+                    k=4
+                    # summary_fn=summarize,
                     )
 
 

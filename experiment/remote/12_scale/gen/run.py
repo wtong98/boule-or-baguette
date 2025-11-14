@@ -16,14 +16,14 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 12
+run_split = 24
 
 train_iters = 100_000
 
 # n_arms = [2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 50]
-n_arms = np.arange(2, 51)
-n_depths = [30]
-n_widths = [512]
+n_arms = np.arange(2, 31, step=4)
+n_depths = [10, 20, 30]
+n_widths = [16_384]
 
 n_hop_props = [0.25]
 lrs = [1e-2]
@@ -34,11 +34,11 @@ max_batch_size = 1024
 
 ### START TEST CONFIGS
 # run_split = 1
-# train_iters = 500
+# train_iters = 50
 
-# n_arms = [10]
-# n_depths = [22]
-# n_widths = [128]
+# n_arms = [2]
+# n_depths = [10]
+# n_widths = [32]
 
 # all_n_layer = [1]
 # n_hop_props = [0.25]
@@ -63,6 +63,7 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
         'n_hidden': n_hidden,
         'use_bias': False,
         'freeze_emb': True,
+        'dtype': jnp.bfloat16
     }
 
     def make_train_args(loss='ce_mask'):
@@ -107,10 +108,28 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
                                 residual_connections=False,
                                 mup_scale=True,
                                 linear_att=False,
-                                unif_att=True,
+                                unif_att=False,
                                 **model_args),
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False),
+                info={'n_hop_prop': n_hop_prop, 'n_hop': n_hop}
+        ), 
+
+        Case(f'AR',
+                TransformerConfig(n_heads=1,
+                                n_out=n_vocab,
+                                n_layers=1,
+                                pos_emb=False, 
+                                return_format=None,
+                                n_mlp_layers=2,
+                                layer_norm=False,
+                                residual_connections=False,
+                                mup_scale=True,
+                                linear_att=False,
+                                unif_att=False,
+                                **model_args),
+                train_args=make_train_args('ce_mask'),
+                train_task=make_chain(cot=True, ttr=True),
                 info={'n_hop_prop': n_hop_prop, 'n_hop': n_hop}
         ), 
     ])
@@ -118,6 +137,7 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
     
 all_cases = split_cases(all_cases, run_split)
 print('CASES', all_cases)
+
 
 for case in tqdm(all_cases):
     print('RUNNING', case.name)
