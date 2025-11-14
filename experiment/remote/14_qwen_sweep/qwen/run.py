@@ -100,7 +100,7 @@ def make_ds(depth, split):
     return ds
 
 
-test_splits = run_config['splits']
+test_splits = run_config['test_splits']
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
@@ -153,7 +153,7 @@ args = SFTConfig(
     max_grad_norm=0.3,
     weight_decay=0.0,
     completion_only_loss=True,
-    packing=True,
+    packing=run_config['packing'],
     max_length=run_config['max_length'],
     eval_strategy='steps',
     torch_compile=True   

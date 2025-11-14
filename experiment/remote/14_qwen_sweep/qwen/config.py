@@ -37,14 +37,14 @@ task_to_ds_path = {
 # Corresponds roughly to 50, 90th percentiles
 task_to_splits = {
     'full': [4],
-    'imply': [8],
+    'imply': [6],
     'or': [6],
 }
 
 task_to_test_splits = {
-    'full': [4, 9],
-    'imply': [8, 28],
-    'or': [6, 12],
+    'full': [4],
+    'imply': [6],
+    'or': [6],
 }
 
 
@@ -52,12 +52,12 @@ configs = []
 
 for i in range(n_iters):
     for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_styles):
-        total_batch_size = 32
+        total_batch_size = 128
         model_name = model_set['name']
 
-        if prompt == 'dp':
-            # TODO: need firmer estimate of size difference in packed examples, per dataset
-            total_batch_size = 8
+        # if prompt == 'dp':
+        #     # TODO: need firmer estimate of size difference in packed examples, per dataset
+        #     total_batch_size = 8
 
         if task != 'php':
             batch_size = model_set['2k_bs']
@@ -77,14 +77,15 @@ for i in range(n_iters):
             'accum_steps': accum_steps,
             'num_samples': 25,
             'max_length': 2048,
-            'log_every': 250,
-            'save_every': 500,
+            'log_every': 100,
+            'save_every': 250,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],
             'prompt': prompt,
             'project_name': f'prop_{task}',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
+            'packing': False
         }
 
         for split in base_config['splits']:
