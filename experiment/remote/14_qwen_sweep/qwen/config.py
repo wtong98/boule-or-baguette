@@ -10,6 +10,7 @@ n_iters = 3
 
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 16, '32k_bs': 1},
+    {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 16, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 16, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 4, '32k_bs': 1},
 ]
@@ -75,9 +76,10 @@ for i in range(n_iters):
             'task_name': task,
             'batch_size': batch_size,
             'accum_steps': accum_steps,
+            'max_steps': 10_000,
             'num_samples': 25,
             'max_length': 2048,
-            'log_every': 100,
+            'log_every': 250,
             'save_every': 250,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],

@@ -1077,7 +1077,7 @@ mdf = mdf[
     & (mdf['depth'] == depth)
 ]
 
-g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms')
+g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', style='name')
 g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
 g.set_title('DP generalization')
 

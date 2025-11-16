@@ -138,6 +138,7 @@ args = SFTConfig(
     output_dir=run_config['output_dir'],
     overwrite_output_dir=True,
     num_train_epochs=1,
+    max_steps=run_config['max_steps'],
     per_device_train_batch_size=run_config['batch_size'],
     per_device_eval_batch_size=run_config['batch_size'],
     gradient_accumulation_steps=run_config['accum_steps'],      
