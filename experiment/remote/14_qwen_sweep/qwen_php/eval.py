@@ -131,7 +131,7 @@ for ckpt in ckpts:
     all_res.append({
         'run_name': run_config['run_name'],
         'project_name': run_config['project_name'],
-        'task': run_config['task'],
+        'task': run_config['task_name'],
         'model_name': model_name,
         'train_split': run_config['train_split'],
         'ckpt': ckpt.name,
