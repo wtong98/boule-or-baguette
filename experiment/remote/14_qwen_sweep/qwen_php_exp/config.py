@@ -76,7 +76,7 @@ for i in range(n_iters):
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],
             'prompt': prompt,
-            'project_name': f'prop_{task}',
+            'project_name': f'exp_prop_{task}',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
             'packing': False
             # 'packing': True if prompt != 'dp' else False
