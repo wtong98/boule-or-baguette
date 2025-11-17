@@ -1,21 +1,15 @@
 """Qwen sweep plotting"""
 
 # <codecell>
-import pickle
-
 import matplotlib.pyplot as plt
-import numpy as np
-import optax
 import pandas as pd
 import seaborn as sns
 
 import sys
 sys.path.append('../')
-from common import *
-from train import *
-from model.transformer import *
-from task.prop import *
+from common import collate_dfs, set_theme
 
+set_theme()
 
 # <codecell>
 df1 = collate_dfs('remote/14_qwen_sweep/qwen', show_progress=True)
@@ -25,10 +19,13 @@ df = pd.concat([df1, df2], ignore_index=True)
 
 # <codecell>
 # NOTE: why are there NaN entries?
+len_before = len(df)
 df = df[pd.notna(df['model_name'])]
+len_after = len(df)
+
+print(f'Removed {len_before - len_after} NaN entries')
 # <codecell>
 def extract_plot_vals(row):
-    print(row['model_name'])
     run_name = row['model_name'].rsplit('/', 1)[-1].split('-')[-1]
     prompt_type = row['run_name'].split(' ')[0].split('-')[-1]
 
@@ -72,15 +69,19 @@ last_ckpt = (
 )
 
 last_ckpt = mdf[mdf['ckpt'] == 1000]
+last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type')
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '7B', '32B'])
+g.legend(title=None)
+sns.move_legend(g, "lower right")
 
-# first_ckpt = mdf[mdf['ckpt'] == 250]
-sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type')
+# g.set_ylim((0.6, 0.97))
+g.set_title('Full split')
+g.set_xlabel('Qwen2.5 Coder Size')
+g.set_ylabel('Accuracy')
+g.figure.tight_layout()
 
-plt.ylim((0.6, 0.97))
-plt.title('Full dataset')
-# plt.savefig('fig/qwen_full_first.png')
+plt.savefig('fig/qwen_full.png')
 
 # <codecell>
 mdf = plot_df.copy()
@@ -104,15 +105,19 @@ plt.title('Imply dataset')
 # )
 
 last_ckpt = mdf[mdf['ckpt'] == 1000]
+last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type')
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '7B', '32B'], hue_order=['CoT', 'DP'])
+g.legend(title=None)
+# sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 
-# first_ckpt = mdf[mdf['ckpt'] == 250]
+# g.set_ylim((0.6, 0.97))
+g.set_title('Imply dataset')
+g.set_xlabel('Qwen2.5 Coder Size')
+g.set_ylabel('Accuracy')
+g.figure.tight_layout()
 
-sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type')
-# plt.ylim((0.6, 0.97))
-plt.title('Imply dataset')
-# plt.savefig('fig/qwen_impy_last.png')
+plt.savefig('fig/qwen_impy.png')
 
 
 # <codecell>
@@ -131,17 +136,23 @@ plt.title('Or dataset')
 
 # <codecell>
 last_ckpt = (
-    # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
+    mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(6)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 2000]
+last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-# sns.barplot(data=first_ckpt, x='name', y='acc', hue='prompt_type')
-sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type')
-# plt.ylim((0.6, 1.1))
-plt.title('Or dataset (early)')
-# plt.savefig('fig/qwen_or_early.png')
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '7B', '32B'])
+g.legend(title=None)
+# sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
+
+# g.set_ylim((0.6, 0.97))
+g.set_title('Or dataset')
+g.set_xlabel('Qwen2.5 Coder Size')
+g.set_ylabel('Accuracy')
+g.figure.tight_layout()
+
+plt.savefig('fig/qwen_or.png')
 
 # %%
 mdf = plot_df.copy()
@@ -153,20 +164,29 @@ mdf = mdf[
     # & (mdf['range'] == 'range_(121, inf)')
 ]
 
-sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 plt.title('PHP dataset')
 # plt.savefig('fig/qwen_php_time.png')
 
 # <codecell>
 last_ckpt = (
-    mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(3)
+    mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
 )
 
 # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).max()
 
-last_ckpt = mdf[mdf['ckpt'] == 500]
+# last_ckpt = mdf[mdf['ckpt'] == 500]
+last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', estimator='mean')
-# plt.ylim((0.6, 1.1))
-plt.title('PHP dataset (early)')
-# plt.savefig('fig/qwen_php_early.png')
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'])
+g.legend(title=None)
+g.legend_.set_visible(False)
+
+
+# g.set_ylim((0.6, 0.97))
+g.set_title('PHP dataset')
+g.set_xlabel('Qwen2.5 Coder Size')
+g.set_ylabel('Accuracy')
+g.figure.tight_layout()
+plt.savefig('fig/qwen_php.png')

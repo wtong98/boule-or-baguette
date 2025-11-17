@@ -22,6 +22,7 @@ import wandb
 sys.path.append('../../../../')
 from common import new_seed
 from task.prop import PropTask
+
 from config import configs
 
 
@@ -100,7 +101,7 @@ def make_ds(depth, split):
     return ds
 
 
-test_splits = run_config['test_splits']
+test_splits = run_config['splits']
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
@@ -138,7 +139,6 @@ args = SFTConfig(
     output_dir=run_config['output_dir'],
     overwrite_output_dir=True,
     num_train_epochs=1,
-    max_steps=run_config['max_steps'],
     per_device_train_batch_size=run_config['batch_size'],
     per_device_eval_batch_size=run_config['batch_size'],
     gradient_accumulation_steps=run_config['accum_steps'],      
@@ -157,7 +157,7 @@ args = SFTConfig(
     packing=run_config['packing'],
     max_length=run_config['max_length'],
     eval_strategy='steps',
-    torch_compile=True   
+    torch_compile=False   
 )
 
 trainer = SFTTrainer(
@@ -320,5 +320,5 @@ wandb.finish()
 #     'info': final_res,
 #     'hist': eval_callback.hist
 # }])
-# 
+
 # df.to_pickle(f'res.{new_seed()}.pkl')
