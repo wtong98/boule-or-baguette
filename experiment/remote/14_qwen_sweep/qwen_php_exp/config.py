@@ -16,7 +16,7 @@ model_sets = [
 ]
 
 prompt_styles = [
-    # 'ar_cot',
+    'ar_cot',
     'dp',
     # 'dp_full'
 ]
