@@ -6,11 +6,12 @@ import sys
 sys.path.append('../../../../')
 from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_text_ds_path
 
-n_iters = 3
+itr_ids = list(range(3))
 
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-1.5B', '32k_bs': 1},
+    {'name': 'Qwen/Qwen2.5-Coder-3B', '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '32k_bs': 1},
     # {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 4, '32k_bs': 1},
 ]
@@ -47,7 +48,7 @@ task_to_test_splits = {
 
 configs = []
 
-for i in range(n_iters):
+for i in itr_ids:
     for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_styles):
         total_batch_size = 32
         model_name = model_set['name']

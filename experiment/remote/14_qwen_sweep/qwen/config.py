@@ -6,7 +6,7 @@ import sys
 sys.path.append('../../../../')
 from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_text_ds_path
 
-n_iters = 3
+itr_ids = list(range(3))
 
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 16, '32k_bs': 1},
@@ -51,14 +51,10 @@ task_to_test_splits = {
 
 configs = []
 
-for i in range(n_iters):
+for i in itr_ids:
     for model_set, task, prompt in itertools.product(model_sets, tasks, prompt_styles):
         total_batch_size = 128
         model_name = model_set['name']
-
-        # if prompt == 'dp':
-        #     # TODO: need firmer estimate of size difference in packed examples, per dataset
-        #     total_batch_size = 8
 
         if task != 'php':
             batch_size = model_set['2k_bs']
@@ -76,7 +72,7 @@ for i in range(n_iters):
             'task_name': task,
             'batch_size': batch_size,
             'accum_steps': accum_steps,
-            'max_steps': 10_000,
+            'max_steps': 5_000,
             'num_samples': 25,
             'max_length': 2048,
             'log_every': 250,
