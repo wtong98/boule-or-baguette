@@ -83,13 +83,14 @@ run_split = 24
 
 total_ex = 2_500
 all_ex = gen_or(n_exs_per_set=total_ex)
+n_sets = 28 * 2
 
 # all_ex = split(all_ex, run_split)
 # total_ex = sum(n_combo(n_atoms, n) for n in range(1, max_nodes + 1))
 # total_ex = sum(n_combo_or(n_atoms, n) for n in range(1, max_nodes + 1))
 
 # pbar = tqdm(total=total_ex // run_split)
-pbar = tqdm(total=total_ex)
+pbar = tqdm(total=total_ex * n_sets)
 
 # out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_big')
 # out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/php')
