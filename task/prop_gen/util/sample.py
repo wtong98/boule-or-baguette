@@ -1,6 +1,7 @@
 """Enumerate new propositions"""
 
 # <codecell>
+from functools import lru_cache
 import itertools as it
 import math
 
@@ -195,6 +196,152 @@ def gen_php(seed=5):
     all_pigeons = list(it.chain.from_iterable([pigeon_set(**params) for params in tqdm(param_sets)]))
     return all_pigeons
 
-# php = gen_php(seed=3011)
-# print('TOTAL PHP', len(php))
-# print('EX 5000', php[5000])
+
+### or what?
+@lru_cache(maxsize=None)
+def _count_dyck_suffixes(n_pairs: int, open_used: int, close_used: int) -> int:
+    if open_used == n_pairs:
+        return 1
+
+    total = 0
+    if open_used < n_pairs:
+        total += _count_dyck_suffixes(n_pairs, open_used + 1, close_used)
+    if close_used < open_used:
+        total += _count_dyck_suffixes(n_pairs, open_used, close_used + 1)
+
+    return total
+
+
+def sample_dyck_word(n_pairs: int, seed=None) -> str:
+    if n_pairs <= 0:
+        return ''
+    rng = np.random.default_rng(seed)
+
+    word = []
+    open_used = 0
+    close_used = 0
+    total_len = 2 * n_pairs
+
+    while len(word) < total_len:
+        n_left = 0
+        n_right = 0
+
+        if open_used < n_pairs:
+            n_left = _count_dyck_suffixes(n_pairs, open_used + 1, close_used)
+        if close_used < open_used:
+            n_right = _count_dyck_suffixes(n_pairs, open_used, close_used + 1)
+
+        p_left = n_left / (n_left + n_right) if (n_left + n_right) > 0 else 0
+        is_left = rng.random() < p_left
+        
+        if is_left:
+            word.append('(')
+            open_used += 1
+        else:
+            word.append(')')
+            close_used += 1
+
+    return ''.join(word)
+
+
+def _match_parentheses(word: str) -> dict[int, int]:
+    stack = []
+    matches: dict[int, int] = {}
+    for idx, char in enumerate(word):
+        if char == '(':
+            stack.append(idx)
+        elif char == ')':
+            if not stack:
+                raise ValueError('Invalid Dyck word: unmatched closing parenthesis.')
+            start = stack.pop()
+            matches[start] = idx
+        else:
+            raise ValueError('Dyck word must consist only of "(" and ")" characters.')
+    if stack:
+        raise ValueError('Invalid Dyck word: unmatched opening parenthesis.')
+    return matches
+
+
+def or_tree_from_dyck(leaves: Sequence, word: str):
+    leaves = tuple(leaves)
+    if not leaves:
+        raise ValueError('Cannot build expression with no atoms.')
+
+    expected_pairs = len(leaves) - 1
+    if expected_pairs == 0:
+        if word:
+            raise ValueError('Dyck word should be empty when only one atom is provided.')
+        return leaves[0]
+    if len(word) != 2 * expected_pairs:
+        raise ValueError('Dyck word length does not match number of atoms.')
+
+    matches = _match_parentheses(word)
+    leaf_iter = iter(leaves)
+
+    def consume(start: int, end: int):
+        if start >= end:
+            try:
+                return next(leaf_iter)
+            except StopIteration as exc:
+                raise ValueError('Dyck word consumed more atoms than provided.') from exc
+
+        if word[start] != '(':
+            raise ValueError('Invalid Dyck word structure.')
+
+        try:
+            split = matches[start]
+        except KeyError as exc:
+            raise ValueError('Invalid Dyck word: missing matching parenthesis.') from exc
+
+        if split >= end:
+            raise ValueError('Invalid Dyck word segmentation.')
+
+        left = consume(start + 1, split)
+        right = consume(split + 1, end)
+        return Or(left, right)
+
+    tree = consume(0, len(word))
+    try:
+        next(leaf_iter)
+    except StopIteration:
+        return tree
+    raise ValueError('Unused atoms remain after constructing the OR tree.')
+
+
+def random_group(atoms, seed=None):
+    dyck_word = sample_dyck_word(len(atoms) - 1, seed=seed)
+    out = or_tree_from_dyck(atoms, dyck_word)
+    return out
+
+
+def gen_or(n_exs_per_set=10_000, seed=None):
+    n_prop_set = np.arange(2, 30)
+    switch = [False, True]
+
+    max_pid = 100_000
+    global_rng = np.random.default_rng(seed)
+
+    ### START TEST CONFIG
+    # max_pid = 10
+    # n_prop_set = np.arange(2, 5)
+    # switch = [False, True]
+    # n_exs_per_set = 3
+    ### END TEST CONFIG
+
+    for n_props, is_true in it.product(n_prop_set, switch):
+        for _ in range(n_exs_per_set):
+            pids = global_rng.choice(max_pid, size=n_props + (not is_true), replace=False)
+
+            if is_true:
+                target_pid = global_rng.choice(pids)
+                pids = np.append(pids, target_pid)
+
+            atoms = [Atom(f'p{pid}') for pid in pids]
+            target_atom = atoms[-1]
+            all_atoms = atoms[:-1]
+
+            seed = global_rng.integers(0, np.iinfo(np.int32).max)
+            cons = random_group(all_atoms, seed=seed)
+            prop = Implies(target_atom, cons)
+            yield prop
+

@@ -107,7 +107,7 @@ val_ds_set = [make_ds(ds_path, r, split='range') for r in ranges]
 
 
 model_name = run_config['model_name']
-max_length = run_config['max_length']
+max_length = run_config['max_length']  # TODO: adjust max sampling length to be much higher for task
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 succ_id = tokenizer.encode('success')[0]

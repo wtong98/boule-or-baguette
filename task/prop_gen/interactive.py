@@ -11,145 +11,166 @@ import xml.etree.ElementTree as et
 
 import numpy as np
 from transformers import AutoTokenizer
+from typing import Optional, Sequence
 
 from util.data import *
 from util.proof import prove
 from util.out import format_example, start_lean
 from util.sample import gen_batch, n_combo, gen_php
 from tqdm import tqdm
-
-# # <codecell>
-# tok = AutoTokenizer.from_pretrained('Qwen/Qwen2.5-Coder-7B')
-# tok
+from functools import lru_cache
 
 
-# p1 ∨ (True → p3 → False) → p1
+@lru_cache(maxsize=None)
+def _count_dyck_suffixes(n_pairs: int, open_used: int, close_used: int) -> int:
+    if open_used == n_pairs:
+        return 1
 
-# def or_elem(is_true): return Or(PFalse(), PTrue() if is_true else PFalse())
+    total = 0
+    if open_used < n_pairs:
+        total += _count_dyck_suffixes(n_pairs, open_used + 1, close_used)
+    if close_used < open_used:
+        total += _count_dyck_suffixes(n_pairs, open_used, close_used + 1)
 
-# prop = Implies(Atom('p1'), Or(Atom('p1'), Atom('p2')))
-# prop = Implies(Or(Atom('p1'), Implies(PTrue(), Implies(Atom('p3'), PFalse()))), Atom('p1'))
-
-# def chi(x, y):
-#     prop = Implies(Implies(Implies(Implies(x, y), x), x), y)
-#     return prop
-
-# xi1 = chi(Atom('p2'), Atom('p1'))
-# xi2 = chi(Atom('p3'), xi1)
-# prop = Implies(xi2, Atom('p1'))
-
-# prop = Implies(Implies(Implies(Implies(Implies(Atom('p1'), Atom('p2')), Atom('p1')), Atom('p1')), Atom('p2')), Atom('p2'))
-
-def prod(a, b):
-    for x in a:
-        for y in b:
-            yield (x, y)
+    return total
 
 
-def catalan(nodes, op):
-    if len(nodes) == 1:
-        try:
-            for n in nodes[0]:
-                yield n
-        except TypeError:
-            yield nodes[0]
-        return
+def sample_dyck_word(n_pairs: int, seed=None) -> str:
+    if n_pairs <= 0:
+        return ''
+    rng = np.random.default_rng(seed)
 
-    if len(nodes) == 2:
-        left, right = nodes
-        try:
-            for l, r in prod(left, right):
-                yield op(l, r)
-        except TypeError:
-            yield op(left, right)
-        return
+    word = []
+    open_used = 0
+    close_used = 0
+    total_len = 2 * n_pairs
 
-    for idx, _ in enumerate(nodes[:-1]):
-        left_branch = nodes[:(idx+1)]
-        right_branch = nodes[(idx+1):]
+    while len(word) < total_len:
+        n_left = 0
+        n_right = 0
+
+        if open_used < n_pairs:
+            n_left = _count_dyck_suffixes(n_pairs, open_used + 1, close_used)
+        if close_used < open_used:
+            n_right = _count_dyck_suffixes(n_pairs, open_used, close_used + 1)
+
+        p_left = n_left / (n_left + n_right) if (n_left + n_right) > 0 else 0
+        is_left = rng.random() < p_left
         
-        for left, right in prod(catalan(left_branch, op), catalan(right_branch, op)):
+        if is_left:
+            word.append('(')
+            open_used += 1
+        else:
+            word.append(')')
+            close_used += 1
+
+    return ''.join(word)
+
+
+def _match_parentheses(word: str) -> dict[int, int]:
+    stack = []
+    matches: dict[int, int] = {}
+    for idx, char in enumerate(word):
+        if char == '(':
+            stack.append(idx)
+        elif char == ')':
+            if not stack:
+                raise ValueError('Invalid Dyck word: unmatched closing parenthesis.')
+            start = stack.pop()
+            matches[start] = idx
+        else:
+            raise ValueError('Dyck word must consist only of "(" and ")" characters.')
+    if stack:
+        raise ValueError('Invalid Dyck word: unmatched opening parenthesis.')
+    return matches
+
+
+def or_tree_from_dyck(leaves: Sequence, word: str):
+    leaves = tuple(leaves)
+    if not leaves:
+        raise ValueError('Cannot build expression with no atoms.')
+
+    expected_pairs = len(leaves) - 1
+    if expected_pairs == 0:
+        if word:
+            raise ValueError('Dyck word should be empty when only one atom is provided.')
+        return leaves[0]
+    if len(word) != 2 * expected_pairs:
+        raise ValueError('Dyck word length does not match number of atoms.')
+
+    matches = _match_parentheses(word)
+    leaf_iter = iter(leaves)
+
+    def consume(start: int, end: int):
+        if start >= end:
             try:
-                for l, r in prod(left, right):
-                    yield op(l, r)
-            except TypeError:
-                yield op(left, right)
+                return next(leaf_iter)
+            except StopIteration as exc:
+                raise ValueError('Dyck word consumed more atoms than provided.') from exc
 
-# atoms = [Atom(f'p{i+1}') for i in range(3)]
-# list(catalan([atoms, atoms, atoms], Or))
+        if word[start] != '(':
+            raise ValueError('Invalid Dyck word structure.')
 
-# <codecell>
-def pigeon(n_pigeons, n_holes, pigeon_occupation_ablation_prop=None, roommate_ablation_prop=None):
-    # atoms = [[Atom(f'p{i * n_holes + j}') for j in range(n_holes)] for i in range(n_pigeons)]
-    atoms = [[Atom(f'p{i}{j}') for j in range(n_holes)] for i in range(n_pigeons)]
+        try:
+            split = matches[start]
+        except KeyError as exc:
+            raise ValueError('Invalid Dyck word: missing matching parenthesis.') from exc
 
-    pigeons = []
-    for i in range(n_pigeons):
-        curr_p = atoms[i]
-        if pigeon_occupation_ablation_prop is not None:
-            keep_idxs = np.random.binomial(1, pigeon_occupation_ablation_prop, size=len(curr_p)).astype(bool)
-            curr_p = [curr_p[j] for j, keep in enumerate(keep_idxs) if keep]
+        if split >= end:
+            raise ValueError('Invalid Dyck word segmentation.')
 
-        pigeons.append(catalan(curr_p, Or))
+        left = consume(start + 1, split)
+        right = consume(split + 1, end)
+        return Or(left, right)
 
-    pigeons_in_a_hole = catalan(pigeons, And)
+    tree = consume(0, len(word))
+    try:
+        next(leaf_iter)
+    except StopIteration:
+        return tree
+    raise ValueError('Unused atoms remain after constructing the OR tree.')
 
-    all_pigeon_roommates = []
-    for i1 in range(n_pigeons):
-        for i2 in range(n_pigeons):
-        # for i2 in range(i1 + 1):
-            if i1 != i2:
-                statements = [And(atoms[i1][j], atoms[i2][j]) for j in range(n_holes)]
-                all_pigeon_roommates.extend(statements)
 
-    if roommate_ablation_prop is not None:
-        keep_idxs = np.random.binomial(1, roommate_ablation_prop, size=len(all_pigeon_roommates)).astype(bool)
-        all_pigeon_roommates = [all_pigeon_roommates[i] for i, keep in enumerate(keep_idxs) if keep]
+def random_group(atoms, seed=None):
+    dyck_word = sample_dyck_word(len(atoms) - 1, seed=seed)
+    out = or_tree_from_dyck(atoms, dyck_word)
+    return out
 
-    all_pigeon_roommates = catalan(all_pigeon_roommates, Or)
-    php = catalan([pigeons_in_a_hole, all_pigeon_roommates], Implies)
-    return php
 
-# tot = 0
-# for _ in tqdm(pigeon(3, 4, 
-#                      pigeon_occupation_ablation_prop=0.5,
-#                      roommate_ablation_prop=0.5)):
-#     tot += 1
+def gen_or(n_exs_per_set=10_000, seed=None):
+    n_prop_set = np.arange(2, 30)
+    switch = [False, True]
 
-# print(tot)
+    max_pid = 100_000
+    global_rng = np.random.default_rng(seed)
 
-# php = gen_php()
-# <codecell>
-# tot_pigeons = 4
-# tot_holes = 4
+    ### START TEST CONFIG
+    # max_pid = 10
+    # n_prop_set = np.arange(2, 5)
+    # switch = [False, True]
+    # n_exs_per_set = 3
+    ### END TEST CONFIG
 
-# all_props = []
-# for n in range(2, tot_pigeons + 1):
-#     for m in range(1, tot_holes + 1):
-#         if n + m <= 5:
-#             props = list(pigeon(n, m))
-#             print('n', n, m)
-#             print(len(props))
-#             all_props.extend(props)
+    for n_props, is_true in it.product(n_prop_set, switch):
+        for _ in range(n_exs_per_set):
+            pids = global_rng.choice(max_pid, size=n_props + (not is_true), replace=False)
 
-# print(len(all_props))
+            if is_true:
+                target_pid = global_rng.choice(pids)
+                pids = np.append(pids, target_pid)
 
-atoms = pigeon(3, 4, pigeon_occupation_ablation_prop=0.5, roommate_ablation_prop=0.5)
-prop = next(atoms)
-print(prop)
+            atoms = [Atom(f'p{pid}') for pid in pids]
+            target_atom = atoms[-1]
+            all_atoms = atoms[:-1]
+
+            seed = global_rng.integers(0, np.iinfo(np.int32).max)
+            cons = random_group(all_atoms, seed=seed)
+            prop = Implies(target_atom, cons)
+            yield prop
+
+
 
 # <codecell>
-# p11 = Atom('p11')
-# p21 = Atom('p21')
-# p31 = Atom('p31')
-
-# left = And(And(p11, p21), p31)
-# right = Or(And(p11, p21), Or(And(p21, p31), And(p31, p11)))
-
-# prop = Implies(left, right)
-# prop = atoms[-1]
-
-# prop = php[5000]
 print('PROP', prop)
 # proof = prove(prop, keep='until_success')
 proof = prove(prop, keep='simplest')
