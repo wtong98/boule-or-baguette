@@ -53,7 +53,8 @@ if __name__ == '__main__':
     # dataset = load_dataset('json', data_dir='data/raw_full', split='train', keep_in_memory=True, num_proc=16)
     # dataset = load_dataset('json', data_dir='data/raw_or', split='train', num_proc=16)
     # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/implies', split='train', num_proc=16)
-    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/php', split='train', num_proc=16)
+    # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/php', split='train', num_proc=16)
+    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_par_froz', split='train', num_proc=16)
 
     # add separator to distinguish prompt and completion
     dataset = dataset.map(lambda x: {'prompt': x['input'] + '|'}, remove_columns=['input'], num_proc=16)
@@ -84,18 +85,18 @@ if __name__ == '__main__':
 
     ds = split_by_len(dataset)
 
-    for maxlen in maxlens:
-        print(f'info: filtering by length {maxlen}')
+    # for maxlen in maxlens:
+    #     print(f'info: filtering by length {maxlen}')
 
-        def filter_len(example):
-            toks = tokenizer(example['prompt'] + example['completion'], return_attention_mask=False)
-            return len(toks['input_ids']) <= maxlen
+    #     def filter_len(example):
+    #         toks = tokenizer(example['prompt'] + example['completion'], return_attention_mask=False)
+    #         return len(toks['input_ids']) <= maxlen
         
-        filtered = ds.filter(filter_len, num_proc=16)
-        ds_small = DatasetDict({name: subset for name, subset in filtered.items() if len(subset) > 0})
-        ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_php_text_{maxlen}')
+    #     filtered = ds.filter(filter_len, num_proc=16)
+    #     ds_small = DatasetDict({name: subset for name, subset in filtered.items() if len(subset) > 0})
+    #     ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_php_text_{maxlen}')
 
-    # ds.save_to_disk('/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data/hf_php_text')
+    ds.save_to_disk('/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data/hf_or_par_froz_text')
 
     # def to_toks(ex):
     #     inp_toks = tokenizer(ex['input'], return_attention_mask=False)
