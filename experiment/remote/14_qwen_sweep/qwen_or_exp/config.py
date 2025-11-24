@@ -4,7 +4,7 @@
 import itertools
 import sys
 sys.path.append('../../../../')
-from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_text_ds_path
+from task.prop import full_text_ds_path, or_text_ds_path, exp_or_text_ds_path, imply_text_ds_path, php_text_ds_path
 
 itr_ids = list(range(3))
 
@@ -12,7 +12,7 @@ base_len = 1024
 
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 32, '32k_bs': 1},
+    # {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 32, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 32, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 8, '32k_bs': 1},
 ]
@@ -24,15 +24,16 @@ prompt_styles = [
 ]
 
 tasks = [
-    {'name': 'full', 'train_len': 1024, 'test_len': 2048},
-    {'name': 'imply', 'train_len': 2048, 'test_len': 8192},  # TODO: can probably tighten
+    # {'name': 'full', 'train_len': 1024, 'test_len': 2048},
+    # {'name': 'imply', 'train_len': 2048, 'test_len': 8192},  # TODO: can probably tighten
     {'name': 'or', 'train_len': 8192, 'test_len': 32_768},
 ]
 
 task_to_ds_path = {
     'full': full_text_ds_path,
     'imply': imply_text_ds_path,
-    'or': or_text_ds_path,
+    # 'or': or_text_ds_path,
+    'or': exp_or_text_ds_path,
     'php': php_text_ds_path,
 }
 
@@ -40,13 +41,13 @@ task_to_ds_path = {
 task_to_splits = {
     'full': [4],
     'imply': [6],
-    'or': [6],  # NOTE: old config
+    'or': [12],
 }
 
 task_to_test_splits = {
     'full': [4],
     'imply': [6],
-    'or': [6],
+    'or': [12],
 }
 
 
@@ -81,13 +82,13 @@ for i in itr_ids:
             'num_samples': 25,
             'max_length': task_args['train_len'],
             'max_test_length': task_args['test_len'],
-            'log_every': 250,
-            'save_every': 250,
+            'log_every': 100,
+            'save_every': 100,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],
             'prompt': prompt,
-            'project_name': f'prop_{task}',
+            'project_name': f'exp_prop_{task}',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
             'packing': False
         }

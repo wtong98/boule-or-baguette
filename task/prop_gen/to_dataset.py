@@ -47,7 +47,7 @@ def count_ops(dataset):
     return counts
 
 if __name__ == '__main__':
-    maxlens= [2048, 32768]
+    maxlens= [32768]
     tokenizer = AutoTokenizer.from_pretrained('Qwen/Qwen2.5-Coder-7B')
 
     # dataset = load_dataset('json', data_dir='data/raw_full', split='train', keep_in_memory=True, num_proc=16)
@@ -85,18 +85,18 @@ if __name__ == '__main__':
 
     ds = split_by_len(dataset)
 
-    # for maxlen in maxlens:
-    #     print(f'info: filtering by length {maxlen}')
+    for maxlen in maxlens:
+        print(f'info: filtering by length {maxlen}')
 
-    #     def filter_len(example):
-    #         toks = tokenizer(example['prompt'] + example['completion'], return_attention_mask=False)
-    #         return len(toks['input_ids']) <= maxlen
+        def filter_len(example):
+            toks = tokenizer(example['prompt'] + example['completion'], return_attention_mask=False)
+            return len(toks['input_ids']) <= maxlen
         
-    #     filtered = ds.filter(filter_len, num_proc=16)
-    #     ds_small = DatasetDict({name: subset for name, subset in filtered.items() if len(subset) > 0})
-    #     ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_php_text_{maxlen}')
+        filtered = ds.filter(filter_len, num_proc=16)
+        ds_small = DatasetDict({name: subset for name, subset in filtered.items() if len(subset) > 0})
+        ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_or_par_text_{maxlen}')
 
-    ds.save_to_disk('/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data/hf_or_par_froz_text')
+    # ds.save_to_disk('/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data/hf_or_par_froz_text')
 
     # def to_toks(ex):
     #     inp_toks = tokenizer(ex['input'], return_attention_mask=False)
