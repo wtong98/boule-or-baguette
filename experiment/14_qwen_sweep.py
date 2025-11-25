@@ -12,10 +12,11 @@ from common import collate_dfs, set_theme
 # set_theme()
 
 # <codecell>
-df1 = collate_dfs('remote/14_qwen_sweep/qwen', show_progress=True)
-df2 = collate_dfs('remote/14_qwen_sweep/qwen_php', show_progress=True)
+# df1 = collate_dfs('remote/14_qwen_sweep/qwen/set6_tmp', show_progress=True)
+# df2 = collate_dfs('remote/14_qwen_sweep/qwen_php', show_progress=True)
 
-df = pd.concat([df1, df2], ignore_index=True)
+# df = pd.concat([df1, df2], ignore_index=True)
+df = collate_dfs('remote/14_qwen_sweep/qwen_or_exp', show_progress=True)
 
 # <codecell>
 # NOTE: why are there NaN entries?
@@ -68,7 +69,7 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(3)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 1000]
+last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
@@ -104,7 +105,7 @@ last_ckpt = (
     mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
 )
 
-# last_ckpt = mdf[mdf['ckpt'] == 5000]
+last_ckpt = mdf[mdf['ckpt'] == 1000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
@@ -124,10 +125,9 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'prop_or')
-    & (mdf['split'] == 6)
-    & (mdf['range'] == 'range_(7, inf)')
-    # & (mdf['range'] == 'range_(13, inf)')
+    (mdf['task'] == 'exp_prop_or')
+    & (mdf['split'] == 12)
+    & (mdf['range'] == 'range_(13, inf)')
 ]
 
 sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
@@ -141,7 +141,7 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(6)
 )
 
-# last_ckpt = mdf[mdf['ckpt'] == 3000]
+last_ckpt = mdf[mdf['ckpt'] == 900]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
@@ -149,7 +149,7 @@ g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.
 g.legend(title=None)
 # sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 
-# g.set_ylim((0.6, 0.97))
+# g.set_ylim((0.5, 1.1))
 g.set_title('Or (very narrow, deep)')
 g.set_xlabel('Qwen2.5 Coder Size')
 g.set_ylabel('Accuracy')
@@ -162,8 +162,8 @@ mdf = plot_df.copy()
 mdf = mdf[
     (mdf['task'] == 'prop_php')
     & (mdf['split'] == 60)
-    # & (mdf['range'] == 'range_(61, inf)')
-    & (mdf['range'] == 'range_(1, 61)')
+    & (mdf['range'] == 'range_(61, inf)')
+    # & (mdf['range'] == 'range_(1, 61)')
 ]
 
 g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
@@ -178,7 +178,7 @@ last_ckpt = (
 
 # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).max()
 
-last_ckpt = mdf[mdf['ckpt'] == 1000]
+last_ckpt = mdf[mdf['ckpt'] == 500]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'], hue_order=['DP', 'CoT'])

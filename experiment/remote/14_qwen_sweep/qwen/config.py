@@ -24,9 +24,9 @@ prompt_styles = [
 ]
 
 tasks = [
-    {'name': 'full', 'train_len': 1024, 'test_len': 2048},
-    {'name': 'imply', 'train_len': 2048, 'test_len': 8192},  # TODO: can probably tighten
-    {'name': 'or', 'train_len': 8192, 'test_len': 32_768},
+    {'name': 'full', 'train_len': 512, 'test_len': 2048},
+    {'name': 'imply', 'train_len': 1024, 'test_len': 16_384},
+    # {'name': 'or', 'train_len': 8192, 'test_len': 32_768},
 ]
 
 task_to_ds_path = {
@@ -78,10 +78,10 @@ for i in itr_ids:
             'batch_size': batch_size,
             'accum_steps': accum_steps,
             'max_steps': 5_000,
-            'num_samples': 25,
+            'num_samples': 16,
             'max_length': task_args['train_len'],
             'max_test_length': task_args['test_len'],
-            'log_every': 250,
+            'log_every': 250 if prompt == 'dp' else 999_999_999,
             'save_every': 250,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],

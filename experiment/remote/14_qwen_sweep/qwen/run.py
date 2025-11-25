@@ -134,6 +134,7 @@ peft_config = LoraConfig(
     target_modules=("q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj")
 )
 
+# TODO: switch to constant learning rate schedule
 args = SFTConfig(
     output_dir=run_config['output_dir'],
     overwrite_output_dir=True,
@@ -143,8 +144,10 @@ args = SFTConfig(
     per_device_eval_batch_size=run_config['batch_size'],
     gradient_accumulation_steps=run_config['accum_steps'],      
     learning_rate=2e-4,                  # QLoRA LR baseline
-    lr_scheduler_type="cosine",
-    warmup_ratio=0.05,
+    # lr_scheduler_type="cosine",
+    lr_scheduler_type='linear_with_warmup',
+    warmup_steps=500,
+    # warmup_ratio=0.05,
     logging_steps=run_config['log_every'],
     save_steps=run_config['save_every'],
     bf16=True,
@@ -251,7 +254,7 @@ def evaluate(succ_id, fail_id, num_samples=100, batch_size=16):
                 ]
 
                 if not filtered:
-                    print('warn: filtered everything out for range', r, 'with num_samples', num_samples)
+                    print('warn: filtered everything out for range', r, 'with num_samples', end - start)
                     continue
 
                 inp_ids, lab_ids = zip(*filtered)
