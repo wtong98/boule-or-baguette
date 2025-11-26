@@ -16,15 +16,15 @@ from model.transformer_std import *
 from task.graph import *
 
 n_arms = 10
-depth = 20
-n_hidden = 4096
+depth = 10
+n_hidden = 512
 
 cot = True
 ttr = True
 nouveau = True
-force_bin_label = False
+force_bin_label = True
 n_hop = 5
-test_n_hop = 18
+test_n_hop = 7
 
 batch_size = n_arms * depth // 4
 
@@ -68,8 +68,8 @@ print(ys[:3])
 
 config = TransformerConfig(n_layers=1,
                            n_vocab=n_vocab,
-                           n_out=n_vocab if cot else 1,
-                        #    n_out=1,
+                        #    n_out=n_vocab if cot else 1,
+                           n_out=1,
                            n_hidden=n_hidden,
                            pos_emb=False,
                            n_mlp_layers=2,
@@ -80,8 +80,8 @@ config = TransformerConfig(n_layers=1,
                            residual_connections=False,
                            freeze_emb=True,
                            use_bias=False,
-                        #    return_format='final_logit_up_to_pad' if cot else 'final_logit',
-                           return_format=None if cot else 'final_logit',
+                           return_format='final_logit_up_to_pad' if cot else 'final_logit',
+                        #    return_format=None if cot else 'final_logit',
                            mup_scale=True,
                            unif_att=False,
                            dtype=jnp.bfloat16
@@ -98,37 +98,38 @@ def summarize(state):
 # lr = 1e-2
 # gamma = 100
 
-lr = 1e-2
-gamma = 1
+lr = 0.001
+gamma = 100
 
 
 state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     test_iters=1,
-                    loss='ce_mask' if cot else 'bce',
-                    # loss='bce',
+                    # loss='ce_mask' if cot else 'bce',
+                    loss='bce',
                     test_every=1000,
-                    train_iters=100_000,
-                    eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
-                    # eval_fns=None,
-                    print_fn=print_gen if cot else None,
-                    # print_fn=None,
+                    train_iters=10_000,
+                    # eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
+                    eval_fns=None,
+                    # print_fn=print_gen if cot else None,
+                    print_fn=None,
                     lr=lr * gamma,
                     gamma=gamma,
                     optim=optax.adamw,
-                    k=4
+                    # optim=optax.sgd
                     # summary_fn=summarize,
                     )
 
 
 # <codecell>
-xs, ys = next(test_task)
+xs, ys = next(train_task)
 
 preds, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 
 att = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
 
+att = att.astype('float32')
 plt.imshow(att[2])
 print(att[2])
 

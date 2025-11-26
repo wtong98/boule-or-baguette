@@ -12,11 +12,11 @@ from common import collate_dfs, set_theme
 # set_theme()
 
 # <codecell>
-# df1 = collate_dfs('remote/14_qwen_sweep/qwen/set6_tmp', show_progress=True)
+df1 = collate_dfs('remote/14_qwen_sweep/qwen', show_progress=True)
 # df2 = collate_dfs('remote/14_qwen_sweep/qwen_php', show_progress=True)
+df3 = collate_dfs('remote/14_qwen_sweep/qwen_or_exp', show_progress=True)
 
-# df = pd.concat([df1, df2], ignore_index=True)
-df = collate_dfs('remote/14_qwen_sweep/qwen_or_exp', show_progress=True)
+df = pd.concat([df1, df3], ignore_index=True)
 
 # <codecell>
 # NOTE: why are there NaN entries?
@@ -141,7 +141,7 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(6)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 900]
+# last_ckpt = mdf[mdf['ckpt'] == 750]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])

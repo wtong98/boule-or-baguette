@@ -68,6 +68,7 @@ keep = 'until_success'
 
 run_split = 24
 
+
 ### START TEST CONFIG
 # out_dir = Path('test_data')
 # n_cores = 16
@@ -81,20 +82,22 @@ run_split = 24
 # all_ex = gen_php(seed=3011)
 # total_ex = len(all_ex)
 
-total_ex = 2_500
-all_ex = gen_or(n_exs_per_set=total_ex)
-n_sets = 28 * 2
+# total_ex = 2_500
+# all_ex = gen_or(n_exs_per_set=total_ex)
+run_idx = int(sys.argv[1])
+all_ex = gen_php(do_start=(run_idx == 1))
+# n_sets = 28 * 2
 
 # all_ex = split(all_ex, run_split)
 # total_ex = sum(n_combo(n_atoms, n) for n in range(1, max_nodes + 1))
 # total_ex = sum(n_combo_or(n_atoms, n) for n in range(1, max_nodes + 1))
 
 # pbar = tqdm(total=total_ex // run_split)
-pbar = tqdm(total=total_ex * n_sets)
+pbar = tqdm(total=3000)
 
 # out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_big')
-# out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/php')
-out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_par')
+out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/php_par')
+# out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_par')
 
 
 if not out_dir.exists():
