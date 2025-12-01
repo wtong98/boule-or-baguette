@@ -294,13 +294,19 @@ class WandbEvalCallback(WandbCallback):
     def __init__(self, trainer, val_ds_set, num_samples=100, batch_size=16):
         super().__init__()
         self.trainer = trainer
-        self.tokenizer = self.trainer.processing_class
         self.val_ds_set = val_ds_set
         self.num_samples = num_samples
         self.batch_size = batch_size
+
+        try:
+            self.tokenizer = self.trainer.processing_class.tokenizer
+        except:
+            self.tokenizer = self.trainer.processing_class
         
-        self.succ_id = self.tokenizer.encode('success')[0]
-        self.fail_id = self.tokenizer.encode('failure')[0]
+        self.succ_id = self.tokenizer.convert_tokens_to_ids('success')
+        self.fail_id = self.tokenizer.convert_tokens_to_ids('failure')
+        assert type(self.succ_id) is int, "Token 'success' not found in tokenizer vocab"
+        assert type(self.fail_id) is int, "Token 'failure' not found in tokenizer vocab"
 
         self.hist = []
         

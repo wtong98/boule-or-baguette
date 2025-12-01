@@ -109,8 +109,11 @@ model_name = run_config['model_name']
 max_length = run_config['max_test_length']
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-succ_id = tokenizer.encode('success')[0]
-fail_id = tokenizer.encode('failure')[0]
+succ_id = tokenizer.convert_tokens_to_ids('success')
+fail_id = tokenizer.convert_tokens_to_ids('failure')
+
+assert type(succ_id) is int, "Token 'success' not found in tokenizer vocab"
+assert type(fail_id) is int, "Token 'failure' not found in tokenizer vocab"
 
 model = LLM(model_name, quantization='bitsandbytes', enable_lora=True)
 params = SamplingParams(max_tokens=max_length, temperature=0)
