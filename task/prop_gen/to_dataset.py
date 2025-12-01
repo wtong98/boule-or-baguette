@@ -4,9 +4,11 @@
 from collections import defaultdict
 from pathlib import Path
 
-from datasets import load_dataset, DatasetDict, Dataset
+from datasets import load_dataset, DatasetDict, Dataset, disable_caching
 from transformers import AutoTokenizer
 from tqdm import tqdm
+
+disable_caching()
 
 
 def get_tokenizer():
@@ -54,7 +56,7 @@ if __name__ == '__main__':
     # dataset = load_dataset('json', data_dir='data/raw_or', split='train', num_proc=16)
     # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/implies', split='train', num_proc=16)
     # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/php', split='train', num_proc=16)
-    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_par_froz', split='train', num_proc=16)
+    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_par', split='train', num_proc=16)
 
     # add separator to distinguish prompt and completion
     dataset = dataset.map(lambda x: {'prompt': x['input'] + '|'}, remove_columns=['input'], num_proc=16)
