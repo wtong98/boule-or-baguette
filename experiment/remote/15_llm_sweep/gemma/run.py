@@ -83,6 +83,8 @@ def make_ds(depth, split):
     task.load_ds()
 
     ds = datasets.concatenate_datasets([task.true_ds, task.false_ds]).shuffle()
+    # TODO: hot-fix to adjust completion parsing, fix in dataset source
+    ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=16)
 
     if run_config['prompt'] == 'dp':
         ds = ds.map(lambda x: {'completion': '<success />' if x['is_true'] else '<failure />'}, num_proc=16)
