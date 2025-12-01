@@ -11,7 +11,7 @@ itr_ids = list(range(3))
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-1.5B', '32k_bs': 1},
-    {'name': 'Qwen/Qwen2.5-Coder-3B', '32k_bs': 1},
+    # {'name': 'Qwen/Qwen2.5-Coder-3B', '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '32k_bs': 1},
     # {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 4, '32k_bs': 1},
 ]
@@ -38,11 +38,11 @@ task_to_ds_path = {
 
 # Corresponds roughly to 50,90 percentiles
 task_to_splits = {
-    'php': [60]
+    'php': [80]
 }
 
 task_to_test_splits = {
-    'php': [60]
+    'php': [80]
 }
 
 
