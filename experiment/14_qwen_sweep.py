@@ -105,7 +105,7 @@ last_ckpt = (
     mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 1000]
+last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
