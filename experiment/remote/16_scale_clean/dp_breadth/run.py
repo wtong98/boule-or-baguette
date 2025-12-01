@@ -20,11 +20,11 @@ run_split = 72
 
 train_iters = 100_000
 
-n_arms = (2**np.linspace(3, 9, num=20)).astype(int) * 2
-n_depths = [6, 10, 20]
-n_widths = (2**np.linspace(3, 9, num=20)).astype(int) * 2
+n_arms = (2**np.linspace(3, 9, num=30)).astype(int) * 2
+n_depths = [25]
+n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
 
-test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
+test_n_hop_props = [0.5]
 n_hop_props = [0.5]
 
 lr = 1e-2

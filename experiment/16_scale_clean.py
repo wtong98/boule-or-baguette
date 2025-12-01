@@ -195,7 +195,7 @@ plot_df
 
 # <codecell>
 mdf = plot_df.copy()
-mdf = mdf[(mdf['test_n_hop'] == 0.7)
+mdf = mdf[(mdf['test_n_hop'] == 0.5)
           & (mdf['n_depth'] == 10)
           ]
 
