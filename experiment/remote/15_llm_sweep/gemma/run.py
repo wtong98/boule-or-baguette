@@ -12,9 +12,10 @@ import datasets
 import numpy as np
 import pandas as pd
 from peft import LoraConfig
-from transformers import AutoModelForCausalLM, BitsAndBytesConfig, DataCollatorWithPadding
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, DataCollatorWithPadding
 from transformers.integrations import WandbCallback
 from trl import SFTTrainer, SFTConfig
+from trl.trainer.sft_trainer import DataCollatorForLanguageModeling
 import torch
 from tqdm import tqdm
 import wandb
@@ -129,6 +130,16 @@ model = AutoModelForCausalLM.from_pretrained(
     quantization_config=quant_config
 )
 
+tokenizer = AutoTokenizer.from_pretrained(run_config['model_name'])
+pad_token = tokenizer.pad_token or tokenizer.eos_token
+pad_token_id = tokenizer.convert_tokens_to_ids(pad_token)
+assert pad_token_id is not None, "The tokenizer does not have a pad token or eos token."
+
+data_collator = DataCollatorForLanguageModeling(
+    pad_token_id=pad_token_id,
+    completion_only_loss=True
+)
+
 peft_config = LoraConfig(
     r=16, lora_alpha=32, lora_dropout=0.05,
     bias="none",
@@ -136,7 +147,7 @@ peft_config = LoraConfig(
     target_modules='all-linear'
 )
 
-# TODO: switch to constant learning rate schedule
+
 args = SFTConfig(
     output_dir=run_config['output_dir'],
     overwrite_output_dir=True,
@@ -170,7 +181,9 @@ trainer = SFTTrainer(
     peft_config=peft_config,
     args=args,
     train_dataset=train_ds,
-    eval_dataset=test_ds
+    eval_dataset=test_ds,
+    data_collator=data_collator,
+    processing_class=tokenizer
 )
 
 
@@ -297,11 +310,7 @@ class WandbEvalCallback(WandbCallback):
         self.val_ds_set = val_ds_set
         self.num_samples = num_samples
         self.batch_size = batch_size
-
-        try:
-            self.tokenizer = self.trainer.processing_class.tokenizer
-        except:
-            self.tokenizer = self.trainer.processing_class
+        self.tokenizer = self.trainer.processing_class
         
         self.succ_id = self.tokenizer.convert_tokens_to_ids('success')
         self.fail_id = self.tokenizer.convert_tokens_to_ids('failure')
