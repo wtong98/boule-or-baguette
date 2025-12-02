@@ -28,24 +28,17 @@ tasks = [
 ]
 
 task_to_ds_path = {
-    'full': full_text_ds_path,
-    'imply': imply_text_ds_path,
     # 'or': or_text_ds_path,
     'or': exp_or_text_ds_path,
-    'php': php_text_ds_path,
 }
 
 # Corresponds roughly to 50, 90th percentiles
 task_to_splits = {
-    'full': [4],
-    'imply': [6],
-    'or': [12],
+    'or': [18],
 }
 
 task_to_test_splits = {
-    'full': [4],
-    'imply': [6],
-    'or': [12],
+    'or': [18],
 }
 
 

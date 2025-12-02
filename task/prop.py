@@ -33,7 +33,7 @@ php_text_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_php_text'
 # debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 debug_ds_path = None
 
-exp_or_text_ds_path = '~/scratch/data/prop_gen/data/hf_or_par_froz_text/'
+exp_or_text_ds_path = '~/scratch/data/prop_gen/data/hf_or_par_text_32768/'
 
 yes_id = 366
 no_id = 352
