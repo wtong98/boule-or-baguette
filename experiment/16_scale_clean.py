@@ -59,7 +59,7 @@ plot_df
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[(mdf['test_n_hop'] == 0.5)
-          & (mdf['n_depth'] == 20)
+          & (mdf['n_depth'] == 25)
           ]
 
 
@@ -70,9 +70,10 @@ mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 mdf = mdf.iloc[::-1]
 
 g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+# g = sns.heatmap(mdf, square=False)
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 28 - 2 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 45 - 2 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('Breadth (B)')
 g.set_xlabel('Hidden (H)')
@@ -127,7 +128,7 @@ plot_df
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[(mdf['test_n_hop'] == 0.5)
-          & (mdf['n_arms'] == 20)
+          & (mdf['n_arms'] == 10)
           ]
 
 
@@ -140,7 +141,7 @@ mdf = mdf.iloc[::-1]
 g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('Depth (D)')
 g.set_xlabel('Hidden (H)')

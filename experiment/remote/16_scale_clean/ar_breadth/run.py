@@ -16,17 +16,17 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-run_split = 72
+run_split = 100
 
 train_iters = 100_000
 
-n_arms = (2**np.linspace(3, 9, num=15)).astype(int) * 2
-n_depths = [10, 20, 50]
-n_widths = (2**np.linspace(3, 9, num=15)).astype(int) * 2
+n_arms = (2**np.linspace(3, 9, num=30)).astype(int) * 2
+n_depths = [8]
+n_widths = (2**np.linspace(3, 9, num=30)).astype(int) * 2
 
 all_n_layer = [1]
 
-test_n_hop_props = [0.25, 0.5, 0.7, 0.95]
+test_n_hop_props = [0.5]
 n_hop_props = [0.5]
 
 max_batch_size = 512
@@ -109,7 +109,7 @@ for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props
                                 residual_connections=False,
                                 mup_scale=True,
                                 linear_att=False,
-                                unif_att=True,
+                                unif_att=False,
                                 **model_args),
                 train_args=make_train_args('ce_mask'),
                 train_task=make_chain(cot=True, ttr=True),
