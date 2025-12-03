@@ -42,7 +42,7 @@ task_to_splits = {
 }
 
 task_to_test_splits = {
-    'php': [80]
+    'php': [80, 160, 220]
 }
 
 
