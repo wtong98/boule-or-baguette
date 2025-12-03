@@ -1,4 +1,4 @@
-"""Qwen sweep plotting"""
+"""LLM sweep plotting"""
 
 # <codecell>
 import matplotlib.pyplot as plt
@@ -12,11 +12,12 @@ from common import collate_dfs, set_theme
 # set_theme()
 
 # <codecell>
-df1 = collate_dfs('remote/14_qwen_sweep/qwen', show_progress=True)
-df2 = collate_dfs('remote/14_qwen_sweep/qwen_php', show_progress=True)
-df3 = collate_dfs('remote/14_qwen_sweep/qwen_or_exp', show_progress=True)
+df1 = collate_dfs('remote/15_llm_sweep/gemma', show_progress=True)
+# df2 = collate_dfs('remote/15_llm_sweep/qwen_php', show_progress=True)
+# df3 = collate_dfs('remote/15_llm_sweep/qwen_or_exp', show_progress=True)
 
-df = pd.concat([df1, df2, df3], ignore_index=True)
+df = df1
+# df = pd.concat([df1, df2, df3], ignore_index=True)
 
 # <codecell>
 # NOTE: why are there NaN entries?
@@ -27,7 +28,7 @@ len_after = len(df)
 print(f'Removed {len_before - len_after} NaN entries')
 # <codecell>
 def extract_plot_vals(row):
-    run_name = row['model_name'].rsplit('/', 1)[-1].split('-')[-1]
+    run_name = row['run_name'].split('-')[2]
     prompt_type = row['run_name'].split(' ')[0].split('-')[-1]
 
     return pd.DataFrame({
@@ -50,7 +51,7 @@ plot_df
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'prop_full')
+    (mdf['task'] == 'gemma_prop_full')
     & (mdf['split'] == 4)
     & (mdf['range'] == 'range_(5, inf)')
     # & (mdf['range'] == 'range_(10, inf)')
@@ -72,8 +73,7 @@ last_ckpt = (
 last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
-# g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
 g.legend(title=None)
 sns.move_legend(g, "lower right")
 
@@ -88,7 +88,7 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'prop_imply')
+    (mdf['task'] == 'gemma_prop_imply')
     & (mdf['split'] == 6)
     & (mdf['range'] == 'range_(7, inf)')
 ]
@@ -105,11 +105,10 @@ last_ckpt = (
     mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 2000]
+# last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
-# g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
 g.legend(title=None)
 # sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 
@@ -126,8 +125,8 @@ g.figure.tight_layout()
 mdf = plot_df.copy()
 mdf = mdf[
     (mdf['task'] == 'exp_prop_or')
-    & (mdf['split'] == 18)
-    & (mdf['range'] == 'range_(19, inf)')
+    & (mdf['split'] == 12)
+    & (mdf['range'] == 'range_(13, inf)')
 ]
 
 sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
@@ -138,9 +137,10 @@ plt.title('Or dataset')
 # <codecell>
 last_ckpt = (
     mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
+    # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(6)
 )
 
-# last_ckpt = mdf[mdf['ckpt'] == 2000]
+# last_ckpt = mdf[mdf['ckpt'] == 750]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
@@ -160,9 +160,9 @@ g.figure.tight_layout()
 mdf = plot_df.copy()
 mdf = mdf[
     (mdf['task'] == 'prop_php')
-    & (mdf['split'] == 80)
-    & (mdf['range'] == 'range_(81, inf)')
-    # & (mdf['range'] == 'range_(1, 81)')
+    & (mdf['split'] == 60)
+    & (mdf['range'] == 'range_(61, inf)')
+    # & (mdf['range'] == 'range_(1, 61)')
 ]
 
 g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
