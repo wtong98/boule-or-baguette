@@ -37,7 +37,7 @@ task_to_splits = {
 }
 
 task_to_test_splits = {
-    'or': [18],
+    'or': [18, 30, 45],
 }
 
 
