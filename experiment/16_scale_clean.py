@@ -207,7 +207,7 @@ mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=0.95)
 # g = sns.heatmap(mdf, square=False)
 
 xs = 2**np.linspace(-5, 8)
@@ -221,7 +221,7 @@ plt.show()
 
 
 # <codecell>
-df = collate_dfs('remote/16_scale_clean/ar_depth', show_progress=True)
+df = collate_dfs('remote/16_scale_clean/ar_depth/set1_bare', show_progress=True)
 df
 
 # %%
@@ -276,7 +276,7 @@ mdf = mdf.pivot(index='n_depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=0.95)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 11 - 0.5 * xs, color='cyan', linestyle='dashed')
