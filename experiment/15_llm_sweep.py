@@ -12,11 +12,11 @@ from common import collate_dfs, set_theme
 # set_theme()
 
 # <codecell>
-df1 = collate_dfs('remote/15_llm_sweep/gemma', show_progress=True)
-# df2 = collate_dfs('remote/15_llm_sweep/qwen_php', show_progress=True)
+# df1 = collate_dfs('remote/15_llm_sweep/gemma', show_progress=True)
+df2 = collate_dfs('remote/15_llm_sweep/qwen_php', show_progress=True)
 # df3 = collate_dfs('remote/15_llm_sweep/qwen_or_exp', show_progress=True)
 
-df = df1
+df = df2
 # df = pd.concat([df1, df2, df3], ignore_index=True)
 
 # <codecell>
@@ -160,8 +160,11 @@ g.figure.tight_layout()
 mdf = plot_df.copy()
 mdf = mdf[
     (mdf['task'] == 'prop_php')
-    & (mdf['split'] == 60)
-    & (mdf['range'] == 'range_(61, inf)')
+    & (mdf['split'] == 80)
+    # & (mdf['range'] == 'range_(1, 81)')
+    # & (mdf['range'] == 'range_(81, 161)')
+    # & (mdf['range'] == 'range_(161, 221)')
+    & (mdf['range'] == 'range_(221, inf)')
     # & (mdf['range'] == 'range_(1, 61)')
 ]
 
@@ -175,9 +178,8 @@ last_ckpt = (
     mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
 )
 
-# mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).max()
 
-# last_ckpt = mdf[mdf['ckpt'] == 500]
+last_ckpt = mdf[mdf['ckpt'] == 1000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'], hue_order=['DP', 'CoT'])

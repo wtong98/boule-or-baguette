@@ -38,11 +38,11 @@ task_to_ds_path = {
 
 # Corresponds roughly to 50,90 percentiles
 task_to_splits = {
-    'php': [80]
+    'php': [60]
 }
 
 task_to_test_splits = {
-    'php': [80, 160, 220]
+    'php': [60, 160, 220]
 }
 
 
@@ -69,10 +69,11 @@ for i in itr_ids:
             'task_name': task,
             'batch_size': batch_size,
             'accum_steps': accum_steps,
+            'max_steps': 2_000,
             'num_samples': 20,
             'max_length': 32768 if task == 'php' else 2048,
-            'log_every': 100 if prompt == 'dp' else 1_000_000,  # set very large to disable
-            'save_every': 100,
+            'log_every': 250 if prompt == 'dp' else 1_000_000,  # set very large to disable
+            'save_every': 250,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],

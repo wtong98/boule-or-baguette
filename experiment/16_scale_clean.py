@@ -152,7 +152,7 @@ plt.show()
 
 
 # <codecell>
-df = collate_dfs('remote/16_scale_clean/ar_breadth/set1_bare', show_progress=True)
+df = collate_dfs('remote/16_scale_clean/ar_breadth', show_progress=True)
 df
 
 # %%
@@ -197,7 +197,7 @@ plot_df
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[(mdf['test_n_hop'] == 0.5)
-          & (mdf['n_depth'] == 10)
+          & (mdf['n_depth'] == 8)
           ]
 
 
@@ -211,7 +211,7 @@ g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 # g = sns.heatmap(mdf, square=False)
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 23 - 2 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 40 - 2 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('Breadth (B)')
 g.set_xlabel('Hidden (H)')
