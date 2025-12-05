@@ -67,7 +67,8 @@ def evaluate(model, params, lora_req, succ_id, fail_id, num_samples=100):
     for r, val_ds in tqdm(zip(ranges, val_ds_set), total=len(val_ds_set)):
         ds = val_ds.shuffle().select(range(num_samples))
         
-        prompts = [ex['prompt'] for ex in ds]
+        prompts = [ex['prompt'] + '|' for ex in ds]
+        print('===== CHECK PIPE =====', prompts[0])
         labs = [ex['is_true'] for ex in ds]
         
         outputs = model.generate(prompts, params, lora_request=lora_req)

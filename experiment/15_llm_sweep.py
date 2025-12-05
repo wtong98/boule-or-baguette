@@ -12,12 +12,17 @@ from common import collate_dfs, set_theme
 # set_theme()
 
 # <codecell>
-# df1 = collate_dfs('remote/15_llm_sweep/gemma', show_progress=True)
-df2 = collate_dfs('remote/15_llm_sweep/qwen_php', show_progress=True)
-# df3 = collate_dfs('remote/15_llm_sweep/qwen_or_exp', show_progress=True)
+dirs = [
+    'remote/15_llm_sweep/gemma',
+    'remote/15_llm_sweep/gemma_or',
+    'remote/15_llm_sweep/qwen',
+    'remote/15_llm_sweep/qwen_or',
+    'remote/15_llm_sweep/qwen_php',
+]
 
-df = df2
-# df = pd.concat([df1, df2, df3], ignore_index=True)
+dfs = [collate_dfs(d, show_progress=True) for d in dirs]
+df = pd.concat(dfs, ignore_index=True)
+df
 
 # <codecell>
 # NOTE: why are there NaN entries?
@@ -124,9 +129,11 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'exp_prop_or')
-    & (mdf['split'] == 12)
-    & (mdf['range'] == 'range_(13, inf)')
+    (mdf['task'] == 'gemma_prop_or')
+    # & (mdf['range'] == 'range_(1, 19)')
+    # & (mdf['range'] == 'range_(19, 31)')
+    # & (mdf['range'] == 'range_(31, 46)')
+    # & (mdf['range'] == 'range_(46, inf)')
 ]
 
 sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
