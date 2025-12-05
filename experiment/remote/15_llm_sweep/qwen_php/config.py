@@ -38,11 +38,11 @@ task_to_ds_path = {
 
 # Corresponds roughly to 50,90 percentiles
 task_to_splits = {
-    'php': [60]
+    'php': [76]
 }
 
 task_to_test_splits = {
-    'php': [60, 160, 220]
+    'php': [76, 170, 277]
 }
 
 

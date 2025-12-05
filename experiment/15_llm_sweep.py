@@ -133,8 +133,9 @@ mdf = mdf[
     # & (mdf['range'] == 'range_(1, 19)')
     # & (mdf['range'] == 'range_(19, 31)')
     # & (mdf['range'] == 'range_(31, 46)')
-    # & (mdf['range'] == 'range_(46, inf)')
+    & (mdf['range'] == 'range_(46, inf)')
 ]
+
 
 sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
 
@@ -167,12 +168,11 @@ g.figure.tight_layout()
 mdf = plot_df.copy()
 mdf = mdf[
     (mdf['task'] == 'prop_php')
-    & (mdf['split'] == 80)
-    # & (mdf['range'] == 'range_(1, 81)')
-    # & (mdf['range'] == 'range_(81, 161)')
+    # & (mdf['split'] == 60)
+    # & (mdf['range'] == 'range_(1, 61)')
+    # & (mdf['range'] == 'range_(61, 161)')
     # & (mdf['range'] == 'range_(161, 221)')
     & (mdf['range'] == 'range_(221, inf)')
-    # & (mdf['range'] == 'range_(1, 61)')
 ]
 
 g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
@@ -186,7 +186,7 @@ last_ckpt = (
 )
 
 
-last_ckpt = mdf[mdf['ckpt'] == 1000]
+# last_ckpt = mdf[mdf['ckpt'] == 1000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'], hue_order=['DP', 'CoT'])

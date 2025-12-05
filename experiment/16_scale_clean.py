@@ -289,7 +289,7 @@ plt.show()
 
 
 # <codecell>
-df = collate_dfs('remote/16_scale_clean/gen/', show_progress=True)
+df = collate_dfs('remote/16_scale_clean/gen/set', show_progress=True)
 df
 
 # <codecell>
@@ -349,16 +349,17 @@ train_split = np.round(depth * n_hop_prop)
 mdf = mdf[
     (mdf['n_hop_prop'] == n_hop_prop)
     & (mdf['depth'] == depth)
+    # & (mdf['name'] == 'AR')
 ]
 
-g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', style='name')
+g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', style='name', legend='full')
 g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
 g.set_title('DP generalization')
 
 # plt.savefig(f'fig/dp_gen_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
 
 # <codecell>
-adf = mdf[mdf['test_n_hop'] < 15]
+# adf = mdf[mdf['test_n_hop'] < 15]
 # adf = mdf.copy()
 
 g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5, marker='o')
