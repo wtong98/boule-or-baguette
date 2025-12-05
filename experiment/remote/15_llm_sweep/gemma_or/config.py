@@ -11,8 +11,8 @@ itr_ids = list(range(3))
 base_len = 1024
 
 model_sets = [
-    {'name': 'google/gemma-3-1b-pt', 'bs': 32},
-    {'name': 'google/gemma-3-4b-pt', 'bs': 32},
+    {'name': 'google/gemma-3-1b-pt', 'bs': 24},
+    {'name': 'google/gemma-3-4b-pt', 'bs': 24},
     {'name': 'google/gemma-3-12b-pt', 'bs': 16},
     {'name': 'google/gemma-3-27b-pt', 'bs': 8},
 ]
