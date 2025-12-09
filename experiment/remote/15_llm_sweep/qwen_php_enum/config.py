@@ -72,8 +72,8 @@ for i in itr_ids:
             'max_steps': 2_000,
             'num_samples': 20,
             'max_length': 32768 if task == 'php' else 2048,
-            'log_every': 250 if prompt == 'dp' else 1_000_000,  # set very large to disable
-            'save_every': 250,
+            'log_every': 100 if prompt == 'dp' else 1_000_000,  # set very large to disable
+            'save_every': 100,
             'ds_path': task_to_ds_path[task],
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],
