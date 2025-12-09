@@ -35,7 +35,7 @@ def make_ds(ds_path, depth, split):
 
 
 def score(preds, labs, succ_id, fail_id):
-    is_true = torch.tensor(labs)
+    is_true = torch.tensor(labs).to('cuda')
 
     t = torch.argmax((preds == succ_id).int(), axis=-1)
     f = torch.argmax((preds == fail_id).int(), axis=-1)
@@ -48,10 +48,10 @@ def score(preds, labs, succ_id, fail_id):
     false_pos = (~is_true) * pred_is_true
     false_neg = is_true * pred_is_false
 
-    true_pos = torch.mean(true_pos.float()).item()
-    true_neg = torch.mean(true_neg.float()).item()
-    false_pos = torch.mean(false_pos.float()).item()
-    false_neg = torch.mean(false_neg.float()).item()
+    true_pos = torch.mean(true_pos.float()).to('cpu').item()
+    true_neg = torch.mean(true_neg.float()).to('cpu').item()
+    false_pos = torch.mean(false_pos.float()).to('cpu').item()
+    false_neg = torch.mean(false_neg.float()).to('cpu').item()
     
     return {
         'gen_acc': true_pos + true_neg,
@@ -67,11 +67,11 @@ def evaluate(model, params, lora_req, succ_id, fail_id, num_samples=100):
     for r, val_ds in tqdm(zip(ranges, val_ds_set), total=len(val_ds_set)):
         ds = val_ds.shuffle().select(range(num_samples))
         
-        prompts = [ex['prompt'] + '|' for ex in ds]
+        prompts = [ex['prompt'] for ex in ds]
         labs = [ex['is_true'] for ex in ds]
         
         outputs = model.generate(prompts, params, lora_request=lora_req)
-        preds = torch.nested.nested_tensor([o.outputs[0].token_ids for o in outputs], layout=torch.jagged)
+        preds = torch.nested.nested_tensor([o.outputs[0].token_ids for o in outputs], layout=torch.jagged).to('cuda')
         preds = preds.to_padded_tensor(0)
         
         res = score(preds, labs, succ_id, fail_id)
@@ -111,16 +111,12 @@ if len(val_ds_set) > 2:
     full_val_ds = make_ds(ds_path, interval, split='range')
     val_ds_set.append(full_val_ds)
 
-
 model_name = run_config['model_name']
-max_length = run_config['max_test_length']
+max_length = run_config['max_length']
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-succ_id = tokenizer.convert_tokens_to_ids('success')
-fail_id = tokenizer.convert_tokens_to_ids('failure')
-
-assert type(succ_id) is int, "Token 'success' not found in tokenizer vocab"
-assert type(fail_id) is int, "Token 'failure' not found in tokenizer vocab"
+succ_id = tokenizer.encode('success')[0]
+fail_id = tokenizer.encode('failure')[0]
 
 model = LLM(model_name, quantization='bitsandbytes', enable_lora=True)
 params = SamplingParams(max_tokens=max_length, temperature=0)
