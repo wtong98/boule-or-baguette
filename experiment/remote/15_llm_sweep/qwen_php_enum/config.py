@@ -4,7 +4,7 @@
 import itertools
 import sys
 sys.path.append('../../../../')
-from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_text_ds_path
+from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_enum_text_ds_path
 
 itr_ids = list(range(3))
 
@@ -33,16 +33,16 @@ task_to_ds_path = {
     'full': full_text_ds_path,
     'imply': imply_text_ds_path,
     'or': or_text_ds_path,
-    'php': php_text_ds_path,
+    'php': php_enum_text_ds_path,
 }
 
 # Corresponds roughly to 50,90 percentiles
 task_to_splits = {
-    'php': [76]
+    'php': [60]
 }
 
 task_to_test_splits = {
-    'php': [76, 170, 277]
+    'php': [60, 120]
 }
 
 
@@ -78,7 +78,7 @@ for i in itr_ids:
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],
             'prompt': prompt,
-            'project_name': f'prop_{task}',
+            'project_name': f'prop_{task}_enum',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
             'packing': False
             # 'packing': True if prompt != 'dp' else False
