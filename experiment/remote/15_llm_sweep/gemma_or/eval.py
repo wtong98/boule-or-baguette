@@ -19,7 +19,7 @@ from task.prop import PropTask
 
 from config import configs
 
-num_eval_samples = 1000
+num_eval_samples = 100
 
 
 datasets.disable_caching()
