@@ -17,7 +17,7 @@ dirs = [
     'remote/15_llm_sweep/gemma_or',
     'remote/15_llm_sweep/qwen',
     'remote/15_llm_sweep/qwen_or',
-    'remote/15_llm_sweep/qwen_php',
+    'remote/15_llm_sweep/qwen_php_par',
 ]
 
 dfs = [collate_dfs(d, show_progress=True) for d in dirs]
@@ -129,14 +129,14 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    # (mdf['task'] == 'gemma_prop_or')
-    (mdf['task'] == 'prop_or')
+    (mdf['task'] == 'gemma_prop_or')
+    # (mdf['task'] == 'prop_or')
     # & (mdf['range'] == 'range_(1, 19)')
     # & (mdf['range'] == 'range_(19, 31)')
-    & (mdf['range'] == 'range_(31, 46)')
+    # & (mdf['range'] == 'range_(31, 46)')
     # & (mdf['range'] == 'range_(46, inf)')
+    # & (mdf['range'] == 'range_(19, inf)')
 ]
-
 
 sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
 
@@ -173,7 +173,7 @@ mdf = mdf[
     # & (mdf['range'] == 'range_(1, 77)')
     # & (mdf['range'] == 'range_(77, 171)')
     # & (mdf['range'] == 'range_(171, 278)')
-    & (mdf['range'] == 'range_(278, inf)')
+    # & (mdf['range'] == 'range_(278, inf)')
 ]
 
 g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
