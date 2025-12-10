@@ -84,19 +84,27 @@ def make_ds(depth, split):
     task.load_ds()
 
     ds = datasets.concatenate_datasets([task.true_ds, task.false_ds]).shuffle()
-    # TODO: hot-fix to adjust completion parsing, fix in dataset source
-    ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=16)
 
     if run_config['prompt'] == 'dp':
-        ds = ds.map(lambda x: {'completion': '<success />' if x['is_true'] else '<failure />'}, num_proc=16)
+        ds = ds.map(lambda x: 
+                    {
+                        'prompt': x['prompt'] + '|',
+                        'completion': '<success />' if x['is_true'] else '<failure />'
+                    }, 
+                    num_proc=4)
+
     elif run_config['prompt'] == 'dp_full':
         ds = ds.map(lambda x: {
             'prompt': x['prompt'] + x['completion'][:-11] + '|', # all except final classification
             'completion': '<success />' if x['is_true'] else '<failure />'
         }, num_proc=16)
+
     else:
         assert run_config['prompt'] == 'ar_cot', \
         f"warn: unrecognized prompt type {run_config['prompt']}, defaulting to ar_cot"
+
+        # TODO: hot-fix to adjust completion parsing, fix in dataset source
+        ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=4)
 
     # temporarily reduce size for debugging
     # ds = ds.select(range(1000))
