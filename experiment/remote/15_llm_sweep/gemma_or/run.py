@@ -79,12 +79,16 @@ def score(preds, labels, succ_id, fail_id):
 ds_path = run_config['ds_path']
 print('info: using ds_path =', ds_path)
 
+
 def make_ds(depth, split):
     task = PropTask(depth=depth, split=split, cot='text', ds_path=ds_path)
     task.load_ds()
 
     ds = datasets.concatenate_datasets([task.true_ds, task.false_ds]).shuffle()
+    return ds
 
+
+def format_ds(ds):
     if run_config['prompt'] == 'dp':
         ds = ds.map(lambda x: 
                     {
@@ -92,22 +96,13 @@ def make_ds(depth, split):
                         'completion': '<success />' if x['is_true'] else '<failure />'
                     }, 
                     num_proc=4)
-
-    elif run_config['prompt'] == 'dp_full':
-        ds = ds.map(lambda x: {
-            'prompt': x['prompt'] + x['completion'][:-11] + '|', # all except final classification
-            'completion': '<success />' if x['is_true'] else '<failure />'
-        }, num_proc=16)
-
-    else:
-        assert run_config['prompt'] == 'ar_cot', \
-        f"warn: unrecognized prompt type {run_config['prompt']}, defaulting to ar_cot"
-
+    elif run_config['prompt'] == 'ar_cot':
         # TODO: hot-fix to adjust completion parsing, fix in dataset source
         ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=4)
-
-    # temporarily reduce size for debugging
-    # ds = ds.select(range(1000))
+    else:
+        print(f"warn: unrecognized prompt type {run_config['prompt']}, defaulting to ar_cot")
+        ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=4)
+    
     return ds
 
 
@@ -115,12 +110,14 @@ test_splits = run_config['test_splits']
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
-train_split = run_config['train_split']
-train_ds = make_ds(train_split, 'train')
-test_ds = make_ds(train_split, 'test')
-test_ds = test_ds.select(range(100))  # TODO: should preferably incorporate logic by subsampling during training
+n_train_examples = run_config['batch_size'] * run_config['accum_steps'] * run_config['max_steps']
+n_val_examples = run_config['num_samples'] * 10
 
-val_ds_set = [make_ds(r, split='range') for r in ranges]
+train_split = run_config['train_split']
+train_ds = format_ds(make_ds(train_split, 'train').select(range(n_train_examples)))
+test_ds = format_ds(make_ds(train_split, 'test').select(range(100)))
+
+val_ds_set = [format_ds(make_ds(r, split='range').select(range(n_val_examples))) for r in ranges]
 
 
 quant_config = BitsAndBytesConfig(
