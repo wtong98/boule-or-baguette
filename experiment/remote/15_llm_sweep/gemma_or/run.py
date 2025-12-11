@@ -95,13 +95,13 @@ def format_ds(ds):
                         'prompt': x['prompt'] + '|',
                         'completion': '<success />' if x['is_true'] else '<failure />'
                     }, 
-                    num_proc=4)
+                    num_proc=16)
     elif run_config['prompt'] == 'ar_cot':
         # TODO: hot-fix to adjust completion parsing, fix in dataset source
-        ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=4)
+        ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=16)
     else:
         print(f"warn: unrecognized prompt type {run_config['prompt']}, defaulting to ar_cot")
-        ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=4)
+        ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=16)
     
     return ds
 
