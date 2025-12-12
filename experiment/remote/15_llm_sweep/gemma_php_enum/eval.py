@@ -19,8 +19,7 @@ from task.prop import PropTask
 
 from config import configs
 
-num_eval_samples = 1000
-
+num_eval_samples = 100
 
 datasets.disable_caching()
 torch.set_grad_enabled(False)
@@ -106,7 +105,7 @@ ranges = list(zip(range_hops[:-1], range_hops[1:]))
 val_ds_set = [make_ds(ds_path, r, split='range') for r in ranges]
 
 model_name = run_config['model_name']
-max_length = run_config['max_test_length']
+max_length = run_config['max_test_length'] if 'max_test_length' in run_config else run_config['max_length']
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 succ_id = tokenizer.convert_tokens_to_ids('success')
