@@ -18,6 +18,7 @@ dirs = [
     'remote/15_llm_sweep/qwen',
     'remote/15_llm_sweep/qwen_or',
     'remote/15_llm_sweep/qwen_php_par',
+    'remote/15_llm_sweep/qwen_php_enum',
 ]
 
 dfs = [collate_dfs(d, show_progress=True) for d in dirs]
@@ -129,13 +130,13 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'gemma_prop_or')
-    # (mdf['task'] == 'prop_or')
+    # (mdf['task'] == 'gemma_prop_or')
+    (mdf['task'] == 'prop_or')
     # & (mdf['range'] == 'range_(1, 19)')
     # & (mdf['range'] == 'range_(19, 31)')
     # & (mdf['range'] == 'range_(31, 46)')
     # & (mdf['range'] == 'range_(46, inf)')
-    # & (mdf['range'] == 'range_(19, inf)')
+    & (mdf['range'] == 'range_(19, inf)')
 ]
 
 sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
@@ -196,6 +197,43 @@ g.legend(title=None)
 
 
 g.set_ylim((0.3, 1))
+g.set_title('PHP (narrow, very deep)')
+g.set_xlabel('Qwen2.5 Coder Size')
+g.set_ylabel('Accuracy')
+g.figure.tight_layout()
+# plt.savefig('fig/qwen_php.png')
+
+
+# %%
+mdf = plot_df.copy()
+mdf = mdf[
+    (mdf['task'] == 'prop_php_enum')
+    # & (mdf['range'] == 'range_(1, 61)')
+    # & (mdf['range'] == 'range_(61, 121)')
+    # & (mdf['range'] == 'range_(121, inf)')
+    & (mdf['range'] == 'range_(61, inf)')
+]
+
+g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
+plt.title('PHP dataset')
+# plt.savefig('fig/qwen_php_time.png')
+
+# <codecell>
+last_ckpt = (
+    mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
+)
+
+
+# last_ckpt = mdf[mdf['ckpt'] == 2000]
+last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
+
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'], hue_order=['DP', 'CoT'])
+g.legend(title=None)
+# g.legend_.set_visible(False)
+
+
+# g.set_ylim((0.3, 1))
 g.set_title('PHP (narrow, very deep)')
 g.set_xlabel('Qwen2.5 Coder Size')
 g.set_ylabel('Accuracy')

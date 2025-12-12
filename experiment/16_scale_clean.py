@@ -8,10 +8,9 @@ import seaborn as sns
 
 import sys
 sys.path.append('../')
-from common import collate_dfs
+from common import collate_dfs, set_theme
 
-# NOTE: would be nice to have larger n_arms in sweep
-# NOTE: may be able to get away with fewer training iterations?
+set_theme()
 
 # <codecell>
 df = collate_dfs('remote/16_scale_clean/dp_breadth', show_progress=True)
@@ -69,16 +68,18 @@ mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
-# g = sns.heatmap(mdf, square=False)
+g = sns.heatmap(mdf, square=True, vmin=0.6, vmax=0.9)
+g.tick_params(axis='both', labelsize=10)
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 45 - 2 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 45 - 2 * xs, color='darkslategray', linestyle='dashed')
+g.text(18, 12, r'$\propto B^2$', color='darkslategray', fontsize=12)
 
 g.set_ylabel('Breadth (B)')
 g.set_xlabel('Hidden (H)')
 
 plt.title('DP breadth')
+plt.tight_layout()
 plt.show()
 
 
@@ -138,18 +139,22 @@ mdf = mdf.pivot(index='n_depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
+g = sns.heatmap(mdf, square=True, vmin=0.6, vmax=0.9)
+g.tick_params(axis='both', labelsize=10)
+
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
+g.plot(xs, 30 - 1 * xs, color='darkslategray', linestyle='dashed')
+g.text(19, 14, r'$\propto D$', color='darkslategray', fontsize=12)
 
 g.set_ylabel('Depth (D)')
 g.set_xlabel('Hidden (H)')
 
 plt.title('DP depth')
+plt.tight_layout()
 plt.show()
 
-
+# TODO: finish formatting and plot <-- STOPPED HERE
 
 # <codecell>
 df = collate_dfs('remote/16_scale_clean/ar_breadth', show_progress=True)
@@ -276,7 +281,8 @@ mdf = mdf.pivot(index='n_depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=0.9)
+# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=0.9)
+g = sns.heatmap(mdf, square=False, vmin=0.65, vmax=0.9)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 33 - 0.5 * xs, color='cyan', linestyle='dashed')
