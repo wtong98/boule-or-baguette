@@ -11,10 +11,10 @@ itr_ids = list(range(3))
 base_len = 1024
 
 model_sets = [
-    {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 8, '32k_bs': 1},
+    # {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 1},
+    # {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 32, '32k_bs': 1},
+    # {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 32, '32k_bs': 1},
+    {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 16, '32k_bs': 1},
 ]
 
 prompt_styles = [
