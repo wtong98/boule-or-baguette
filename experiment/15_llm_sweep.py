@@ -15,6 +15,8 @@ from common import collate_dfs, set_theme
 dirs = [
     'remote/15_llm_sweep/gemma',
     'remote/15_llm_sweep/gemma_or',
+    'remote/15_llm_sweep/gemma_php_par',
+    'remote/15_llm_sweep/gemma_php_enum',
     'remote/15_llm_sweep/qwen',
     'remote/15_llm_sweep/qwen_or',
     'remote/15_llm_sweep/qwen_php_par',
@@ -51,6 +53,7 @@ plot_df = pd.concat(
 )
 
 plot_df
+plot_df['task'].unique()
 
 # <codecell>
 mdf = plot_df.copy()
@@ -130,13 +133,14 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    # (mdf['task'] == 'gemma_prop_or')
-    (mdf['task'] == 'prop_or')
+    (mdf['task'] == 'gemma_prop_or')
+    # (mdf['task'] == 'prop_or')
     # & (mdf['range'] == 'range_(1, 19)')
     # & (mdf['range'] == 'range_(19, 31)')
     # & (mdf['range'] == 'range_(31, 46)')
     # & (mdf['range'] == 'range_(46, inf)')
     & (mdf['range'] == 'range_(19, inf)')
+    
 ]
 
 sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
@@ -169,13 +173,15 @@ g.figure.tight_layout()
 # %%
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'prop_php')
-    # & (mdf['split'] == 60)
-    # & (mdf['range'] == 'range_(1, 77)')
-    # & (mdf['range'] == 'range_(77, 171)')
-    # & (mdf['range'] == 'range_(171, 278)')
-    # & (mdf['range'] == 'range_(278, inf)')
+    (mdf['task'] == 'prop_php_par')
+    # (mdf['task'] == 'gemma_prop_php_par')
+    # & (mdf['range'] == 'range_(1, 81)')
+    # & (mdf['range'] == 'range_(81, 171)')
+    & (mdf['range'] == 'range_(171, 281)')
+    # & (mdf['range'] == 'range_(281, inf)')
+    # & (mdf['range'] == 'range_(81, inf)')
 ]
+
 
 g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
 sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
@@ -188,10 +194,11 @@ last_ckpt = (
 )
 
 
-# last_ckpt = mdf[mdf['ckpt'] == 2000]
+last_ckpt = mdf[mdf['ckpt'] == 500]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'], hue_order=['DP', 'CoT'])
+# g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'], hue_order=['DP', 'CoT'])
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
 g.legend(title=None)
 # g.legend_.set_visible(False)
 
@@ -207,7 +214,7 @@ g.figure.tight_layout()
 # %%
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'prop_php_enum')
+    (mdf['task'] == 'gemma_prop_php_par')  # NOTE: project mis-named
     # & (mdf['range'] == 'range_(1, 61)')
     # & (mdf['range'] == 'range_(61, 121)')
     # & (mdf['range'] == 'range_(121, inf)')

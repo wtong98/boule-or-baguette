@@ -71,7 +71,7 @@ for i in itr_ids:
             'splits': task_to_splits[task],
             'test_splits': task_to_test_splits[task],
             'prompt': prompt,
-            'project_name': f'gemma_prop_{task}_par',
+            'project_name': f'gemma_prop_{task}_enum',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
             'packing': False
             # 'packing': True if prompt != 'dp' else False

@@ -234,49 +234,53 @@ def catalan_adv(nodes, op):
                 yield op(left, right)
 
 
-# def pigeon_set(repeats=1, *args, **kwargs):
-#     all_pigeons = []
-#     count = 0
-#     seed = kwargs.pop('seed', None)
-#     rng = np.random.default_rng(seed)
+def pigeon_set(repeats=1, *args, **kwargs):
+    all_pigeons = []
+    count = 0
+    seed = kwargs.pop('seed', None)
+    rng = np.random.default_rng(seed)
     
-#     while count < repeats:
-#         pigeons = list(pigeon(rng, *args, **kwargs))
-#         if len(pigeons) != 0:
-#             all_pigeons.extend(pigeons)
-#             count += 1
+    while count < repeats:
+        pigeons = list(pigeon(rng, *args, **kwargs))
+        if len(pigeons) != 0:
+            all_pigeons.extend(pigeons)
+            count += 1
     
-#     return all_pigeons
+    return all_pigeons
 
 
-# def pigeon(rng, n_pigeons, n_holes, pigeon_occupation_ablation_prop=None, roommate_ablation_prop=None):
-#     atoms = [[Atom(f'p{i}{j}') for j in range(n_holes)] for i in range(n_pigeons)]
+def pigeon(rng, n_pigeons, n_holes, pigeon_occupation_ablation_prop=None, roommate_ablation_prop=None):
+    atoms = [[Atom(f'p{i}{j}') for j in range(n_holes)] for i in range(n_pigeons)]
 
-#     pigeons = []
-#     for i in range(n_pigeons):
-#         curr_p = atoms[i]
-#         if pigeon_occupation_ablation_prop is not None:
-#             keep_idxs = rng.binomial(1, pigeon_occupation_ablation_prop, size=len(curr_p)).astype(bool)
-#             curr_p = [curr_p[j] for j, keep in enumerate(keep_idxs) if keep]
+    pigeons = []
+    for i in range(n_pigeons):
+        curr_p = atoms[i]
+        if pigeon_occupation_ablation_prop is not None:
+            keep_idxs = rng.binomial(1, pigeon_occupation_ablation_prop, size=len(curr_p)).astype(bool)
+            if np.sum(keep_idxs) == 0:
+                keep_idxs[rng.integers(0, len(keep_idxs))] = True
+            curr_p = [curr_p[j] for j, keep in enumerate(keep_idxs) if keep]
 
-#         pigeons.append(catalan_adv(curr_p, Or))
+        pigeons.append(catalan_adv(curr_p, Or))
 
-#     pigeons_in_a_hole = catalan_adv(pigeons, And)
+    pigeons_in_a_hole = catalan_adv(pigeons, And)
 
-#     all_pigeon_roommates = []
-#     for i1 in range(n_pigeons):
-#         for i2 in range(n_pigeons):
-#             if i1 != i2:
-#                 statements = [And(atoms[i1][j], atoms[i2][j]) for j in range(n_holes)]
-#                 all_pigeon_roommates.extend(statements)
+    all_pigeon_roommates = []
+    for i1 in range(n_pigeons):
+        for i2 in range(n_pigeons):
+            if i1 != i2:
+                statements = [And(atoms[i1][j], atoms[i2][j]) for j in range(n_holes)]
+                all_pigeon_roommates.extend(statements)
 
-#     if roommate_ablation_prop is not None:
-#         keep_idxs = rng.binomial(1, roommate_ablation_prop, size=len(all_pigeon_roommates)).astype(bool)
-#         all_pigeon_roommates = [all_pigeon_roommates[i] for i, keep in enumerate(keep_idxs) if keep]
+    if roommate_ablation_prop is not None:
+        keep_idxs = rng.binomial(1, roommate_ablation_prop, size=len(all_pigeon_roommates)).astype(bool)
+        if np.sum(keep_idxs) == 0:
+            keep_idxs[rng.integers(0, len(keep_idxs))] = True
+        all_pigeon_roommates = [all_pigeon_roommates[i] for i, keep in enumerate(keep_idxs) if keep]
 
-#     all_pigeon_roommates = catalan_adv(all_pigeon_roommates, Or)
-#     php = catalan_adv([pigeons_in_a_hole, all_pigeon_roommates], Implies)
-#     return php
+    all_pigeon_roommates = catalan_adv(all_pigeon_roommates, Or)
+    php = catalan_adv([pigeons_in_a_hole, all_pigeon_roommates], Implies)
+    return php
 
 
 # def gen_php(seed=5):
@@ -316,57 +320,57 @@ def catalan_adv(nodes, op):
 #     all_pigeons = list(it.chain.from_iterable([pigeon_set(**params) for params in tqdm(param_sets)]))
 #     return all_pigeons
 
-def pigeon_set(repeats=1, *args, **kwargs):
-    all_pigeons = []
-    seed = kwargs.pop('seed', None)
-    rng = np.random.default_rng(seed)
+# def pigeon_set(repeats=1, *args, **kwargs):
+#     all_pigeons = []
+#     seed = kwargs.pop('seed', None)
+#     rng = np.random.default_rng(seed)
     
-    all_pigeons = [pigeon(rng, *args, **kwargs) for _ in range(repeats)]
-    return all_pigeons
+#     all_pigeons = [pigeon(rng, *args, **kwargs) for _ in range(repeats)]
+#     return all_pigeons
 
 
-def pigeon(rng, n_pigeons, n_holes, pigeon_occupation_ablation_prop=None, roommate_ablation_prop=None):
-    atoms = [[Atom(f'p{i}{j}') for j in range(n_holes)] for i in range(n_pigeons)]
+# def pigeon(rng, n_pigeons, n_holes, pigeon_occupation_ablation_prop=None, roommate_ablation_prop=None):
+#     atoms = [[Atom(f'p{i}{j}') for j in range(n_holes)] for i in range(n_pigeons)]
 
-    pigeons = []
-    for i in range(n_pigeons):
-        curr_p = atoms[i]
-        if pigeon_occupation_ablation_prop is not None:
-            keep_idxs = rng.binomial(1, pigeon_occupation_ablation_prop, size=len(curr_p)).astype(bool)
+#     pigeons = []
+#     for i in range(n_pigeons):
+#         curr_p = atoms[i]
+#         if pigeon_occupation_ablation_prop is not None:
+#             keep_idxs = rng.binomial(1, pigeon_occupation_ablation_prop, size=len(curr_p)).astype(bool)
 
-            if np.sum(keep_idxs) == 0:
-                keep_idxs[rng.integers(0, len(keep_idxs))] = True
+#             if np.sum(keep_idxs) == 0:
+#                 keep_idxs[rng.integers(0, len(keep_idxs))] = True
 
-            curr_p = [curr_p[j] for j, keep in enumerate(keep_idxs) if keep]
+#             curr_p = [curr_p[j] for j, keep in enumerate(keep_idxs) if keep]
 
-        pigeons.append(random_group(Or, curr_p, seed=new_seed(rng)))
+#         pigeons.append(random_group(Or, curr_p, seed=new_seed(rng)))
 
-    pigeons_in_a_hole = random_group(And, pigeons, seed=new_seed(rng))
+#     pigeons_in_a_hole = random_group(And, pigeons, seed=new_seed(rng))
 
-    all_pigeon_roommates = []
-    for i1 in range(n_pigeons):
-        for i2 in range(n_pigeons):
-            if i1 != i2:
-                statements = [And(atoms[i1][j], atoms[i2][j]) for j in range(n_holes)]
-                all_pigeon_roommates.extend(statements)
+#     all_pigeon_roommates = []
+#     for i1 in range(n_pigeons):
+#         for i2 in range(n_pigeons):
+#             if i1 != i2:
+#                 statements = [And(atoms[i1][j], atoms[i2][j]) for j in range(n_holes)]
+#                 all_pigeon_roommates.extend(statements)
 
-    if roommate_ablation_prop is not None:
-        keep_idxs = rng.binomial(1, roommate_ablation_prop, size=len(all_pigeon_roommates)).astype(bool)
+#     if roommate_ablation_prop is not None:
+#         keep_idxs = rng.binomial(1, roommate_ablation_prop, size=len(all_pigeon_roommates)).astype(bool)
 
-        if np.sum(keep_idxs) == 0:
-            keep_idxs[rng.integers(0, len(keep_idxs))] = True
+#         if np.sum(keep_idxs) == 0:
+#             keep_idxs[rng.integers(0, len(keep_idxs))] = True
 
-        all_pigeon_roommates = [all_pigeon_roommates[i] for i, keep in enumerate(keep_idxs) if keep]
+#         all_pigeon_roommates = [all_pigeon_roommates[i] for i, keep in enumerate(keep_idxs) if keep]
 
-    all_pigeon_roommates = random_group(Or, all_pigeon_roommates, seed=new_seed(rng))
-    php = Implies(pigeons_in_a_hole, all_pigeon_roommates)
-    return php
+#     all_pigeon_roommates = random_group(Or, all_pigeon_roommates, seed=new_seed(rng))
+#     php = Implies(pigeons_in_a_hole, all_pigeon_roommates)
+#     return php
 
 
-def gen_php(seed=5, do_start=False):
+def gen_php(seed=None, do_start=False):
     n_pigeons = 4
     n_holes = 4
-    reps_per_six_case = 500
+    reps_per_six_case = 16
 
     param_sets = []
     for n_p in range(2, n_pigeons + 1):
@@ -405,8 +409,11 @@ def gen_php(seed=5, do_start=False):
     all_pigeons = it.chain.from_iterable([pigeon_set(**params) for params in param_sets])
     return all_pigeons
 
-# all_pigeons = gen_php(do_start=True)
-# len(list(all_pigeons))
+# all_pigeons = gen_php(seed=1130, do_start=True)
+# all_pigeons = list(all_pigeons)
+# print(all_pigeons[-1])
+# len(all_pigeons)
+
 # <codecell>
 
 ### or what?
