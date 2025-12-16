@@ -6,7 +6,8 @@ import sys
 sys.path.append('../../../../')
 from task.prop import full_text_ds_path, or_text_ds_path, imply_text_ds_path, php_text_ds_path
 
-itr_ids = list(range(3))
+# itr_ids = list(range(3))
+itr_ids = [4, 5, 6]
 
 base_len = 1024
 

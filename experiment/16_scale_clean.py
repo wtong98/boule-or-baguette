@@ -72,8 +72,8 @@ g = sns.heatmap(mdf, square=True, vmin=0.6, vmax=0.9)
 g.tick_params(axis='both', labelsize=10)
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 45 - 2 * xs, color='darkslategray', linestyle='dashed')
-g.text(18, 12, r'$\propto B^2$', color='darkslategray', fontsize=12)
+g.plot(xs, 40 - 2 * xs, color='cyan', linestyle='dashed')
+g.text(6, 10, r'$\propto B^2$', color='cyan', fontsize=12)
 
 g.set_ylabel('Breadth (B)')
 g.set_xlabel('Hidden (H)')
@@ -144,8 +144,8 @@ g.tick_params(axis='both', labelsize=10)
 
 
 xs = 2**np.linspace(-5, 8)
-g.plot(xs, 30 - 1 * xs, color='darkslategray', linestyle='dashed')
-g.text(19, 14, r'$\propto D$', color='darkslategray', fontsize=12)
+g.plot(xs, 27.5 - 1 * xs, color='cyan', linestyle='dashed')
+g.text(3, 16, r'$\propto D$', color='cyan', fontsize=12)
 
 g.set_ylabel('Depth (D)')
 g.set_xlabel('Hidden (H)')
@@ -154,7 +154,6 @@ plt.title('DP depth')
 plt.tight_layout()
 plt.show()
 
-# TODO: finish formatting and plot <-- STOPPED HERE
 
 # <codecell>
 df = collate_dfs('remote/16_scale_clean/ar_breadth', show_progress=True)
@@ -212,16 +211,18 @@ mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=0.95)
-# g = sns.heatmap(mdf, square=False)
+g = sns.heatmap(mdf, square=True, vmin=0.6, vmax=0.9)
+g.tick_params(axis='both', labelsize=10)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 40 - 2 * xs, color='cyan', linestyle='dashed')
+g.text(8, 10, r'$\propto D$', color='cyan', fontsize=12)
 
 g.set_ylabel('Breadth (B)')
 g.set_xlabel('Hidden (H)')
 
 plt.title('AR breadth')
+plt.tight_layout()
 plt.show()
 
 
@@ -281,16 +282,18 @@ mdf = mdf.pivot(index='n_depth', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=0.9)
-g = sns.heatmap(mdf, square=False, vmin=0.65, vmax=0.9)
+g = sns.heatmap(mdf, square=True, vmin=0.6, vmax=0.9)
+g.tick_params(axis='both', labelsize=10)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 33 - 0.5 * xs, color='cyan', linestyle='dashed')
+g.text(10, 20, r'$\propto \sqrt{D}$', color='cyan', fontsize=12)
 
 g.set_ylabel('Depth (D)')
 g.set_xlabel('Hidden (H)')
 
 plt.title('AR depth')
+plt.tight_layout()
 plt.show()
 
 
@@ -365,15 +368,18 @@ g.set_title('DP generalization')
 # plt.savefig(f'fig/dp_gen_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
 
 # <codecell>
-# adf = mdf[mdf['test_n_hop'] < 15]
-# adf = mdf.copy()
+# TODO: consider theoretical prediction more closely <-- STOPPED HERE
 
-g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5, marker='o')
+# adf = mdf[mdf['test_n_hop'] < 15]
+adf = mdf.copy()
+
+g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5, marker='o', errorbar=None)
 g.set_xscale('log')
 g.set_yscale('log')
 
-xs = np.linspace(np.log(8), np.log(27))
+xs = np.linspace(np.log(8), np.log(20))
 g.plot(np.exp(xs), np.exp(-0.5 * xs + 1), color='red', linestyle='dashed')
+# g.plot(np.exp(xs), np.exp(-1 * xs + 2), color='red', linestyle='dashed')
 g.text(12, 0.8, r'$\propto B^{-1/2}$', color='red')
 # g.plot(np.exp(xs), np.exp(-1 * xs + 2), color='blue', linestyle='dashed')
 
