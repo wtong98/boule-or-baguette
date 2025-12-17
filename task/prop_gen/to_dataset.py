@@ -56,7 +56,8 @@ if __name__ == '__main__':
     # dataset = load_dataset('json', data_dir='data/raw_or', split='train', num_proc=16)
     # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/implies', split='train', num_proc=16)
     # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/php', split='train', num_proc=16)
-    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_par', split='train', num_proc=16)
+    dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/php_enum', split='train', num_proc=16)
+    # dataset = load_dataset('json', data_dir='/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_par', split='train', num_proc=16)
 
     # add separator to distinguish prompt and completion
     dataset = dataset.map(lambda x: {'prompt': x['input'] + '|'}, remove_columns=['input'], num_proc=16)
@@ -96,7 +97,7 @@ if __name__ == '__main__':
         
         filtered = ds.filter(filter_len, num_proc=16)
         ds_small = DatasetDict({name: subset for name, subset in filtered.items() if len(subset) > 0})
-        ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_or_par_text_{maxlen}')
+        ds_small.save_to_disk(f'/n/home09/wlt/scratch/data/prop_gen/data/hf_php_enum_text_{maxlen}')
 
     # ds.save_to_disk('/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data/hf_or_par_froz_text')
 

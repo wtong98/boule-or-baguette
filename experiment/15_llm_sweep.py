@@ -58,8 +58,8 @@ plot_df['task'].unique()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'gemma_prop_full')
-    # (mdf['task'] == 'prop_full')
+    # (mdf['task'] == 'gemma_prop_full')
+    (mdf['task'] == 'prop_full')
     # & (mdf['split'] == 4)
     & (mdf['range'] == 'range_(5, inf)')
     # & (mdf['range'] == 'range_(10, inf)')
@@ -82,6 +82,9 @@ last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
+# g = sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'], errorbar=None)
+# g = sns.stripplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
+
 g.legend(title=None)
 sns.move_legend(g, "lower right")
 

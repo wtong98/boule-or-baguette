@@ -80,6 +80,7 @@ g.set_xlabel('Hidden (H)')
 
 plt.title('DP breadth')
 plt.tight_layout()
+plt.savefig('fig/final/fig_ti/dp_breadth.svg')
 plt.show()
 
 
@@ -152,6 +153,7 @@ g.set_xlabel('Hidden (H)')
 
 plt.title('DP depth')
 plt.tight_layout()
+plt.savefig('fig/final/fig_ti/dp_depth.svg')
 plt.show()
 
 
@@ -216,13 +218,14 @@ g.tick_params(axis='both', labelsize=10)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 40 - 2 * xs, color='cyan', linestyle='dashed')
-g.text(8, 10, r'$\propto D$', color='cyan', fontsize=12)
+g.text(8, 10, r'$\propto B^2$', color='cyan', fontsize=12)
 
 g.set_ylabel('Breadth (B)')
 g.set_xlabel('Hidden (H)')
 
 plt.title('AR breadth')
 plt.tight_layout()
+plt.savefig('fig/final/fig_ti/ar_breadth.svg')
 plt.show()
 
 
@@ -294,6 +297,7 @@ g.set_xlabel('Hidden (H)')
 
 plt.title('AR depth')
 plt.tight_layout()
+plt.savefig('fig/final/fig_ti/ar_depth.svg')
 plt.show()
 
 
@@ -301,14 +305,6 @@ plt.show()
 df = collate_dfs('remote/16_scale_clean/gen/set', show_progress=True)
 df
 
-# <codecell>
-rand_idxs = np.random.choice(len(df), size=100, replace=False)
-for ex in df['hist'].iloc[rand_idxs]:
-    vals = [p['loss'] for p in ex['test']]
-    plt.plot(vals, color='C0', alpha=0.1)
-
-# df['hist'].iloc[0]['train']
-    
 
 # %%
 def extract_plot_vals(row):
@@ -358,14 +354,41 @@ train_split = np.round(depth * n_hop_prop)
 mdf = mdf[
     (mdf['n_hop_prop'] == n_hop_prop)
     & (mdf['depth'] == depth)
-    # & (mdf['name'] == 'AR')
+    & (mdf['name'] == 'DP')
 ]
 
-g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', style='name', legend='full')
+plt.gcf().set_size_inches((3.5, 2.5))
+g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='auto')
 g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
-g.set_title('DP generalization')
+g.set_xlabel('Distance ($k$)')
+g.set_ylabel('Accuracy')
+g.set_title('DP')
+g.legend(title='Breadth ($B$)', loc='upper right')
+g.set_ylim((0.5, 1))
 
-# plt.savefig(f'fig/dp_gen_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
+plt.tight_layout()
+plt.savefig('fig/final/fig_ti/dp_gen.svg')
+
+# <codecell>
+mdf = plot_df.copy()
+mdf = mdf[
+    (mdf['n_hop_prop'] == n_hop_prop)
+    & (mdf['depth'] == depth)
+    & (mdf['name'] == 'AR')
+]
+
+plt.gcf().set_size_inches((3.5, 2.5))
+g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='auto')
+g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
+g.set_xlabel('Distance ($k$)')
+g.set_ylabel('Accuracy')
+g.set_title('CoT')
+g.legend(title='Breadth ($B$)', loc='upper right')
+g.set_ylim((0.5, 1))
+
+plt.tight_layout()
+plt.savefig('fig/final/fig_ti/ar_gen.svg')
+
 
 # <codecell>
 # TODO: consider theoretical prediction more closely <-- STOPPED HERE
