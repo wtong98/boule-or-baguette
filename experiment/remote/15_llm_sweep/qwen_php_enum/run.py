@@ -84,33 +84,31 @@ def make_ds(depth, split):
     task.load_ds()
 
     ds = datasets.concatenate_datasets([task.true_ds, task.false_ds]).shuffle()
-
-    if run_config['prompt'] == 'dp':
-        ds = ds.map(lambda x: {'completion': '<success />' if x['is_true'] else '<failure />'}, num_proc=16)
-    elif run_config['prompt'] == 'dp_full':
-        ds = ds.map(lambda x: {
-            'prompt': x['prompt'] + x['completion'][:-11] + '|', # all except final classification
-            'completion': '<success />' if x['is_true'] else '<failure />'
-        }, num_proc=16)
-    else:
-        assert run_config['prompt'] == 'ar_cot', \
-        f"warn: unrecognized prompt type {run_config['prompt']}, defaulting to ar_cot"
-
-    # temporarily reduce size for debugging
-    # ds = ds.select(range(1000))
     return ds
 
 
-test_splits = run_config['splits']
+def format_ds(ds):
+    if run_config['prompt'] == 'dp':
+        ds = ds.map(lambda x: 
+                    {
+                        'completion': '<success />' if x['is_true'] else '<failure />'
+                    }, 
+                    num_proc=16)
+    return ds
+
+
+test_splits = run_config['test_splits']
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 
-train_split = run_config['train_split']
-train_ds = make_ds(train_split, 'train')
-test_ds = make_ds(train_split, 'test')
-test_ds = test_ds.select(range(100))  # TODO: should preferably incorporate logic by subsampling during training
+n_train_examples = run_config['batch_size'] * run_config['accum_steps'] * run_config['max_steps']
+n_val_examples = run_config['num_samples'] * 10
 
-val_ds_set = [make_ds(r, split='range') for r in ranges]
+train_split = run_config['train_split']
+train_ds = format_ds(make_ds(train_split, 'train').select(range(n_train_examples)))
+test_ds = format_ds(make_ds(train_split, 'test').select(range(100)))
+
+val_ds_set = [format_ds(make_ds(r, split='range').select(range(n_val_examples))) for r in ranges]
 
 
 quant_config = BitsAndBytesConfig(
