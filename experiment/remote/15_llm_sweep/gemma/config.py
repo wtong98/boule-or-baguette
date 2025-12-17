@@ -40,8 +40,8 @@ task_to_splits = {
 }
 
 task_to_test_splits = {
-    'full': [4],
-    'imply': [6],
+    'full': [4, 7, 11, 14],
+    'imply': [6, 20, 30, 45],
 }
 
 

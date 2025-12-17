@@ -141,8 +141,8 @@ mdf = mdf[
     # & (mdf['range'] == 'range_(1, 19)')
     # & (mdf['range'] == 'range_(19, 31)')
     # & (mdf['range'] == 'range_(31, 46)')
-    # & (mdf['range'] == 'range_(46, inf)')
-    & (mdf['range'] == 'range_(19, inf)')
+    & (mdf['range'] == 'range_(46, inf)')
+    # & (mdf['range'] == 'range_(19, inf)')
     
 ]
 
@@ -180,8 +180,9 @@ mdf = mdf[
     # (mdf['task'] == 'gemma_prop_php_par')
     # & (mdf['range'] == 'range_(1, 81)')
     # & (mdf['range'] == 'range_(81, 171)')
-    & (mdf['range'] == 'range_(171, 281)')
+    # & (mdf['range'] == 'range_(171, 281)')
     # & (mdf['range'] == 'range_(281, inf)')
+    & (mdf['range'] == 'range_(331, inf)')
     # & (mdf['range'] == 'range_(81, inf)')
 ]
 

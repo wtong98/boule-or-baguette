@@ -27,7 +27,6 @@ prompt_styles = [
 tasks = [
     {'name': 'full', 'train_len': 512, 'test_len': 2048},
     {'name': 'imply', 'train_len': 1024, 'test_len': 16_384},
-    # {'name': 'or', 'train_len': 8192, 'test_len': 32_768},
 ]
 
 task_to_ds_path = {
@@ -41,13 +40,11 @@ task_to_ds_path = {
 task_to_splits = {
     'full': [4],
     'imply': [6],
-    'or': [6],  # NOTE: old config
 }
 
 task_to_test_splits = {
-    'full': [4],
-    'imply': [6],
-    'or': [6],
+    'full': [4, 7, 11, 14],
+    'imply': [6, 20, 30, 45],
 }
 
 

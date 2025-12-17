@@ -19,7 +19,7 @@ from task.prop import PropTask
 
 from config import configs
 
-num_eval_samples = 1000
+num_eval_samples = 100
 
 
 datasets.disable_caching()
@@ -104,6 +104,15 @@ ds_path = run_config['ds_path']
 range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
 ranges = list(zip(range_hops[:-1], range_hops[1:]))
 val_ds_set = [make_ds(ds_path, r, split='range') for r in ranges]
+
+if len(val_ds_set) > 2:
+    interval = (range_hops[1], np.inf)
+    print('BIG TEST INTERVAL', interval)
+    full_val_ds = make_ds(ds_path, interval, split='range')
+
+    ranges.append(interval)
+    val_ds_set.append(full_val_ds)
+
 
 model_name = run_config['model_name']
 max_length = run_config['max_test_length']
