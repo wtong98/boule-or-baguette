@@ -60,11 +60,13 @@ mdf = plot_df.copy()
 mdf = mdf[
     # (mdf['task'] == 'gemma_prop_full')
     (mdf['task'] == 'prop_full')
-    # & (mdf['split'] == 4)
     & (mdf['range'] == 'range_(5, inf)')
-    # & (mdf['range'] == 'range_(10, inf)')
+    # & (mdf['range'] == 'range_(5, 8)')
+    # & (mdf['range'] == 'range_(8, 12)')
+    # & (mdf['range'] == 'range_(12, 15)')
+    # & (mdf['range'] == 'range_(15, inf)')
+    
 ]
-
 
 g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
 # g.set_ylim((0.6, 0.97))
@@ -99,10 +101,13 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'gemma_prop_imply')
-    # (mdf['task'] == 'prop_imply')
-    & (mdf['split'] == 6)
+    # (mdf['task'] == 'gemma_prop_imply')
+    (mdf['task'] == 'prop_imply')
     & (mdf['range'] == 'range_(7, inf)')
+    # & (mdf['range'] == 'range_(7, 21)')
+    # & (mdf['range'] == 'range_(21, 31)')
+    # & (mdf['range'] == 'range_(31, 46)')
+    # & (mdf['range'] == 'range_(46, inf)')
 ]
 
 
@@ -141,8 +146,8 @@ mdf = mdf[
     # & (mdf['range'] == 'range_(1, 19)')
     # & (mdf['range'] == 'range_(19, 31)')
     # & (mdf['range'] == 'range_(31, 46)')
-    & (mdf['range'] == 'range_(46, inf)')
-    # & (mdf['range'] == 'range_(19, inf)')
+    # & (mdf['range'] == 'range_(46, inf)')
+    & (mdf['range'] == 'range_(19, inf)')
     
 ]
 
