@@ -10,4 +10,5 @@
 #SBATCH --account=pehlevan_lab
 
 source ../../../venv_imply/bin/activate
-python to_dataset.py
+# python to_dataset.py
+python add_pipe.py

@@ -13,13 +13,13 @@ from common import collate_dfs, set_theme
 
 # <codecell>
 dirs = [
-    'remote/15_llm_sweep/gemma',
-    'remote/15_llm_sweep/gemma_or',
-    'remote/15_llm_sweep/gemma_php_par',
-    'remote/15_llm_sweep/gemma_php_enum',
-    'remote/15_llm_sweep/qwen',
-    'remote/15_llm_sweep/qwen_or',
-    'remote/15_llm_sweep/qwen_php_par',
+    # 'remote/15_llm_sweep/gemma',
+    # 'remote/15_llm_sweep/gemma_or',
+    # 'remote/15_llm_sweep/gemma_php_par',
+    'remote/15_llm_sweep/gemma_php_enum/set6_tmp',
+    # 'remote/15_llm_sweep/qwen',
+    # 'remote/15_llm_sweep/qwen_or',
+    # 'remote/15_llm_sweep/qwen_php_par',
     'remote/15_llm_sweep/qwen_php_enum',
 ]
 
@@ -58,8 +58,8 @@ plot_df['task'].unique()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    # (mdf['task'] == 'gemma_prop_full')
-    (mdf['task'] == 'prop_full')
+    (mdf['task'] == 'gemma_prop_full')
+    # (mdf['task'] == 'prop_full')
     & (mdf['range'] == 'range_(5, inf)')
     # & (mdf['range'] == 'range_(5, 8)')
     # & (mdf['range'] == 'range_(8, 12)')
@@ -101,8 +101,8 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    # (mdf['task'] == 'gemma_prop_imply')
-    (mdf['task'] == 'prop_imply')
+    (mdf['task'] == 'gemma_prop_imply')
+    # (mdf['task'] == 'prop_imply')
     & (mdf['range'] == 'range_(7, inf)')
     # & (mdf['range'] == 'range_(7, 21)')
     # & (mdf['range'] == 'range_(21, 31)')
@@ -223,14 +223,21 @@ g.figure.tight_layout()
 # %%
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'gemma_prop_php_par')  # NOTE: project mis-named
-    # & (mdf['range'] == 'range_(1, 61)')
-    # & (mdf['range'] == 'range_(61, 121)')
-    # & (mdf['range'] == 'range_(121, inf)')
+    # (mdf['task'] == 'gemma_prop_php_enum')
+    (mdf['task'] == 'gemma_prop_php_par')
     & (mdf['range'] == 'range_(61, inf)')
+    # & (mdf['range'] == 'range_(91, 121)')
+    # & (mdf['range'] == 'range_(121, 171)')
+    # & (mdf['range'] == 'range_(171, inf)')
+    # & (mdf['range'] == 'range_(91, inf)')
 ]
 
-g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+# mdf['range'].unique()
+
+# # <codecell>
+
+
+g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True, estimator='mean')
 sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 plt.title('PHP dataset')
 # plt.savefig('fig/qwen_php_time.png')
