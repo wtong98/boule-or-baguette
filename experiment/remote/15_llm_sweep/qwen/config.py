@@ -15,7 +15,7 @@ model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 32, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 8, '32k_bs': 1},
+    {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 16, '32k_bs': 1},
 ]
 
 prompt_styles = [
@@ -52,17 +52,14 @@ configs = []
 
 for i in itr_ids:
     for model_set, task_args, prompt in itertools.product(model_sets, tasks, prompt_styles):
-        total_batch_size = 128
+        total_batch_size = 32
         model_name = model_set['name']
         task = task_args['name']
 
-        if task != 'php':
-            batch_size = model_set['2k_bs']
-        else:
-            batch_size = model_set['32k_bs']
+        batch_size = model_set['2k_bs']
 
         len_scale_fac = base_len / task_args['train_len']
-        batch_size = int(batch_size * len_scale_fac)
+        batch_size = min(int(batch_size * len_scale_fac), total_batch_size)
 
         accum_steps = total_batch_size // batch_size
         if accum_steps < 1:

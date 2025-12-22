@@ -11,9 +11,9 @@ itr_ids = list(range(3))
 base_len = 1024
 
 model_sets = [
-    # {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 1},
-    # {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 32, '32k_bs': 1},
-    # {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 32, '32k_bs': 1},
+    {'name': 'Qwen/Qwen2.5-Coder-0.5B', '2k_bs': 32, '32k_bs': 1},
+    {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 32, '32k_bs': 1},
+    {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 32, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 16, '32k_bs': 1},
 ]
 
@@ -45,7 +45,7 @@ configs = []
 
 for i in itr_ids:
     for model_set, task_args, prompt in itertools.product(model_sets, tasks, prompt_styles):
-        total_batch_size = 128
+        total_batch_size = 32
         model_name = model_set['name']
         task = task_args['name']
 
