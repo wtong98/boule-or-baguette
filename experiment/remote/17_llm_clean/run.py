@@ -20,7 +20,7 @@ import torch
 from tqdm import tqdm
 import wandb
 
-sys.path.append('../../../')
+sys.path.append('../../../../')
 from task.prop import PropTask
 
 import torch._dynamo

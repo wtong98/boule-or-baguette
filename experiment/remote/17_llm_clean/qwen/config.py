@@ -6,12 +6,12 @@ import sys
 
 sys.path.append('../')
 from run import perform_run
-from eval import perform_eval
 
 data_dir = '/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data'
 
 perform = perform_run
 if sys.argv[-1] == 'eval':
+    from eval import perform_eval
     perform = perform_eval
 else:
     assert sys.argv[-1] == 'run', f"unrecognized mode: {sys.argv[-1]}, defaulting to run"
@@ -39,7 +39,7 @@ tasks = [
 
 task_to_ds_path = {
     'full': data_dir + '/hf_full_text_pipe',
-    'implies': data_dir + '/hf_implies_text_pipe',
+    'imply': data_dir + '/hf_implies_text_pipe',
 }
 
 # Corresponds roughly to 50, 90th percentiles
