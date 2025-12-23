@@ -17,8 +17,8 @@ dirs = [
     # 'remote/15_llm_sweep/gemma_or',
     # 'remote/15_llm_sweep/gemma_php_par',
     # 'remote/15_llm_sweep/gemma_php_enum/set6_tmp',
-    'remote/15_llm_sweep/qwen',
-    'remote/15_llm_sweep/qwen_or',
+    'remote/17_llm_clean/qwen/set',
+    # 'remote/15_llm_sweep/qwen_or',
     # 'remote/15_llm_sweep/qwen_php_par',
     # 'remote/15_llm_sweep/qwen_php_enum',
 ]
@@ -59,7 +59,7 @@ plot_df['task'].unique()
 mdf = plot_df.copy()
 mdf = mdf[
     # (mdf['task'] == 'gemma_prop_full')
-    (mdf['task'] == 'prop_full')
+    (mdf['task'] == 'qwen_full')
     & (mdf['range'] == 'range_(5, inf)')
     # & (mdf['range'] == 'range_(5, 8)')
     # & (mdf['range'] == 'range_(8, 12)')
@@ -80,12 +80,11 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(3)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 2000]
+# last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
 # g = sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'], errorbar=None)
-# g.set_ylim((0.5, 1))
 # g = sns.stripplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
 
 g.legend(title=None)
@@ -103,7 +102,7 @@ g.figure.tight_layout()
 mdf = plot_df.copy()
 mdf = mdf[
     # (mdf['task'] == 'gemma_prop_imply')
-    (mdf['task'] == 'prop_imply')
+    (mdf['task'] == 'qwen_imply')
     & (mdf['range'] == 'range_(7, inf)')
     # & (mdf['range'] == 'range_(7, 21)')
     # & (mdf['range'] == 'range_(21, 31)')
@@ -120,10 +119,10 @@ plt.title('Imply dataset')
 
 # <codecell>
 last_ckpt = (
-    mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(3)
+    mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(2)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 2000]
+# last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
@@ -142,8 +141,8 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    # (mdf['task'] == 'gemma_prop_or')
-    (mdf['task'] == 'prop_or')
+    (mdf['task'] == 'gemma_prop_or')
+    # (mdf['task'] == 'prop_or')
     # & (mdf['range'] == 'range_(1, 19)')
     # & (mdf['range'] == 'range_(19, 31)')
     # & (mdf['range'] == 'range_(31, 46)')
@@ -163,7 +162,7 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(6)
 )
 
-# last_ckpt = mdf[mdf['ckpt'] == 4000]
+last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
