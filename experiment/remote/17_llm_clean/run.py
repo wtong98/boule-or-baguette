@@ -105,7 +105,10 @@ def perform_run(configs):
     n_val_examples = run_config['num_samples'] * 10
 
     train_split = run_config['train_split']
-    train_ds = format_ds(make_ds(train_split, 'train').select(range(n_train_examples)))
+    train_ds = make_ds(train_split, 'train')
+    n_train_examples = min(len(train_ds), n_train_examples)
+    train_ds = format_ds(train_ds.select(range(n_train_examples)))
+
     test_ds = format_ds(make_ds(train_split, 'test').select(range(100)))
 
     val_ds_set = [format_ds(make_ds(r, split='range').select(range(n_val_examples))) for r in ranges]

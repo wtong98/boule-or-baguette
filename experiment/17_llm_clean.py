@@ -68,7 +68,8 @@ mdf = mdf[
     
 ]
 
-g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+# g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+g = sns.lineplot(mdf, x='ckpt', y='acc', hue='prompt_type', style='name', markers=True)
 # g.set_ylim((0.6, 0.97))
 plt.title('Full dataset')
 # plt.savefig('fig/qwen_full_time.png')
@@ -80,7 +81,7 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(3)
 )
 
-# last_ckpt = mdf[mdf['ckpt'] == 2000]
+last_ckpt = mdf[mdf['ckpt'] == 3000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
@@ -111,7 +112,8 @@ mdf = mdf[
 ]
 
 
-g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+# g = sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+g = sns.lineplot(mdf, x='ckpt', y='acc', hue='prompt_type', style='name', markers=True)
 # g.set_ylim((0.6, 0.97))
 
 plt.title('Imply dataset')
@@ -122,7 +124,7 @@ last_ckpt = (
     mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(2)
 )
 
-# last_ckpt = mdf[mdf['ckpt'] == 2000]
+last_ckpt = mdf[mdf['ckpt'] == 3000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
