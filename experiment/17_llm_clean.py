@@ -81,11 +81,13 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(3)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 3000]
+last_ckpt = mdf[mdf['ckpt'] == 1750]
+# last_ckpt = mdf[mdf['ckpt'] == 2250]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
-# g = sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'], errorbar=None)
+# g = sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
+# g.set_ylim((0.5, 1))
 # g = sns.stripplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
 
 g.legend(title=None)
@@ -124,10 +126,12 @@ last_ckpt = (
     mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(2)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 3000]
+last_ckpt = mdf[mdf['ckpt'] == 1750]
+# last_ckpt = mdf[mdf['ckpt'] == 2250]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
+# g = sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
 g.legend(title=None)
 # sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 

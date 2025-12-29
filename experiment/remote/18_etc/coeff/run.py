@@ -18,14 +18,13 @@ print('RUN ID', run_id)
 
 run_split = 8
 
-train_iters = 100_000
+train_iters = 50_000
 
-# n_arms = [2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 50]
-n_arms = np.arange(2, 31, step=1)
-n_depths = [30]
-n_widths = [4096]
+n_arms = np.linspace(2, 100, num=20).astype(int)
+n_depths = [20]
+n_widths = [1024]
 
-n_hop_props = [0.25]
+n_hop_props = [0.5]
 lrs = [1e-2]
 
 all_n_layer = [1]
@@ -138,32 +137,18 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
 
     
 all_cases = split_cases(all_cases, run_split, shuffle_seed=seed)
-print('CASES', all_cases)
+len(all_cases)
 
+# <codecell>
+print('CASES', all_cases)
 
 for case in tqdm(all_cases):
     print('RUNNING', case.name)
     case.run()
+    case.info['param'] = case.state.params
 
-    tt = case.train_task
-    for n_hop in range(2, tt.depth):
-        test_task = StarfishTask(n_arms=tt.n_arms, 
-                                 depth=tt.depth, 
-                                 samp_dist=n_hop, 
-                                 cot=tt.cot, 
-                                 trace_to_start=tt.trace_to_start, 
-                                 nouveau=tt.nouveau,
-                                 batch_size=1024)
-
-        case.eval(
-            test_task,
-            eval_fns=case.train_args['eval_fns'],
-            prefix=n_hop,
-            n_iters=1
-        )
-
-    case.state = None
     case.train_args['eval_fns'] = None
+    case.state = None
 
 
 df = pd.DataFrame(all_cases)
