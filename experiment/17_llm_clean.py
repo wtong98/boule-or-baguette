@@ -17,8 +17,8 @@ dirs = [
     # 'remote/15_llm_sweep/gemma_or',
     # 'remote/15_llm_sweep/gemma_php_par',
     # 'remote/15_llm_sweep/gemma_php_enum/set6_tmp',
-    'remote/17_llm_clean/qwen/set',
-    # 'remote/15_llm_sweep/qwen_or',
+    # 'remote/17_llm_clean/qwen/set',
+    'remote/17_llm_clean/qwen_or/set',
     # 'remote/15_llm_sweep/qwen_php_par',
     # 'remote/15_llm_sweep/qwen_php_enum',
 ]
@@ -147,8 +147,8 @@ g.figure.tight_layout()
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'gemma_prop_or')
-    # (mdf['task'] == 'prop_or')
+    # (mdf['task'] == 'gemma_prop_or')
+    (mdf['task'] == 'qwen_or')
     # & (mdf['range'] == 'range_(1, 19)')
     # & (mdf['range'] == 'range_(19, 31)')
     # & (mdf['range'] == 'range_(31, 46)')
@@ -157,7 +157,8 @@ mdf = mdf[
     
 ]
 
-sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+# sns.lineplot(mdf, x='ckpt', y='acc', hue='name', style='prompt_type', markers=True)
+sns.lineplot(mdf, x='ckpt', y='acc', hue='prompt_type', style='name', markers=True)
 
 plt.title('Or dataset')
 # plt.savefig('fig/qwen_or_time.png')
@@ -168,11 +169,10 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(6)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 2000]
+last_ckpt = mdf[mdf['ckpt'] == 1750]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
-# g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '7B', '32B'], hue_order=['DP', 'CoT'])
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type',  hue_order=['DP', 'CoT'])
 g.legend(title=None)
 # sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 
