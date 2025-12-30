@@ -9,7 +9,7 @@
 #SBATCH --array=1-60
 #SBATCH --mail-type=END
 #SBATCH --mail-user=wtong@g.harvard.edu
-#SBATCH --account=kempner_pehlevan_lab
+#SBATCH --account=kempner_grads
 #SBATCH --constraint="h100|h200"
 
 
