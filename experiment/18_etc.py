@@ -12,9 +12,73 @@ sys.path.append('../')
 from common import *
 from train import *
 from model.mlp import MlpConfig
-from model.transformer_std import *
+from model.transformer import *
 from task.graph import *
 
+jax.config.update('jax_platform_name', 'cpu')
+jax.default_backend()
+
+# <codecell>
+df = collate_dfs('remote/18_etc/coeff', show_progress=True)
+df
+
+# <codecell>
+def extract_plot_vals(row):
+    info = row['info'].copy()
+    n_hop_prop = info.pop('n_hop_prop', None)
+
+    params = row['info']['param']
+    n_hidden = row['config']['n_hidden']
+
+    emb = params['Embed_freeze']['embedding']
+    a = params['Dense_0']['kernel'] / n_hidden
+    V = params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / n_hidden
+    O = params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / n_hidden
+    W1 = params['TransformerBlock_0']['Dense_0']['kernel'] / n_hidden
+    W2 = params['TransformerBlock_0']['Dense_1']['kernel'] / n_hidden
+
+    W = V @ O @ W1
+    a = W2 @ a
+
+    sort_idxs = np.argsort(a.flatten())
+    proj = np.sign(emb) @ W
+    proj = proj[:,sort_idxs]
+
+    samps = proj[4:,-1]
+    samps = samps / np.std(samps)
+
+    prop_big = np.mean(np.abs(samps) > 2)
+
+    return pd.Series([
+        row['name'],
+        row['train_task'].n_arms,
+        row['train_task'].samp_dist[1],
+        row['train_task'].depth,
+        row['config']['n_hidden'],
+        row['config']['residual_connections'],
+        row['config']['n_layers'],
+        row['train_args']['lr'],
+        row['hist']['test'][-1]['acc'],
+        row['train_args']['gamma'] if 'gamma' in row['train_args'] else -1,
+        n_hop_prop,
+        prop_big
+    ], index=['name', 'n_arms', 'n_hop', 'n_depth', 'n_hidden', 'resid', 'n_layers',  'lr', 'acc_hist', 'gamma', 'n_hop_prop', 'prop_big'])
+
+tqdm.pandas()
+plot_df = df.progress_apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+plot_df
+
+# <codecell>
+mdf = plot_df.copy()
+mdf = mdf[mdf['name'] == 'DP']
+
+g = sns.scatterplot(data=mdf, x='n_arms', y='prop_big')
+# g.set_ylim(0, 0.15)
+
+
+# <codecell>
 n_arms = 10
 depth = 10
 n_hidden = 512
@@ -83,8 +147,8 @@ config = TransformerConfig(n_layers=1,
                            return_format='final_logit_up_to_pad' if cot else 'final_logit',
                         #    return_format=None if cot else 'final_logit',
                            mup_scale=True,
-                           unif_att=False,
-                           dtype=jnp.bfloat16
+                           unif_att=True,
+                        #    dtype=jnp.bfloat16
                            )
 
 # <codecell>
@@ -109,7 +173,7 @@ state, hist = train(config,
                     # loss='ce_mask' if cot else 'bce',
                     loss='bce',
                     test_every=1000,
-                    train_iters=10_000,
+                    train_iters=5_000,
                     # eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     eval_fns=None,
                     # print_fn=print_gen if cot else None,
@@ -146,10 +210,10 @@ jax.tree.map(np.shape, state.params)
 
 emb = state.params['Embed_freeze']['embedding']
 readout = state.params['Dense_0']['kernel'] / n_hidden
-V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / np.sqrt(n_hidden)
-O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / np.sqrt(n_hidden)
-W1 = state.params['TransformerBlock_0']['Dense_0']['kernel'] / np.sqrt(n_hidden)
-W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
+V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / n_hidden
+O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / n_hidden
+W1 = state.params['TransformerBlock_0']['Dense_0']['kernel'] / n_hidden
+W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / n_hidden
 
 xs = next(train_task)[0]
 
@@ -218,6 +282,7 @@ plt.hist(proj[:,-1], bins=25)
 ### ANALYSIS OF ZERO MODEL
 jax.tree.map(np.shape, state.params)
 
+# <codecell>
 emb = state.params['Embed_freeze']['embedding']
 a = state.params['Dense_0']['kernel'] / n_hidden / gamma
 V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / n_hidden
@@ -233,8 +298,7 @@ a = W2 @ a
 xs_emb = 0.5 * (xs_emb[:,0] + xs_emb[:,1])
 
 pred = jax.nn.relu(xs_emb @ W) @ a
-logits = state.apply_fn({'params': state.params}, xs)
-
+logits, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 np.mean((pred.flatten() - logits)**2) / np.mean(logits**2)
 
 # <codecell>

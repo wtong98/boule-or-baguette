@@ -20,9 +20,9 @@ run_split = 8
 
 train_iters = 50_000
 
-n_arms = np.linspace(2, 100, num=20).astype(int)
+n_arms = np.linspace(2, 400, num=20).astype(int)
 n_depths = [20]
-n_widths = [1024]
+n_widths = [256]
 
 n_hop_props = [0.5]
 lrs = [1e-2]
@@ -91,7 +91,8 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
             'samp_dist': (1, n_hop),
             'n_arms': n_arm,
             'nouveau': True,
-            'batch_size': batch_size
+            'batch_size': batch_size,
+            'force_bin_label': True
         }
 
         return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)
@@ -100,18 +101,18 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
     all_cases.extend([
         Case(f'AR',
                 TransformerConfig(n_heads=1,
-                                n_out=n_vocab,
+                                n_out=1,
                                 n_layers=1,
                                 pos_emb=False, 
-                                return_format=None,
+                                return_format='final_logit_up_to_pad',
                                 n_mlp_layers=2,
                                 layer_norm=False,
                                 residual_connections=False,
                                 mup_scale=True,
                                 linear_att=False,
-                                unif_att=False,
+                                unif_att=True,
                                 **model_args),
-                train_args=make_train_args('ce_mask'),
+                train_args=make_train_args('bce'),
                 train_task=make_chain(cot=True, ttr=True),
                 info={'n_hop_prop': n_hop_prop, 'n_hop': n_hop}
         ), 
@@ -127,7 +128,7 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
                                 residual_connections=False,
                                 mup_scale=True,
                                 linear_att=False,
-                                unif_att=False,
+                                unif_att=True,
                                 **model_args),
                 train_args=make_train_args('bce'),
                 train_task=make_chain(cot=False),
@@ -137,9 +138,7 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
 
     
 all_cases = split_cases(all_cases, run_split, shuffle_seed=seed)
-len(all_cases)
 
-# <codecell>
 print('CASES', all_cases)
 
 for case in tqdm(all_cases):
@@ -155,5 +154,3 @@ df = pd.DataFrame(all_cases)
 df.to_pickle(f'res.{run_id}.pkl')
 
 print('done!')
-
-# %%

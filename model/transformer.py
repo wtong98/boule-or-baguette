@@ -317,11 +317,13 @@ class Transformer(nn.Module):
                               # param_dtype=self.config.dtype
                               dtype=self.config.dtype)(y)
 
+        print('CONFIG FORMAT', config.return_format)
         if config.return_format is None:
             pass
         elif config.return_format == 'final_logit':
             logits = logits[:,-1]
         elif config.return_format == 'final_logit_up_to_pad':
+            print("HERE!!")
             pred_idx = jnp.sum(inputs != 0, axis=1) - 1
             logits = logits[jnp.arange(logits.shape[0]), pred_idx]
         else:
