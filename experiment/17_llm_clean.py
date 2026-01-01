@@ -13,14 +13,9 @@ from common import collate_dfs, set_theme
 
 # <codecell>
 dirs = [
-    # 'remote/15_llm_sweep/gemma',
-    # 'remote/15_llm_sweep/gemma_or',
-    # 'remote/15_llm_sweep/gemma_php_par',
-    # 'remote/15_llm_sweep/gemma_php_enum/set6_tmp',
-    # 'remote/17_llm_clean/qwen/set',
+    'remote/17_llm_clean/qwen/set',
     'remote/17_llm_clean/qwen_or/set',
-    # 'remote/15_llm_sweep/qwen_php_par',
-    # 'remote/15_llm_sweep/qwen_php_enum',
+    'remote/17_llm_clean/qwen_php_enum/set',
 ]
 
 dfs = [collate_dfs(d, show_progress=True) for d in dirs]
@@ -81,7 +76,7 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(3)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 1750]
+last_ckpt = mdf[mdf['ckpt'] == 2000]
 # last_ckpt = mdf[mdf['ckpt'] == 2250]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
@@ -126,7 +121,7 @@ last_ckpt = (
     mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).tail(2)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 1750]
+last_ckpt = mdf[mdf['ckpt'] == 2000]
 # last_ckpt = mdf[mdf['ckpt'] == 2250]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
@@ -169,7 +164,7 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(6)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 1750]
+last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type',  hue_order=['DP', 'CoT'])
@@ -230,7 +225,7 @@ g.figure.tight_layout()
 mdf = plot_df.copy()
 mdf = mdf[
     # (mdf['task'] == 'gemma_prop_php_enum')
-    (mdf['task'] == 'gemma_prop_php_par')
+    (mdf['task'] == 'qwen_php_enum')
     & (mdf['range'] == 'range_(61, inf)')
     # & (mdf['range'] == 'range_(91, 121)')
     # & (mdf['range'] == 'range_(121, 171)')
@@ -254,10 +249,11 @@ last_ckpt = (
 )
 
 
-# last_ckpt = mdf[mdf['ckpt'] == 2000]
+last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'], hue_order=['DP', 'CoT'])
+# g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'], hue_order=['DP', 'CoT'])
+g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
 g.legend(title=None)
 # g.legend_.set_visible(False)
 

@@ -18,7 +18,8 @@ else:
         print(f"unrecognized mode: {sys.argv[-1]}, defaulting to run")
 
 
-itr_ids = list(range(5))
+# itr_ids = list(range(5))
+itr_ids = list(range(5, 10))
 base_len = 1024
 
 model_sets = [
@@ -77,7 +78,7 @@ for i in itr_ids:
             'task_name': task,
             'batch_size': batch_size,
             'accum_steps': accum_steps,
-            'max_steps': 5_000,
+            'max_steps': 2_500,
             'num_samples': 16,
             'max_length': task_args['train_len'],
             'max_test_length': task_args['test_len'],

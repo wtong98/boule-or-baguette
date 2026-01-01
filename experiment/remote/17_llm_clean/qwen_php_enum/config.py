@@ -18,7 +18,7 @@ else:
         print(f"unrecognized mode: {sys.argv[-1]}, defaulting to run")
 
 
-itr_ids = list(range(5))
+itr_ids = list(range(5, 10))
 base_len = 1024
 
 model_sets = [
@@ -26,8 +26,8 @@ model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 64, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-3B', '2k_bs': 64, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'Qwen/Qwen2.5-Coder-14B', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 32, '32k_bs': 1},
+    # {'name': 'Qwen/Qwen2.5-Coder-14B', '2k_bs': 32, '32k_bs': 1},
+    # {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 32, '32k_bs': 1},
 ]
 
 prompt_styles = [
@@ -49,7 +49,7 @@ task_to_splits = {
 }
 
 task_to_test_splits = {
-    'php_enum': [60, 120]
+    'php_enum': [60]
 }
 
 
