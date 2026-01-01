@@ -15,8 +15,10 @@ from model.mlp import MlpConfig
 from model.transformer import *
 from task.graph import *
 
-jax.config.update('jax_platform_name', 'cpu')
+# jax.config.update('jax_platform_name', 'cpu')
 jax.default_backend()
+
+set_theme()
 
 # <codecell>
 df = collate_dfs('remote/18_etc/coeff', show_progress=True)
@@ -79,15 +81,16 @@ g = sns.scatterplot(data=mdf, x='n_arms', y='prop_big')
 
 
 # <codecell>
+### COT MODEL PLOTTING
 n_arms = 10
-depth = 10
+depth = 8
 n_hidden = 512
 
 cot = True
 ttr = True
 nouveau = True
 force_bin_label = True
-n_hop = 5
+n_hop = 6
 test_n_hop = 7
 
 batch_size = n_arms * depth // 4
@@ -147,7 +150,7 @@ config = TransformerConfig(n_layers=1,
                            return_format='final_logit_up_to_pad' if cot else 'final_logit',
                         #    return_format=None if cot else 'final_logit',
                            mup_scale=True,
-                           unif_att=True,
+                           unif_att=False,
                         #    dtype=jnp.bfloat16
                            )
 
@@ -194,15 +197,409 @@ preds, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediate
 att = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
 
 att = att.astype('float32')
-plt.imshow(att[2])
-print(att[2])
+plt.imshow(att[0])
+
+ax = plt.gca()
+ax.set_xticks([])
+ax.set_yticks([])
+ax.spines['left'].set_visible(False)
+ax.spines['bottom'].set_visible(False)
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_att/cot_att.svg')
 
 # <codecell>
-plt.plot(att[2,-2])
-xs = np.linspace(0, 31)
-ys = np.ones(xs.shape) * 1 / 29
-plt.plot(xs, ys)
+unif_att = np.ones((att.shape[1:]))
+unif_att = np.tril(unif_att, k=0)
+unif_att = unif_att / np.sum(unif_att, axis=-1, keepdims=True)
 
+plt.imshow(unif_att)
+
+ax = plt.gca()
+ax.set_xticks([])
+ax.set_yticks([])
+ax.spines['left'].set_visible(False)
+ax.spines['bottom'].set_visible(False)
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_att/unif_cot_att.svg')
+
+# <codecell>
+train_task.batch_size = 1_024
+xs, _ = next(train_task)
+
+preds, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+att = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
+
+# <codecell>
+unif_att = np.ones((att.shape[1:]))
+unif_att = np.tril(unif_att, k=0)
+unif_att = unif_att / np.sum(unif_att, axis=-1, keepdims=True)
+unif_att
+
+diffs = np.abs(att - unif_att)
+diffs = diffs[:,1:,:]
+tvd = np.max(diffs, axis=-1)
+
+tvd_data = {i + 2: tvd[:,i] for i in range(tvd.shape[1])}
+tvd_df = pd.DataFrame(tvd_data).melt(var_name='position', value_name='tvd')
+tvd_df
+
+# <codecell>
+plt.gcf().set_size_inches(4, 2.6)
+g = sns.lineplot(tvd_df, x='position', y='tvd')
+xs = np.linspace(2, 10)
+probs = 1 / xs
+
+og_color = 'C0'
+color = 'C1'
+
+g.tick_params(axis='y', colors=og_color)
+g.spines['left'].set_color(og_color)
+g.set_ylabel('TVD', color=og_color)
+g.set_ylim(0, 0.5)
+g.set_xlabel('Position')
+
+ax2 = g.twinx()
+ax2.plot(xs, probs, color=color)
+ax2.tick_params(axis='y', colors=color)
+ax2.spines['right'].set_color(color)
+ax2.spines['right'].set_visible(True)
+ax2.spines['left'].set_visible(False)
+ax2.spines['bottom'].set_visible(False)
+ax2.set_ylabel('Uniform prob', color=color)
+ax2.set_ylim(0, 0.5)
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_att/cot_tvd.svg')
+
+# <codecell>
+### CoT - Max margin solution plot
+n_arms = 10
+depth = 8
+n_hidden = 512
+
+cot = True
+ttr = True
+nouveau = True
+force_bin_label = True
+n_hop = 6
+test_n_hop = 7
+
+batch_size = n_arms * depth // 4
+
+n_vocab = n_arms * depth + 1 + StarfishTask.offset
+
+train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
+test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
+
+
+config = TransformerConfig(n_layers=1,
+                           n_vocab=n_vocab,
+                           n_out=1,
+                           n_hidden=n_hidden,
+                           pos_emb=False,
+                           n_mlp_layers=2,
+                           n_heads=1,
+                           layer_norm=False,
+                           as_rf_model=False,
+                           residual_connections=False,
+                           freeze_emb=True,
+                           use_bias=False,
+                           return_format='final_logit_up_to_pad' if cot else 'final_logit',
+                           mup_scale=True,
+                           unif_att=True,
+                           dtype=jnp.bfloat16
+                           )
+
+lr = 1e-2
+gamma = 1
+
+state, hist = train(config,
+                    train_iter=iter(train_task), 
+                    test_iter=iter(test_task), 
+                    test_iters=1,
+                    loss='bce',
+                    test_every=1000,
+                    train_iters=10_000,
+                    eval_fns=None,
+                    print_fn=None,
+                    lr=lr * gamma,
+                    optim=optax.adamw,
+                    )
+
+
+
+# <codecell>
+params = state.params
+
+emb = params['Embed_freeze']['embedding']
+a = params['Dense_0']['kernel'] / n_hidden
+V = params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / n_hidden
+O = params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / n_hidden
+W1 = params['TransformerBlock_0']['Dense_0']['kernel'] / n_hidden
+W2 = params['TransformerBlock_0']['Dense_1']['kernel'] / n_hidden
+
+W = V @ O @ W1
+a = W2 @ a
+
+sort_idxs = np.argsort(a.flatten())
+proj = np.sign(emb) @ W
+proj = proj[:,sort_idxs]
+
+samps = proj[4:]
+samps = samps.reshape(depth, n_arms, n_hidden)
+samps = np.array(np.mean(samps > 0, axis=0))
+
+a_sort = a[sort_idxs].flatten()
+
+s_dict = {a_sort[i].item(): samps[:,i] for i, _ in enumerate(a_sort)}
+s_df = pd.DataFrame(s_dict).melt(var_name='readout', value_name='prop_pos')
+s_df
+# <codecell>
+g = sns.kdeplot(data=s_df, x='prop_pos', y='readout', fill=True, cbar=True, levels=7)
+g.axhline(0, color='C1', linestyle='dashed', alpha=0.7)
+
+g.set_xlabel('Proportion positive')
+g.set_ylabel('Readout weight')
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_max_margin/cot_max_margin.svg')
+
+
+
+# <codecell>
+### DP MODEL PLOTTING
+n_arms = 10
+depth = 8
+n_hidden = 512
+
+cot = False
+ttr = True
+nouveau = True
+force_bin_label = True
+n_hop = 6
+test_n_hop = 7
+
+batch_size = n_arms * depth // 4
+
+n_vocab = n_arms * depth + 1 + StarfishTask.offset
+
+train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
+test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
+
+
+config = TransformerConfig(n_layers=1,
+                           n_vocab=n_vocab,
+                           n_out=1,
+                           n_hidden=n_hidden,
+                           pos_emb=False,
+                           n_mlp_layers=2,
+                           n_heads=1,
+                           layer_norm=False,
+                           as_rf_model=False,
+                           residual_connections=False,
+                           freeze_emb=True,
+                           use_bias=False,
+                           return_format='final_logit_up_to_pad' if cot else 'final_logit',
+                           mup_scale=True,
+                           unif_att=False,
+                           )
+
+# <codecell>
+def summarize(state):
+    readout = state.params['Dense_0']['kernel'] / n_hidden
+    W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
+    a = W2 @ readout
+    return a
+
+lr = 1e-2
+gamma = 1
+
+state, hist = train(config,
+                    train_iter=iter(train_task), 
+                    test_iter=iter(test_task), 
+                    test_iters=1,
+                    loss='bce',
+                    test_every=1000,
+                    train_iters=5_000,
+                    eval_fns=None,
+                    print_fn=None,
+                    lr=lr * gamma,
+                    optim=optax.adamw,
+                    )
+
+
+# <codecell>
+xs, ys = next(train_task)
+
+preds, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+
+att = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
+
+att = att.astype('float32')
+plt.imshow(att[0])
+
+ax = plt.gca()
+ax.set_xticks([])
+ax.set_yticks([])
+ax.spines['left'].set_visible(False)
+ax.spines['bottom'].set_visible(False)
+
+plt.colorbar()
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_att/dp_att.svg')
+
+# <codecell>
+unif_att = np.ones((att.shape[1:]))
+unif_att = np.tril(unif_att, k=0)
+unif_att = unif_att / np.sum(unif_att, axis=-1, keepdims=True)
+
+plt.imshow(unif_att)
+
+ax = plt.gca()
+ax.set_xticks([])
+ax.set_yticks([])
+ax.spines['left'].set_visible(False)
+ax.spines['bottom'].set_visible(False)
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_att/unif_dp_att.svg')
+
+# <codecell>
+train_task.batch_size = 1_024
+xs, _ = next(train_task)
+
+preds, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
+att = intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights'][0].squeeze()
+
+# <codecell>
+unif_att = np.ones((att.shape[1:]))
+unif_att = np.tril(unif_att, k=0)
+unif_att = unif_att / np.sum(unif_att, axis=-1, keepdims=True)
+unif_att
+
+diffs = np.abs(att - unif_att)
+diffs = diffs[:,1:,:]
+tvd = np.max(diffs, axis=-1)
+
+tvd_data = {i + 2: tvd[:,i] for i in range(tvd.shape[1])}
+tvd_df = pd.DataFrame(tvd_data).melt(var_name='position', value_name='tvd')
+tvd_df
+
+# <codecell>
+g = sns.histplot(tvd_df, x='tvd', color='C0', bins=5)
+g.axvline(0.5, color='C1', linestyle='dashed', alpha=0.7)
+g.set_xlabel('TVD')
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_att/dp_tvd.svg')
+
+# <codecell>
+### DP - Max margin solution plot
+# n_arms = 10
+# depth = 8
+n_arms = 50
+depth = 10
+n_hidden = 512
+
+cot = False
+ttr = True
+nouveau = True
+force_bin_label = True
+n_hop = 5
+test_n_hop = 7
+
+batch_size = n_arms * depth // 4
+
+n_vocab = n_arms * depth + 1 + StarfishTask.offset
+
+train_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(1,n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
+test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), batch_size=batch_size, cot=cot, trace_to_start=ttr, nouveau=nouveau, force_bin_label=force_bin_label)
+
+
+config = TransformerConfig(n_layers=1,
+                           n_vocab=n_vocab,
+                           n_out=1,
+                           n_hidden=n_hidden,
+                           pos_emb=False,
+                           n_mlp_layers=2,
+                           n_heads=1,
+                           layer_norm=False,
+                           as_rf_model=False,
+                           residual_connections=False,
+                           freeze_emb=True,
+                           use_bias=False,
+                           return_format='final_logit_up_to_pad' if cot else 'final_logit',
+                           mup_scale=True,
+                           unif_att=True,
+                           dtype=jnp.bfloat16
+                           )
+
+lr = 1e-2
+gamma = 1
+
+state, hist = train(config,
+                    train_iter=iter(train_task), 
+                    test_iter=iter(test_task), 
+                    test_iters=1,
+                    loss='bce',
+                    test_every=1000,
+                    train_iters=10_000,
+                    eval_fns=None,
+                    print_fn=None,
+                    lr=lr * gamma,
+                    optim=optax.adamw,
+                    )
+
+
+# <codecell>
+test_task.batch_size = 512
+xs, ys = next(test_task)
+
+logits = state.apply_fn({'params': state.params}, xs)
+
+# <codecell>
+np.mean(logits[ys == 1] > 0)
+
+
+# <codecell>
+params = state.params
+
+emb = params['Embed_freeze']['embedding']
+a = params['Dense_0']['kernel'] / n_hidden
+V = params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / n_hidden
+O = params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / n_hidden
+W1 = params['TransformerBlock_0']['Dense_0']['kernel'] / n_hidden
+W2 = params['TransformerBlock_0']['Dense_1']['kernel'] / n_hidden
+
+W = V @ O @ W1
+a = W2 @ a
+
+sort_idxs = np.argsort(a.flatten())
+proj = np.sign(emb) @ W
+proj = proj[:,sort_idxs]
+
+samps = proj[4:]
+samps = samps.reshape(depth, n_arms, n_hidden)
+samps = np.array(np.mean(samps > 0, axis=0))
+
+a_sort = a[sort_idxs].flatten()
+
+s_dict = {a_sort[i].item(): samps[:,i] for i, _ in enumerate(a_sort)}
+s_df = pd.DataFrame(s_dict).melt(var_name='readout', value_name='prop_pos')
+s_df
+# <codecell>
+g = sns.kdeplot(data=s_df, x='prop_pos', y='readout', fill=True, cbar=True, levels=7)
+g.axhline(0, color='C1', linestyle='dashed', alpha=0.7)
+
+g.set_xlabel('Proportion positive')
+g.set_ylabel('Readout weight')
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_max_margin/dp_max_margin.svg')
+
+
+# %%
 
 # <codecell>
 ### ANALYSIS OF COT SIMP MODEL
