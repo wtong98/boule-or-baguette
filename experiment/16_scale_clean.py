@@ -391,24 +391,22 @@ plt.savefig('fig/final/fig_ti/ar_gen.svg')
 
 
 # <codecell>
-# TODO: consider theoretical prediction more closely <-- STOPPED HERE
-
 adf = mdf[mdf['test_n_hop'] > 15]
-# adf = mdf.copy()
 adf = adf[adf['test_n_hop'] % 2 == 0]
 
-g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5)
+g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5, legend='brief')
 g.set_xscale('log')
 g.set_yscale('log')
 
-# xs = np.linspace(np.log(8), np.log(16))
-xs = np.linspace(np.log(9.5), np.log(13))
-# g.plot(np.exp(xs), np.exp(-0.5 * xs + 1), color='red', linestyle='dashed')
-# g.plot(np.exp(xs), np.exp(-1 * xs + 2), color='red', linestyle='dashed')
-# g.plot(np.exp(xs), np.exp(-1 * xs + 2.5), color='red', linestyle='dashed')
-g.plot(np.exp(xs), np.exp(-2 * xs + 4.45), color='red', linestyle='dashed')
-# g.plot(np.exp(xs), -np.exp(xs) + 13, color='red', linestyle='dashed')
-# g.text(12, 0.8, r'$\propto B^{-1/2}$', color='red')
-# g.plot(np.exp(xs), np.exp(-1 * xs + 2), color='blue', linestyle='dashed')
+g.set_xlabel('Breadth ($B$)')
+g.set_ylabel('Test accuracy')
 
-# plt.savefig(f'fig/dp_gen_arms_pred_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
+xs = np.linspace(np.log(9.5), np.log(13))
+g.plot(np.exp(xs), np.exp(-2 * xs + 4.45), color='red', linestyle='dashed')
+g.text(4, 0.8, r'$\propto B^{-2}$', color='red')
+
+g.legend(title='Distance ($k$)', loc='upper left')
+# g.legend().set_visible(False)
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_dp_gen_acc/dp_gen_acc.svg')

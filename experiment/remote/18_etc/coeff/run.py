@@ -20,9 +20,11 @@ run_split = 20
 
 train_iters = 50_000
 
-n_arms = np.linspace(2, 400, num=20).astype(int)
-n_depths = [20]
-n_widths = [4096]
+n_arms_dp = np.linspace(2, 200, num=20).astype(int)
+n_arms_cot = np.linspace(2, 100, num=20).astype(int)
+
+n_depths = [8]
+n_widths = [512]
 
 n_hop_props = [0.5]
 lrs = [1e-2]
@@ -37,7 +39,8 @@ seed = 50
 # run_split = 1
 # train_iters = 50
 
-# n_arms = [2]
+# n_arms_dp = [2]
+# n_arms_cot = [2]
 # n_depths = [10]
 # n_widths = [32]
 
@@ -52,7 +55,7 @@ all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
 
-for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_hop_props, n_arms, n_depths, n_widths, all_n_layer):
+for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_hop_props, n_arms_cot, n_depths, n_widths, all_n_layer):
     n_hop = np.round(n_hop_prop * depth).astype(int)
     n_vocab = n_arm * depth + 1 + StarfishTask.offset
 
@@ -116,7 +119,55 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
                 train_task=make_chain(cot=True, ttr=True),
                 info={'n_hop_prop': n_hop_prop, 'n_hop': n_hop}
         ), 
+    ])
 
+
+for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_hop_props, n_arms_dp, n_depths, n_widths, all_n_layer):
+    n_hop = np.round(n_hop_prop * depth).astype(int)
+    n_vocab = n_arm * depth + 1 + StarfishTask.offset
+
+    batch_size = n_arm * depth
+    batch_size, k = split_batch(batch_size, max_batch_size)
+
+    model_args = {
+        'n_vocab': n_vocab,
+        'n_hidden': n_hidden,
+        'use_bias': False,
+        'freeze_emb': True,
+        'dtype': jnp.bfloat16
+    }
+
+    def make_train_args(loss='ce_mask'):
+        args = {
+            'loss': loss,
+            'test_every': 1000,
+            'train_iters': train_iters,
+            'lr': lr / n_layer,
+            'k': k
+        }
+
+        args['eval_fns'] = [loss_and_acc]
+
+        if loss == 'ce_mask':
+            args['eval_fns'] = eval_fns
+            args['print_fn'] = print_gen
+        
+        return args
+
+
+    def make_chain(cot=True, ttr=False):
+        task_args = {
+            'depth': depth,
+            'samp_dist': (1, n_hop),
+            'n_arms': n_arm,
+            'nouveau': True,
+            'batch_size': batch_size,
+            'force_bin_label': True
+        }
+
+        return StarfishTask(cot=cot, trace_to_start=ttr, **task_args)
+    
+    all_cases.extend([
         Case(f'DP',
                 TransformerConfig(n_heads=1,
                                 n_out=1,

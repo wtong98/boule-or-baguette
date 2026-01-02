@@ -15,10 +15,10 @@ from model.mlp import MlpConfig
 from model.transformer import *
 from task.graph import *
 
-# jax.config.update('jax_platform_name', 'cpu')
-jax.default_backend()
-
 set_theme()
+
+jax.config.update('jax_platform_name', 'cpu')
+jax.default_backend()
 
 # <codecell>
 df = collate_dfs('remote/18_etc/coeff', show_progress=True)
@@ -74,11 +74,36 @@ plot_df
 
 # <codecell>
 mdf = plot_df.copy()
-mdf = mdf[mdf['name'] == 'AR']
+mdf = mdf[mdf['name'] == 'DP']
 
 g = sns.scatterplot(data=mdf, x='n_arms', y='prop_big')
 # g.set_ylim(0, 0.15)
 
+# <codecell>
+df = collate_dfs('remote/18_etc/dp_false_neg', show_progress=True)
+df
+
+# <codecell>
+def extract_plot_vals(row):
+
+    return pd.Series([
+        row['info']['fnr'].item()
+    ], index=['fnr'])
+
+plot_df = df.apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+plot_df
+
+# <codecell>
+g = sns.histplot(plot_df, x='fnr', bins=7)
+g.set_xlim(0.5, 1)
+
+g.set_xlabel('False negative rate')
+g.set_ylabel('Count')
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_dp_gen_acc/dp_false_neg_rate.svg')
 
 # <codecell>
 ### COT MODEL PLOTTING
