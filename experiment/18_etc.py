@@ -49,7 +49,7 @@ def extract_plot_vals(row):
     samps = proj[4:,-1]
     samps = samps / np.std(samps)
 
-    prop_big = np.mean(np.abs(samps) > 2)
+    prop_big = np.mean(np.abs(samps) > 1.96)
 
     return pd.Series([
         row['name'],
@@ -74,7 +74,7 @@ plot_df
 
 # <codecell>
 mdf = plot_df.copy()
-mdf = mdf[mdf['name'] == 'DP']
+mdf = mdf[mdf['name'] == 'AR']
 
 g = sns.scatterplot(data=mdf, x='n_arms', y='prop_big')
 # g.set_ylim(0, 0.15)

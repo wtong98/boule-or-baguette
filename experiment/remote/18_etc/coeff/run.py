@@ -20,8 +20,8 @@ run_split = 20
 
 train_iters = 50_000
 
-n_arms_dp = np.linspace(2, 50, num=20).astype(int)
-n_arms_cot = np.linspace(2, 25, num=20).astype(int)
+n_arms_dp = np.linspace(2, 75, num=20).astype(int)
+n_arms_cot = np.linspace(2, 30, num=20).astype(int)
 
 n_depths = [8]
 n_widths = [512]
