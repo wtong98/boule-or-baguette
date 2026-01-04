@@ -22,10 +22,10 @@ itr_ids = list(range(10))
 base_len = 1024
 
 model_sets = [
-    {'name': 'google/gemma-3-1b', '2k_bs': 64, '32k_bs': 1},
-    {'name': 'google/gemma-3-4b', '2k_bs': 64, '32k_bs': 1},
-    {'name': 'google/gemma-3-12b', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'google/gemma-3-27b', '2k_bs': 32, '32k_bs': 1},
+    {'name': 'google/gemma-3-1b-pt', '2k_bs': 64, '32k_bs': 1},
+    {'name': 'google/gemma-3-4b-pt', '2k_bs': 64, '32k_bs': 1},
+    {'name': 'google/gemma-3-12b-pt', '2k_bs': 32, '32k_bs': 1},
+    {'name': 'google/gemma-3-27b-pt', '2k_bs': 32, '32k_bs': 1},
 ]
 
 prompt_styles = [

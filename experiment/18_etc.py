@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optax
 import pandas as pd
+from scipy.stats import pearsonr
 import seaborn as sns
 
 import sys
@@ -49,7 +50,7 @@ def extract_plot_vals(row):
     samps = proj[4:,-1]
     samps = samps / np.std(samps)
 
-    prop_big = np.mean(np.abs(samps) > 1.96)
+    prop_big = np.mean(np.abs(samps) > 2)
 
     return pd.Series([
         row['name'],
@@ -74,10 +75,35 @@ plot_df
 
 # <codecell>
 mdf = plot_df.copy()
+mdf = mdf[mdf['name'] == 'DP']
+
+g = sns.regplot(data=mdf, x='n_arms', y='prop_big', line_kws=dict(color='r', linestyle='dashed', alpha=0.7, linewidth=1.5))
+g.set_xlabel('Breadth ($B$)')
+g.set_ylabel('Prop. > 2 SD')
+
+r = pearsonr(mdf['n_arms'], mdf['prop_big'])
+r.statistic
+
+g.text(6, 0.04, f'$r = {r.statistic:.2f}$', color='C3', fontsize=12)
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_breadth_scale/dp_breadth.svg')
+
+# <codecell>
+mdf = plot_df.copy()
 mdf = mdf[mdf['name'] == 'AR']
 
-g = sns.scatterplot(data=mdf, x='n_arms', y='prop_big')
-# g.set_ylim(0, 0.15)
+g = sns.regplot(data=mdf, x='n_arms', y='prop_big', line_kws=dict(color='r', linestyle='dashed', alpha=0.7, linewidth=1.5))
+g.set_xlabel('Breadth ($B$)')
+g.set_ylabel('Prop. > 2 SD')
+
+r = pearsonr(mdf['n_arms'], mdf['prop_big'])
+r.statistic
+
+g.text(3, 0.07, f'$r = {r.statistic:.2f}$', color='C3', fontsize=12)
+
+plt.tight_layout()
+plt.savefig('fig/final/app_fig_breadth_scale/ar_breadth.svg')
 
 # <codecell>
 df = collate_dfs('remote/18_etc/dp_false_neg', show_progress=True)
