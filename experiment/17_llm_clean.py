@@ -13,9 +13,10 @@ from common import collate_dfs, set_theme
 
 # <codecell>
 dirs = [
-    'remote/17_llm_clean/qwen/set',
-    'remote/17_llm_clean/qwen_or/set',
-    'remote/17_llm_clean/qwen_php_enum/set',
+    'remote/17_llm_clean/gemma/set',
+    # 'remote/17_llm_clean/qwen/set',
+    # 'remote/17_llm_clean/qwen_or/set',
+    # 'remote/17_llm_clean/qwen_php_enum/set',
 ]
 
 dfs = [collate_dfs(d, show_progress=True) for d in dirs]
@@ -76,7 +77,7 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(3)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 2000]
+last_ckpt = mdf[mdf['ckpt'] == 2250]
 # last_ckpt = mdf[mdf['ckpt'] == 2250]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
