@@ -9,14 +9,14 @@ import sys
 sys.path.append('../')
 from common import collate_dfs, set_theme
 
-# set_theme()
+set_theme()
 
 # <codecell>
 dirs = [
-    'remote/17_llm_clean/gemma/set',
-    # 'remote/17_llm_clean/qwen/set',
-    # 'remote/17_llm_clean/qwen_or/set',
-    # 'remote/17_llm_clean/qwen_php_enum/set',
+    # 'remote/17_llm_clean/gemma/set',
+    'remote/17_llm_clean/qwen/set',
+    'remote/17_llm_clean/qwen_or/set',
+    'remote/17_llm_clean/qwen_php_enum/set',
 ]
 
 dfs = [collate_dfs(d, show_progress=True) for d in dirs]
@@ -77,25 +77,30 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(3)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 2250]
+last_ckpt = mdf[mdf['ckpt'] == 2000]
 # last_ckpt = mdf[mdf['ckpt'] == 2250]
-last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
+last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'RT'}})
 
-g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
-# g = sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
-# g.set_ylim((0.5, 1))
-# g = sns.stripplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
+plt.gcf().set_size_inches(5, 2.5)
 
+order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
+g = sns.boxplot(
+    data=last_ckpt, 
+    x='name', y='acc', hue='prompt_type', 
+    hue_order=['DP', 'RT'], order=order, 
+    fliersize=2, fill=False, gap=0.1)
+
+g.axhline(0.55, ls='--', color='gray')
 g.legend(title=None)
 sns.move_legend(g, "lower right")
 
-# g.set_ylim((0.6, 0.97))
-g.set_title('Full (broad, shallow)')
-g.set_xlabel('Qwen2.5 Coder Size')
+g.set_ylim((0, 1))
+g.set_title('Full')
+g.set_xlabel('Model (Qwen2.5-Coder)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 
-# plt.savefig('fig/qwen_full.png')
+plt.savefig('fig/final/fig_pita_res/qwen25_full.svg')
 
 # <codecell>
 mdf = plot_df.copy()
@@ -126,18 +131,24 @@ last_ckpt = mdf[mdf['ckpt'] == 2000]
 # last_ckpt = mdf[mdf['ckpt'] == 2250]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
-# g = sns.barplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
+plt.gcf().set_size_inches(5, 2.5)
+order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
+g = sns.boxplot(
+    data=last_ckpt, 
+    x='name', y='acc', hue='prompt_type', 
+    hue_order=['DP', 'CoT'], order=order, 
+    fliersize=2, fill=False, gap=0.1)
 g.legend(title=None)
+g.set_ylim((0, 1))
+g.axhline(0.15, ls='--', color='gray')
 # sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 
-# g.set_ylim((0.6, 0.97))
-g.set_title('Imply (medium breadth, depth)')
-g.set_xlabel('Qwen2.5 Coder Size')
+g.set_title('Imply')
+g.set_xlabel('Model (Qwen2.5-Coder)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 
-# plt.savefig('fig/qwen_impy.png')
+plt.savefig('fig/final/fig_pita_res/qwen25_imply.svg')
 
 
 # <codecell>
@@ -168,17 +179,24 @@ last_ckpt = (
 last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type',  hue_order=['DP', 'CoT'])
+plt.gcf().set_size_inches(5, 2.5)
+order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
+g = sns.boxplot(
+    data=last_ckpt, 
+    x='name', y='acc', hue='prompt_type', 
+    hue_order=['DP', 'CoT'], order=order, 
+    fliersize=2, fill=False, gap=0.1)
 g.legend(title=None)
-# sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 
-# g.set_ylim((0.5, 1.1))
-g.set_title('Or (very narrow, deep)')
-g.set_xlabel('Qwen2.5 Coder Size')
+g.axhline(0.47, ls='--', color='gray')
+
+g.set_ylim((0, 1))
+g.set_title('Or')
+g.set_xlabel('Model (Qwen2.5-Coder)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 
-# plt.savefig('fig/qwen_or.png')
+plt.savefig('fig/final/fig_pita_res/qwen25_or.svg')
 
 # %%
 mdf = plot_df.copy()
@@ -253,15 +271,22 @@ last_ckpt = (
 last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-# g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', order=['0.5B', '1.5B', '7B'], hue_order=['DP', 'CoT'])
-g = sns.boxplot(data=last_ckpt, x='name', y='acc', hue='prompt_type', hue_order=['DP', 'CoT'])
+
+plt.gcf().set_size_inches(3.6, 2.5)
+order = ['0.5B', '1.5B', '3B', '7B',]
+g = sns.boxplot(
+    data=last_ckpt, 
+    x='name', y='acc', hue='prompt_type', 
+    hue_order=['DP', 'CoT'], order=order, 
+    fliersize=2, fill=False, gap=0.1)
 g.legend(title=None)
-# g.legend_.set_visible(False)
+g.axhline(0.58, ls='--', color='gray')
+
+g.set_ylim((0, 1))
 
 
-# g.set_ylim((0.3, 1))
-g.set_title('PHP (narrow, very deep)')
-g.set_xlabel('Qwen2.5 Coder Size')
+g.set_title('PHP')
+g.set_xlabel('Model (Qwen2.5-Coder)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
-# plt.savefig('fig/qwen_php.png')
+plt.savefig('fig/final/fig_pita_res/qwen25_php.svg')

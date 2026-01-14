@@ -73,7 +73,7 @@ g.tick_params(axis='both', labelsize=10)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 40 - 2 * xs, color='cyan', linestyle='dashed')
-g.text(6, 10, r'$\propto B^2$', color='cyan', fontsize=12)
+g.text(6, 10, r'$\propto H^2$', color='cyan', fontsize=12)
 
 g.set_ylabel('Breadth (B)')
 g.set_xlabel('Hidden (H)')
@@ -146,7 +146,7 @@ g.tick_params(axis='both', labelsize=10)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 27.5 - 1 * xs, color='cyan', linestyle='dashed')
-g.text(3, 16, r'$\propto D$', color='cyan', fontsize=12)
+g.text(3, 16, r'$\propto H$', color='cyan', fontsize=12)
 
 g.set_ylabel('Depth (D)')
 g.set_xlabel('Hidden (H)')
@@ -218,7 +218,7 @@ g.tick_params(axis='both', labelsize=10)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 40 - 2 * xs, color='cyan', linestyle='dashed')
-g.text(8, 10, r'$\propto B^2$', color='cyan', fontsize=12)
+g.text(8, 10, r'$\propto H^2$', color='cyan', fontsize=12)
 
 g.set_ylabel('Breadth (B)')
 g.set_xlabel('Hidden (H)')
@@ -290,7 +290,7 @@ g.tick_params(axis='both', labelsize=10)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 33 - 0.5 * xs, color='cyan', linestyle='dashed')
-g.text(10, 20, r'$\propto \sqrt{D}$', color='cyan', fontsize=12)
+g.text(10, 20, r'$\propto \sqrt{H}$', color='cyan', fontsize=12)
 
 g.set_ylabel('Depth (D)')
 g.set_xlabel('Hidden (H)')
@@ -355,6 +355,7 @@ mdf = mdf[
     (mdf['n_hop_prop'] == n_hop_prop)
     & (mdf['depth'] == depth)
     & (mdf['name'] == 'DP')
+    & (mdf['n_arms'] % 3 == 0)
 ]
 
 plt.gcf().set_size_inches((3.5, 2.5))

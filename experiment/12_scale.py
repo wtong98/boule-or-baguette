@@ -15,6 +15,9 @@ from model.mlp import MlpConfig
 from model.transformer_std import *
 from task.graph import *
 
+jax.config.update('jax_platform_name', 'cpu')
+
+
 n_arms = 10
 depth = 10
 n_hidden = 512
@@ -36,6 +39,9 @@ test_task = StarfishTask(n_arms=n_arms, depth=depth, samp_dist=(test_n_hop), bat
 xs, ys = next(train_task)
 print(xs[:3])
 print(ys[:3])
+
+# <codecell>
+
 
 # # <codecell>
 # train_task.batch_size = 4096

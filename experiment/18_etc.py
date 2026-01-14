@@ -50,7 +50,7 @@ def extract_plot_vals(row):
     samps = proj[4:,-1]
     samps = samps / np.std(samps)
 
-    prop_big = np.mean(np.abs(samps) > 2)
+    prop_big = np.sum(np.abs(samps) > 2)
 
     return pd.Series([
         row['name'],
@@ -84,7 +84,8 @@ g.set_ylabel('Prop. > 2 SD')
 r = pearsonr(mdf['n_arms'], mdf['prop_big'])
 r.statistic
 
-g.text(6, 0.04, f'$r = {r.statistic:.2f}$', color='C3', fontsize=12)
+g.text(20, 50, f'$r = {r.statistic:.3f}$', color='C3', fontsize=12)
+g.set_title('DP')
 
 plt.tight_layout()
 plt.savefig('fig/final/app_fig_breadth_scale/dp_breadth.svg')
@@ -100,7 +101,8 @@ g.set_ylabel('Prop. > 2 SD')
 r = pearsonr(mdf['n_arms'], mdf['prop_big'])
 r.statistic
 
-g.text(3, 0.07, f'$r = {r.statistic:.2f}$', color='C3', fontsize=12)
+g.text(3, 0.07, f'$r = {r.statistic:.3f}$', color='C3', fontsize=12)
+g.set_title('RT')
 
 plt.tight_layout()
 plt.savefig('fig/final/app_fig_breadth_scale/ar_breadth.svg')
