@@ -6,10 +6,10 @@
 #SBATCH --mem=128000
 #SBATCH -o log.%A.%a.out
 #SBATCH -e log.%A.%a.err
-#SBATCH --array=1-120
+#SBATCH --array=1-24
 #SBATCH --mail-type=END
 #SBATCH --mail-user=wtong@g.harvard.edu
-#SBATCH --account=kempner_pehlevan_lab
+#SBATCH --account=kempner_grads
 #SBATCH --constraint="h100|h200"
 
 
