@@ -22,9 +22,9 @@ itr_ids = list(range(10))
 base_len = 1024
 
 model_sets = [
-    {'name': 'meta-llama/Llama-3.2-1b-pt', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'meta-llama/Llama-3.2-3b-pt', '2k_bs': 32, '32k_bs': 1},
-    {'name': 'meta-llama/Llama-3.1-8b-pt', '2k_bs': 32, '32k_bs': 1},
+    {'name': 'meta-llama/Llama-3.2-1B', '2k_bs': 32, '32k_bs': 1},
+    {'name': 'meta-llama/Llama-3.2-3B', '2k_bs': 32, '32k_bs': 1},
+    {'name': 'meta-llama/Llama-3.1-8B', '2k_bs': 32, '32k_bs': 1},
 ]
 
 prompt_styles = [
