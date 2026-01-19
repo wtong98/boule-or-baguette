@@ -15,10 +15,11 @@ set_theme()
 dirs = [
     # 'remote/17_llm_clean/gemma/set',
     # 'remote/17_llm_clean/gemma_or/set',
-    'remote/17_llm_clean/gemma_php_enum/set',
+    # 'remote/17_llm_clean/gemma_php_enum/set',
     # 'remote/17_llm_clean/qwen/set',
     # 'remote/17_llm_clean/qwen_or/set',
     # 'remote/17_llm_clean/qwen_php_enum/set',
+    'remote/17_llm_clean/llama_ege/llama_base',
 ]
 
 dfs = [collate_dfs(d, show_progress=True) for d in dirs]
@@ -57,7 +58,8 @@ plot_df['task'].unique()
 mdf = plot_df.copy()
 mdf = mdf[
     # (mdf['task'] == 'gemma_prop_full')
-    (mdf['task'] == 'qwen_full')
+    # (mdf['task'] == 'qwen_full')
+    (mdf['task'] == 'llama3_prop_full')
     & (mdf['range'] == 'range_(5, inf)')
     # & (mdf['range'] == 'range_(5, 8)')
     # & (mdf['range'] == 'range_(8, 12)')
@@ -79,13 +81,14 @@ last_ckpt = (
     # mdf.sort_values('ckpt').groupby(['name', 'prompt_type'], as_index=False).head(3)
 )
 
-last_ckpt = mdf[mdf['ckpt'] == 2000]
-# last_ckpt = mdf[mdf['ckpt'] == 2250]
+# last_ckpt = mdf[mdf['ckpt'] == 2000]
+last_ckpt = mdf[mdf['ckpt'] == 2500]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'RT'}})
 
 plt.gcf().set_size_inches(5, 2.5)
 
-order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
+# order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
+order=None
 g = sns.boxplot(
     data=last_ckpt, 
     x='name', y='acc', hue='prompt_type', 
@@ -102,13 +105,14 @@ g.set_xlabel('Model (Qwen2.5-Coder)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 
-plt.savefig('fig/final/fig_pita_res/qwen25_full.svg')
+# plt.savefig('fig/final/fig_pita_res/qwen25_full.svg')
 
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
     # (mdf['task'] == 'gemma_prop_imply')
-    (mdf['task'] == 'qwen_imply')
+    # (mdf['task'] == 'qwen_imply')
+    (mdf['task'] == 'llama3_prop_imply')
     & (mdf['range'] == 'range_(7, inf)')
     # & (mdf['range'] == 'range_(7, 21)')
     # & (mdf['range'] == 'range_(21, 31)')
@@ -130,11 +134,12 @@ last_ckpt = (
 )
 
 last_ckpt = mdf[mdf['ckpt'] == 2000]
-# last_ckpt = mdf[mdf['ckpt'] == 2250]
+# last_ckpt = mdf[mdf['ckpt'] == 2500]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 plt.gcf().set_size_inches(5, 2.5)
-order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
+# order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
+order = None
 g = sns.boxplot(
     data=last_ckpt, 
     x='name', y='acc', hue='prompt_type', 
@@ -150,7 +155,7 @@ g.set_xlabel('Model (Qwen2.5-Coder)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 
-plt.savefig('fig/final/fig_pita_res/qwen25_imply.svg')
+# plt.savefig('fig/final/fig_pita_res/qwen25_imply.svg')
 
 
 # <codecell>

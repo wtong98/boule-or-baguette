@@ -41,6 +41,7 @@ def perform_eval(configs, out_dir='set'):
 
         pred_is_true = (t != 0) * ((f == 0) + (t < f))
         pred_is_false = (f != 0) * ((t == 0) + (f < t))
+        pred_none = (t == 0) * (f == 0)
 
         true_pos = is_true * pred_is_true
         true_neg = (~is_true) * pred_is_false
@@ -51,13 +52,15 @@ def perform_eval(configs, out_dir='set'):
         true_neg = torch.mean(true_neg.float()).item()
         false_pos = torch.mean(false_pos.float()).item()
         false_neg = torch.mean(false_neg.float()).item()
+        prop_none = torch.mean(pred_none.float()).item()
         
         return {
             'gen_acc': true_pos + true_neg,
-            # 'true_pos': true_pos,
-            # 'true_neg': true_neg,
-            # 'false_pos': false_pos,
-            # 'false_neg': false_neg
+            'true_pos': true_pos,
+            'true_neg': true_neg,
+            'false_pos': false_pos,
+            'false_neg': false_neg,
+            'prop_none': prop_none
         }
 
 
