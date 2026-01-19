@@ -79,7 +79,7 @@ mdf = mdf[mdf['name'] == 'DP']
 
 g = sns.regplot(data=mdf, x='n_arms', y='prop_big', line_kws=dict(color='r', linestyle='dashed', alpha=0.7, linewidth=1.5))
 g.set_xlabel('Breadth ($B$)')
-g.set_ylabel('Prop. > 2 SD')
+g.set_ylabel('Num. > 2 SD')
 
 r = pearsonr(mdf['n_arms'], mdf['prop_big'])
 r.statistic
@@ -96,12 +96,12 @@ mdf = mdf[mdf['name'] == 'AR']
 
 g = sns.regplot(data=mdf, x='n_arms', y='prop_big', line_kws=dict(color='r', linestyle='dashed', alpha=0.7, linewidth=1.5))
 g.set_xlabel('Breadth ($B$)')
-g.set_ylabel('Prop. > 2 SD')
+g.set_ylabel('Num. > 2 SD')
 
 r = pearsonr(mdf['n_arms'], mdf['prop_big'])
 r.statistic
 
-g.text(3, 0.07, f'$r = {r.statistic:.3f}$', color='C3', fontsize=12)
+g.text(20, 50, f'$r = {r.statistic:.3f}$', color='C3', fontsize=12)
 g.set_title('RT')
 
 plt.tight_layout()

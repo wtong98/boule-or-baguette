@@ -14,7 +14,8 @@ set_theme()
 # <codecell>
 dirs = [
     # 'remote/17_llm_clean/gemma/set',
-    'remote/17_llm_clean/gemma_or/set',
+    # 'remote/17_llm_clean/gemma_or/set',
+    'remote/17_llm_clean/gemma_php_enum/set',
     # 'remote/17_llm_clean/qwen/set',
     # 'remote/17_llm_clean/qwen_or/set',
     # 'remote/17_llm_clean/qwen_php_enum/set',
@@ -245,8 +246,8 @@ g.figure.tight_layout()
 # %%
 mdf = plot_df.copy()
 mdf = mdf[
-    # (mdf['task'] == 'gemma_prop_php_enum')
-    (mdf['task'] == 'qwen_php_enum')
+    (mdf['task'] == 'gemma_php_enum')
+    # (mdf['task'] == 'qwen_php_enum')
     & (mdf['range'] == 'range_(61, inf)')
     # & (mdf['range'] == 'range_(91, 121)')
     # & (mdf['range'] == 'range_(121, 171)')
@@ -275,7 +276,8 @@ last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thou
 
 
 plt.gcf().set_size_inches(3.6, 2.5)
-order = ['0.5B', '1.5B', '3B', '7B',]
+# order = ['0.5B', '1.5B', '3B', '7B',]
+order=None
 g = sns.boxplot(
     data=last_ckpt, 
     x='name', y='acc', hue='prompt_type', 
@@ -291,4 +293,4 @@ g.set_title('PHP')
 g.set_xlabel('Model (Qwen2.5-Coder)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
-plt.savefig('fig/final/fig_pita_res/qwen25_php.svg')
+# plt.savefig('fig/final/fig_pita_res/qwen25_php.svg')

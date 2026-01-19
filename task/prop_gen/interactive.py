@@ -20,7 +20,7 @@ from util.sample import gen_batch, n_combo, gen_php
 from tqdm import tqdm
 from functools import lru_cache
 # <codecell>
-prop = Implies(Atom('p'), PTrue())
+prop = Implies(Atom('p'), Atom('p'))
 
 print('PROP', prop)
 # proof = prove(prop, keep='until_success')
