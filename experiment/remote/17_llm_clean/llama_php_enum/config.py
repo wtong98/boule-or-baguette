@@ -33,20 +33,20 @@ prompt_styles = [
 ]
 
 tasks = [
-    {'name': 'or', 'train_len': 8192, 'test_len': 32_768},
+    {'name': 'php_enum', 'train_len': 32_768, 'test_len': 32_768},
 ]
 
 task_to_ds_path = {
-    'or': data_dir + '/hf_or_par_text_32768_pipe',
+    'php_enum': data_dir + '/hf_php_text_32768_pipe',
 }
 
 # Corresponds roughly to 50, 90th percentiles
 task_to_splits = {
-    'or': [18],
+    'php_enum': [60],
 }
 
 task_to_test_splits = {
-    'or': [18],
+    'php_enum': [60],
 }
 
 
@@ -74,7 +74,7 @@ for i in itr_ids:
             'task_name': task,
             'batch_size': batch_size,
             'accum_steps': accum_steps,
-            'max_steps': 2_500,
+            'max_steps': 2_000,
             'num_samples': 16,
             'max_length': task_args['train_len'],
             'max_test_length': task_args['test_len'],

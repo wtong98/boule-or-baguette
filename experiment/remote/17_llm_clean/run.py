@@ -133,6 +133,8 @@ def perform_run(configs):
     pad_token = tokenizer.pad_token or tokenizer.eos_token
     pad_token_id = tokenizer.convert_tokens_to_ids(pad_token)
     assert pad_token_id is not None, "The tokenizer does not have a pad token or eos token."
+    tokenizer.pad_token = pad_token
+    
 
     data_collator = DataCollatorForLanguageModeling(
         pad_token_id=pad_token_id,
