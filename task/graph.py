@@ -428,7 +428,13 @@ class StarfishTask:
     sep_idx = 3
     offset = 3
 
-    def __init__(self, depth, n_arms=2, samp_dist=1, cot=False, force_bin_label=False, rl_prompt=False, trace_to_start=False, nouveau=False, batch_size='adaptive') -> None:
+    def __init__(self, depth, n_arms=2, samp_dist=1, 
+                 cot=False, 
+                 force_bin_label=False, 
+                 rl_prompt=False,
+                 trace_to_start=False, nouveau=False,
+                 invert_some=False,
+                 batch_size='adaptive') -> None:
         self.depth = depth
         self.n_arms = n_arms
         self.samp_dist = samp_dist
@@ -437,7 +443,11 @@ class StarfishTask:
         self.rl_prompt = rl_prompt
         self.trace_to_start = trace_to_start
         self.nouveau = nouveau
+        self.invert_some = invert_some
         self.batch_size = batch_size
+
+        if self.invert_some:
+            assert self.trace_to_start == False, 'cannot invert with trace_to_start=True'
 
         if batch_size == 'adaptive':
             self.batch_size = n_arms * depth
@@ -447,8 +457,19 @@ class StarfishTask:
     
     def __next__(self):
         k1, k2, self.source = jax.random.split(self.source, num=3)
-        n_on = self.batch_size // 2
-        n_off = self.batch_size - n_on
+
+        if self.invert_some:
+            n_off = self.batch_size // 4
+            n_inv = self.batch_size // 4
+            n_on = self.batch_size - n_off - n_inv
+
+            xs_inv = _star_samp_on(k1, self.depth, self.n_arms, self.samp_dist, n_inv)
+            xs_inv = jnp.stack((xs_inv[:,1], xs_inv[:,0]), axis=1)
+            ys_inv = jnp.zeros(n_inv)
+        else:
+            n_on = self.batch_size // 2
+            n_off = self.batch_size - n_on
+            n_inv = 0
 
         xs_on = _star_samp_on(k1, self.depth, self.n_arms, self.samp_dist, n_on)
         xs_off = _star_samp_off(k2, self.depth, self.n_arms, self.samp_dist, n_off)
@@ -457,8 +478,13 @@ class StarfishTask:
 
         if self.cot:
             mask_start = 1 if self.nouveau else 2
+            xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size - n_inv, trace_to_start=self.trace_to_start, nouveau=self.nouveau, full_trace=self.trace_to_start)
 
-            xs = _star_add_chain(xs, self.depth, self.n_arms, self.batch_size, trace_to_start=self.trace_to_start, nouveau=self.nouveau)
+            if self.invert_some:
+                xs_inv_cot = _star_add_chain(xs_inv, self.depth, self.n_arms, n_inv, trace_to_start=True, nouveau=self.nouveau, full_trace=False)
+                xs = jnp.concatenate((xs, xs_inv_cot), axis=0)
+                ys = jnp.concatenate((ys, ys_inv))
+
             if not self.force_bin_label:
                 ys = xs[:,1:]
                 ys = ys.at[:,:mask_start].set(0)   # mask prompt
@@ -478,6 +504,10 @@ class StarfishTask:
                 thought_toks
             ), axis=1)
             ys = ys + 1
+        else:
+            if self.invert_some:
+                xs = jnp.concatenate((xs, xs_inv), axis=0)
+                ys = jnp.concatenate((ys, ys_inv), axis=0)
 
         return xs.astype(int), ys.astype(int)
 
@@ -576,11 +606,19 @@ def _star_add_chain(xs, depth, n_arms, batch_size, trace_to_start=True, nouveau=
     return xs
 
 
-# task = StarfishTask(n_arms=10, depth=10, samp_dist=3, batch_size=10, cot=True, force_bin_label=True, trace_to_start=True, nouveau=True)
+# xs = _star_samp_on(jax.random.PRNGKey(0), depth=10, n_arms=5, samp_dist=(3, 7), batch_size=10)
+# xs = jnp.stack((xs[:,1], xs[:,0]), axis=1)
+# xs = _star_add_chain(xs, depth=10, n_arms=5, batch_size=10, trace_to_start=False, nouveau=True, full_trace=False)
+# xs
+
+# task = StarfishTask(n_arms=10, depth=10, samp_dist=(3, 6), batch_size=12, cot=True, trace_to_start=False, nouveau=True, invert_some=True)
 # xs, ys = next(task)
 
-# print(xs[-3:])
-# print(ys[-3:])
+# print(xs[-6:])
+# print(ys[-6:])
+
+# print(xs[:6])
+# print(ys[:6])
 
 # <codecell>
 class CircleTask:
