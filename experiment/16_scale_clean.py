@@ -411,3 +411,113 @@ g.legend(title='Distance ($k$)', loc='upper left')
 
 plt.tight_layout()
 plt.savefig('fig/final/app_fig_dp_gen_acc/dp_gen_acc.svg')
+
+# <codecell>
+df = collate_dfs('remote/16_scale_clean/gen_extend/set', show_progress=True)
+df
+
+
+# %%
+def extract_plot_vals(row):
+    n_hop_prop = row['info']['n_hop_prop']
+    del row['info']['n_hop_prop']
+    del row['info']['n_hop']
+
+    return pd.Series([
+        row['name'],
+        row['train_task'].n_arms,
+        row['train_task'].depth,
+        row['train_task'].samp_dist[1],
+        row['config']['n_hidden'],
+        row['config']['n_layers'],
+        row['hist']['test'][5]['acc'],
+        n_hop_prop,
+        row['info'],
+    ], index=['name', 'n_arms', 'depth', 'n_hop', 'n_hidden', 'n_layers', 'acc_hist', 'n_hop_prop', 'info'])
+
+plot_df = df.copy().apply(extract_plot_vals, axis=1) \
+            .reset_index(drop=True) \
+
+adf = pd.DataFrame(plot_df['info'].tolist()) \
+        .stack() \
+        .reset_index(level=1, name='info')
+
+plot_df = plot_df.drop('info', axis=1) \
+                 .join(adf) \
+                 .rename(columns={'level_1': 'test_n_hop'}) \
+                 .reset_index(names='orig_index')
+
+bdf = pd.DataFrame(plot_df['info'].tolist())
+# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
+# bdf = bdf.drop('gen_acc', axis=1)
+
+plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
+plot_df
+
+# <codecell>
+mdf = plot_df.copy()
+
+depth = 20
+n_hop_prop = 0.25
+
+train_split = np.round(depth * n_hop_prop)
+
+mdf = mdf[
+    (mdf['n_hop_prop'] == n_hop_prop)
+    & (mdf['depth'] == depth)
+    & (mdf['name'] == 'DP')
+    & (mdf['n_arms'] % 3 == 0)
+]
+
+plt.gcf().set_size_inches((3.5, 2.5))
+g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='full')
+g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
+g.set_xlabel('Distance ($k$)')
+g.set_ylabel('Accuracy')
+g.set_title('DP')
+g.legend(title='Breadth ($B$)', loc='upper right')
+g.set_ylim((0.5, 1))
+
+plt.tight_layout()
+# plt.savefig('fig/final/fig_ti/dp_gen.svg')
+
+# <codecell>
+mdf = plot_df.copy()
+mdf = mdf[
+    (mdf['n_hop_prop'] == n_hop_prop)
+    & (mdf['depth'] == depth)
+    & (mdf['name'] == 'AR')
+]
+
+plt.gcf().set_size_inches((3.5, 2.5))
+g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='auto')
+g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
+g.set_xlabel('Distance ($k$)')
+g.set_ylabel('Accuracy')
+g.set_title('CoT')
+g.legend(title='Breadth ($B$)', loc='upper right')
+g.set_ylim((0.5, 1))
+
+plt.tight_layout()
+plt.savefig('fig/final/fig_ti/ar_gen.svg')
+
+
+# <codecell>
+adf = mdf[mdf['test_n_hop'] > 15]
+adf = adf[adf['test_n_hop'] % 2 == 0]
+
+g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5, legend='brief')
+g.set_xscale('log')
+g.set_yscale('log')
+
+g.set_xlabel('Breadth ($B$)')
+g.set_ylabel('Test accuracy')
+
+xs = np.linspace(np.log(9.5), np.log(13))
+g.plot(np.exp(xs), np.exp(-2 * xs + 4.45), color='red', linestyle='dashed')
+g.text(4, 0.8, r'$\propto B^{-2}$', color='red')
+
+g.legend(title='Distance ($k$)', loc='upper left')
+# g.legend().set_visible(False)
+
+plt.tight_layout()

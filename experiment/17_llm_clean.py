@@ -15,13 +15,14 @@ set_theme()
 # <codecell>
 dirs = [
     # 'remote/17_llm_clean/gemma/set',
-    'remote/17_llm_clean/gemma_or/set',
-    'remote/17_llm_clean/gemma_php_enum/set',
+    # 'remote/17_llm_clean/gemma_or/set',
+    # 'remote/17_llm_clean/gemma_php_enum/set',
     # 'remote/17_llm_clean/qwen/set',
     # 'remote/17_llm_clean/qwen_or/set',
     # 'remote/17_llm_clean/qwen_php_enum/set',
     # 'remote/17_llm_clean/llama_ege',
     # 'remote/17_llm_clean/llama_ege_or',
+    'remote/17_llm_clean/llama_php_enum/set',
 ]
 
 dfs = [collate_dfs(d, show_progress=True) for d in dirs]
@@ -262,7 +263,8 @@ g.figure.tight_layout()
 # %%
 mdf = plot_df.copy()
 mdf = mdf[
-    (mdf['task'] == 'gemma_php_enum')
+    (mdf['task'] == 'llama_php_enum')
+    # (mdf['task'] == 'gemma_php_enum')
     # (mdf['task'] == 'qwen_php_enum')
     & (mdf['range'] == 'range_(61, inf)')
     # & (mdf['range'] == 'range_(91, 121)')
@@ -294,7 +296,8 @@ last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thou
 # plt.gcf().set_size_inches(3.6, 2.5)
 plt.gcf().set_size_inches(2.3, 2.5)
 # order = ['0.5B', '1.5B', '3B', '7B',]
-order = ['1b', '4b']
+# order = ['1b', '4b']
+order = None
 
 g = sns.boxplot(
     data=last_ckpt, 
@@ -312,7 +315,7 @@ g.set_xlabel('Model (Gemma 3)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 # plt.savefig('fig/final/fig_pita_res/qwen25_php.svg')
-plt.savefig('fig/final/fig_pita_gemma/gemma_php_enum.svg')
+# plt.savefig('fig/final/fig_pita_gemma/gemma_php_enum.svg')
 
 
 

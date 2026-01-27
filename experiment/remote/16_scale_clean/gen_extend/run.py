@@ -21,17 +21,17 @@ print('RUN ID', run_id)
 # xs, ys = next(task)
 # print(xs[-3:])
 
-run_split = 12
+run_split = 60
 
 train_iters = 100_000
 
-n_arms = np.arange(2, 31, step=4)
-n_arms
+# n_arms = np.arange(2, 31, step=6)
+n_arms = [2, 5, 10, 20]
 
 n_depths = [10, 20, 30]
 n_widths = [4096]
 
-n_hop_props = [0.25]
+n_hop_props = [0.3]
 lrs = [1e-2]
 
 all_n_layer = [1]
@@ -197,9 +197,10 @@ for lr, n_hop_prop, n_arm, depth, n_hidden, n_layer in itertools.product(lrs, n_
         ), 
     ])
 
-    
 all_cases = split_cases(all_cases, run_split, shuffle_seed=seed)
 print('CASES', all_cases)
+
+# <codecell>
 
 for case in tqdm(all_cases):
     print('RUNNING', case.name)
