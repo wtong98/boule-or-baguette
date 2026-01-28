@@ -20,8 +20,8 @@ dirs = [
     # 'remote/17_llm_clean/qwen/set',
     # 'remote/17_llm_clean/qwen_or/set',
     # 'remote/17_llm_clean/qwen_php_enum/set',
-    # 'remote/17_llm_clean/llama_ege',
-    # 'remote/17_llm_clean/llama_ege_or',
+    'remote/17_llm_clean/llama_ege',
+    'remote/17_llm_clean/llama_ege_or',
     'remote/17_llm_clean/llama_php_enum/set',
 ]
 
@@ -61,8 +61,8 @@ plot_df['task'].unique()
 mdf = plot_df.copy()
 mdf = mdf[
     # (mdf['task'] == 'gemma_prop_full')
-    (mdf['task'] == 'qwen_full')
-    # (mdf['task'] == 'llama3_prop_full')
+    # (mdf['task'] == 'qwen_full')
+    (mdf['task'] == 'llama3_prop_full')
     & (mdf['range'] == 'range_(5, inf)')
     # & (mdf['range'] == 'range_(5, 8)')
     # & (mdf['range'] == 'range_(8, 12)')
@@ -89,11 +89,12 @@ last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'RT'}})
 
 # plt.gcf().set_size_inches(5, 2.5)
-plt.gcf().set_size_inches(3.8, 2.5)
+# plt.gcf().set_size_inches(3.8, 2.5)
+plt.gcf().set_size_inches(3.6, 2.5)
 
 # order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
-order = ['1b', '4b', '12b', '27b']
-order=None
+# order = ['1b', '4b', '12b', '27b']
+order = ['1B', '3B', '8B']
 g = sns.boxplot(
     data=last_ckpt, 
     x='name', y='acc', hue='prompt_type', 
@@ -107,18 +108,18 @@ sns.move_legend(g, "lower right")
 g.set_ylim((0, 1))
 g.set_title('Full')
 # g.set_xlabel('Model (Qwen2.5-Coder)')
-g.set_xlabel('Model (Gemma 3)')
+g.set_xlabel('Model (Llama 3.*)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 
-plt.savefig('fig/final/fig_pita_gemma/gemma_full.svg')
+plt.savefig('fig/final/fig_pita_llama/llama_full.svg')
 
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
     # (mdf['task'] == 'gemma_prop_imply')
-    (mdf['task'] == 'qwen_imply')
-    # (mdf['task'] == 'llama3_prop_imply')
+    # (mdf['task'] == 'qwen_imply')
+    (mdf['task'] == 'llama3_prop_imply')
     & (mdf['range'] == 'range_(7, inf)')
     # & (mdf['range'] == 'range_(7, 21)')
     # & (mdf['range'] == 'range_(21, 31)')
@@ -143,10 +144,10 @@ last_ckpt = mdf[mdf['ckpt'] == 2000]
 # last_ckpt = mdf[mdf['ckpt'] == 2500]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-plt.gcf().set_size_inches(3.8, 2.5)
+plt.gcf().set_size_inches(3.6, 2.5)
 # order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
-order = ['1b', '4b', '12b', '27b']
-order = None
+order = ['1B', '3B', '8B']
+
 g = sns.boxplot(
     data=last_ckpt, 
     x='name', y='acc', hue='prompt_type', 
@@ -158,19 +159,20 @@ g.axhline(0.15, ls='--', color='gray')
 # sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 
 g.set_title('Imply')
-g.set_xlabel('Model (Gemma 3)')
+g.set_xlabel('Model (Llama 3.*)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 
 # plt.savefig('fig/final/fig_pita_res/qwen25_imply.svg')
-plt.savefig('fig/final/fig_pita_gemma/gemma_imply.svg')
+# plt.savefig('fig/final/fig_pita_gemma/gemma_imply.svg')
+plt.savefig('fig/final/fig_pita_llama/llama_imply.svg')
 
 
 # <codecell>
 mdf = plot_df.copy()
 mdf = mdf[
-    # (mdf['task'] == 'llama3_or')
-    (mdf['task'] == 'gemma_or')
+    (mdf['task'] == 'llama3_or')
+    # (mdf['task'] == 'gemma_or')
     # (mdf['task'] == 'qwen_or')
     # & (mdf['range'] == 'range_(1, 19)')
     # & (mdf['range'] == 'range_(19, 31)')
@@ -195,9 +197,9 @@ last_ckpt = (
 last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
-plt.gcf().set_size_inches(3.8, 2.5)
+plt.gcf().set_size_inches(3.6, 2.5)
 # order = ['0.5B', '1.5B', '3B', '7B', '14B', '32B']
-order=['1b', '4b', '12b', '27b']
+order=['1B', '3B', '8B']
 
 g = sns.boxplot(
     data=last_ckpt, 
@@ -210,12 +212,13 @@ g.axhline(0.47, ls='--', color='gray')
 
 g.set_ylim((0, 1))
 g.set_title('Or')
-g.set_xlabel('Model (Gemma 3)')
+g.set_xlabel('Model (Llama 3.*)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 
 # plt.savefig('fig/final/fig_pita_res/qwen25_or.svg')
-plt.savefig('fig/final/fig_pita_gemma/gemma_or.svg')
+# plt.savefig('fig/final/fig_pita_gemma/gemma_or.svg')
+plt.savefig('fig/final/fig_pita_llama/llama_or.svg')
 
 
 # %%
@@ -293,11 +296,10 @@ last_ckpt = mdf[mdf['ckpt'] == 2000]
 last_ckpt = last_ckpt.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': 'CoT'}})
 
 
-# plt.gcf().set_size_inches(3.6, 2.5)
-plt.gcf().set_size_inches(2.3, 2.5)
+plt.gcf().set_size_inches(3.6, 2.5)
 # order = ['0.5B', '1.5B', '3B', '7B',]
 # order = ['1b', '4b']
-order = None
+order = ['1B', '3B', '8B']
 
 g = sns.boxplot(
     data=last_ckpt, 
@@ -311,11 +313,12 @@ g.set_ylim((0, 1))
 
 
 g.set_title('PHP')
-g.set_xlabel('Model (Gemma 3)')
+g.set_xlabel('Model (Llama 3.*)')
 g.set_ylabel('Accuracy')
 g.figure.tight_layout()
 # plt.savefig('fig/final/fig_pita_res/qwen25_php.svg')
 # plt.savefig('fig/final/fig_pita_gemma/gemma_php_enum.svg')
+plt.savefig('fig/final/fig_pita_llama/llama_php_enum.svg')
 
 
 

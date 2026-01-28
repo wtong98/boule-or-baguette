@@ -1,6 +1,7 @@
 """Plotting script for the scale clean experiments."""
 
 # <codecell>
+import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -455,31 +456,30 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-mdf = plot_df.copy()
+names = plot_df['name'].unique()
+depths = plot_df['depth'].unique()
 
-depth = 20
-n_hop_prop = 0.25
+for depth, name in itertools.product(depths, names):
+    mdf = plot_df.copy()
+    train_split = np.round(depth * 0.3)
 
-train_split = np.round(depth * n_hop_prop)
+    mdf = mdf[
+        (mdf['depth'] == depth)
+        & (mdf['name'] == name)
+    ]
 
-mdf = mdf[
-    (mdf['n_hop_prop'] == n_hop_prop)
-    & (mdf['depth'] == depth)
-    & (mdf['name'] == 'DP')
-    & (mdf['n_arms'] % 3 == 0)
-]
+    plt.gcf().set_size_inches((2.7, 2))
+    g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='full')
+    g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
+    g.set_xlabel('Distance ($k$)')
+    g.set_ylabel('Accuracy')
+    g.set_title(name)
+    g.legend(title='Breadth ($B$)', loc='upper right')
+    g.set_ylim((0.5, 1))
 
-plt.gcf().set_size_inches((3.5, 2.5))
-g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', legend='full')
-g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
-g.set_xlabel('Distance ($k$)')
-g.set_ylabel('Accuracy')
-g.set_title('DP')
-g.legend(title='Breadth ($B$)', loc='upper right')
-g.set_ylim((0.5, 1))
-
-plt.tight_layout()
-# plt.savefig('fig/final/fig_ti/dp_gen.svg')
+    plt.tight_layout()
+    plt.savefig(f'fig/final/app_fig_variation/{name}_{depth}.svg')
+    plt.show()
 
 # <codecell>
 mdf = plot_df.copy()
