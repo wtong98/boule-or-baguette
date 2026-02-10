@@ -11,4 +11,6 @@
 
 source ../../../venv_imply/bin/activate
 # python to_dataset.py
-python add_pipe.py
+# python add_pipe.py
+python remove_ps.py
+python remove_eot.py
