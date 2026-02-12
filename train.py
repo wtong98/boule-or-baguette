@@ -5,15 +5,13 @@ Training utilities
 # <codecell>
 from dataclasses import dataclass, field
 from functools import partial
-import itertools
-from typing import Any, Iterable
+from typing import Iterable
 
-from flax import struct, traverse_util
+from flax import traverse_util
 from flax.serialization import to_state_dict
 from flax.training import train_state
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 import numpy as np
 import optax
 from tqdm import tqdm
@@ -336,83 +334,6 @@ def train(config, train_iter,
             
 def _print_status(step, hist):
     print(f'ITER {step}:  train_loss={hist["train"][-1]["loss"]:.4f}   train_acc={hist["train"][-1]["acc"]:.4f}   test_loss={hist["test"][-1]["loss"]:.4f}   test_acc={hist["test"][-1]["acc"]:.4f}')
-
-
-def reinforce(state, train_iter, 
-              action_fn, reward_fn, rl_loss,
-              train_iters=10_000, 
-              test_iter=None, test_iters=10, test_every=1000, loss=None,
-              eval_fns=None, print_fn=None,
-              save_params=False,
-              use_tqdm=False):
-
-    if test_iter is None:
-        test_iter = train_iter
-
-    if eval_fns is None:
-        eval_fns = [loss_and_acc]
-    
-    if print_fn is None:
-        print_fn = _print_rl_status
-    
-    action_fn = jax.tree_util.Partial(action_fn)
-    reward_fn = jax.tree_util.Partial(reward_fn)
-    rl_loss = jax.tree_util.Partial(rl_loss)
-
-    it = zip(range(train_iters), train_iter)
-    if use_tqdm:
-        it = tqdm(it, total=train_iters)
-
-    hist = {
-        'rew': [],
-        'test': [],
-        'params': []
-    }
-    
-    for step, batch in it:
-        state = rl_step(state, batch, action_fn, reward_fn, rl_loss)
-
-        if ((step + 1) % test_every == 0) or ((step + 1) == train_iters):
-            avg_rew = 0
-            all_test = []
-
-            for _, test_batch in zip(range(test_iters), test_iter):
-                all_test.append(merge_dicts([fn(state, test_batch, loss=loss) for fn in eval_fns]))
-                rew = compute_reward(state, batch, action_fn, reward_fn)
-                avg_rew += np.mean(rew) / test_iters
-            
-            all_test = jax.tree.map(lambda *xs: np.mean(xs), *all_test)
-            hist['test'].append(all_test)
-            hist['rew'].append(avg_rew)
-
-            print_fn(step+1, hist)
-
-            if save_params:
-                hist['params'].append(state.params)
-    
-    return state, hist
-
-
-def _print_rl_status(step, hist):
-    print(f'ITER {step}:  test_rew={hist["rew"][-1]:.4f}   test_acc={hist["test"][-1]["gen_acc"]:.4f}')
-
-
-@jax.jit
-def rl_step(state, batch, act_fn, rew_fn, rl_loss):
-    xs, ys = batch
-    traj = act_fn(state, xs)
-    rew = rew_fn(traj, ys)
-    loss_fn = lambda params: rl_loss(params, state, traj, rew)
-    grads = jax.grad(loss_fn)(state.params)
-    state = state.apply_gradients(grads=grads)
-    return state
-
-@jax.jit
-def compute_reward(state, batch, act_fn, rew_fn):
-    xs, ys = batch
-    traj = act_fn(state, xs)
-    rew = rew_fn(traj, ys)
-    return rew
 
 
 @dataclass
