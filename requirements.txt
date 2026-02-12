@@ -1,0 +1,17 @@
+bitsandbytes
+datasets
+flax
+jax
+matplotlib
+numpy
+optax
+pandas
+peft
+scipy
+seaborn
+torch
+tqdm
+transformers
+trl
+vllm
+wandb

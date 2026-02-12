@@ -110,10 +110,6 @@ class AddPositionEmbs(nn.Module):
         
         pe = pos_embedding[:, :length, :]
 
-        # x = inputs
-        # pe = jnp.arange(x.shape[1])[None]
-        # pe = nn.Embed(self.config.max_len, features=self.config.n_hidden, name='PE_freeze')(pe)
-        # x = x + pe
 
         return inputs + pe
 
@@ -133,8 +129,6 @@ class SimpleSelfAttention(nn.Module):
         head_dim = n_feats // n_heads
 
         if self.config.mup_scale:
-            # kernel_init = nn.initializers.normal(1)
-            # prefac = 1 / np.sqrt(head_dim)
             kernel_init = nn.initializers.normal(np.sqrt(head_dim))
             prefac = 1 / head_dim
         else:
@@ -145,20 +139,17 @@ class SimpleSelfAttention(nn.Module):
                                          name='value', 
                                          use_bias=False, 
                                          kernel_init=kernel_init,
-                                        #  param_dtype=self.config.dtype,
                                          dtype=jnp.bfloat16 if self.config.flash_att else self.config.dtype)(inputs)
 
         query = prefac * nn.DenseGeneral(features=(n_heads, head_dim), 
                                          name='query', 
                                          use_bias=False, 
                                          kernel_init=kernel_init,
-                                        #  param_dtype=self.config.dtype,
                                          dtype=jnp.bfloat16 if self.config.flash_att else self.config.dtype)(inputs)
         key = prefac * nn.DenseGeneral(features=(n_heads, head_dim), 
                                        name='key', 
                                        use_bias=False, 
                                        kernel_init=kernel_init,
-                                    #    param_dtype=self.config.dtype,
                                        dtype=jnp.bfloat16 if self.config.flash_att else self.config.dtype)(inputs)
         fac = head_dim if self.config.mup_scale else np.sqrt(head_dim)
 
@@ -186,8 +177,6 @@ class SimpleSelfAttention(nn.Module):
             out = jnp.einsum('...hqk,...khd->...qhd', attn_weights, value)
 
         if self.config.mup_scale:
-            # kernel_init = nn.initializers.normal(1)
-            # prefac = 1 / np.sqrt(self.config.n_hidden)
             kernel_init = nn.initializers.normal(np.sqrt(self.config.n_hidden))
             prefac = 1 / self.config.n_hidden
         else:
@@ -199,9 +188,7 @@ class SimpleSelfAttention(nn.Module):
                                        use_bias=False, 
                                        name='out', 
                                        kernel_init=kernel_init,
-                                    #    param_dtype=self.config.dtype,
                                        dtype=self.config.dtype)(out)
-        # out = out.squeeze()
 
         self.sow('intermediates', 'attention_out', out)
         return out
@@ -230,8 +217,6 @@ class TransformerBlock(nn.Module):
             x = nn.LayerNorm()(x)
         
         if self.config.mup_scale:
-            # kernel_init = nn.initializers.normal(1)
-            # prefac = 1 / np.sqrt(self.config.n_hidden)
             kernel_init = nn.initializers.normal(np.sqrt(self.config.n_hidden))
             prefac = 1 / self.config.n_hidden
         else:
@@ -246,14 +231,12 @@ class TransformerBlock(nn.Module):
                     x = prefac * nn.Dense(features=self.config.n_hidden, 
                                           use_bias=self.config.use_bias, 
                                           kernel_init=kernel_init,
-                                        #   param_dtype=self.config.dtype
                                           dtype=self.config.dtype)(pre_mlp_x)
                 else:
                     x = nn.relu(x)
                     x = prefac * nn.Dense(features=self.config.n_hidden, 
                                           use_bias=self.config.use_bias, 
                                           kernel_init=kernel_init,
-                                        #   param_dtype=self.config.dtype,
                                           dtype=self.config.dtype)(x)
                 
                 self.sow('intermediates', f'layer_{i}', x)
@@ -286,9 +269,7 @@ class Transformer(nn.Module):
                 num_embeddings=self.config.n_vocab,
                 embedding_init=nn.initializers.normal(1),
                 features=self.config.n_hidden,
-                # features=512,
                 name=name,
-                # param_dtype=self.config.dtype,
                 dtype=self.config.dtype)(y)
 
         if config.pos_emb:
@@ -296,7 +277,6 @@ class Transformer(nn.Module):
         
         decoder_mask = nn.make_causal_mask(jnp.zeros(inputs.shape[:2]))
 
-        # y = nn.Dense(self.config.n_hidden, use_bias=False)(y)
         
         for i in range(config.n_layers):
             name = f'transformer_block_{i}_freeze' if self.config.as_rf_model else None
@@ -305,16 +285,13 @@ class Transformer(nn.Module):
         if self.config.mup_scale:
             kernel_init = nn.initializers.normal(1)
             prefac = 1 / self.config.n_hidden
-            # prefac = 1 / np.sqrt(self.config.n_hidden)
             logits = prefac * nn.Dense(config.n_out, 
                                        use_bias=self.config.use_bias, 
                                        kernel_init=kernel_init,
-                                    #    param_dtype=self.config.dtype,
                                        dtype=self.config.dtype)(y)
         else:
             logits = nn.Dense(config.n_out, 
                               use_bias=self.config.use_bias,
-                              # param_dtype=self.config.dtype
                               dtype=self.config.dtype)(y)
 
         if config.return_format is None:
@@ -384,8 +361,6 @@ class TrLogReg(nn.Module):
         
             pe = pos_embedding[:, :x.shape[1], :]
 
-            # ps = jnp.arange(x.shape[1])[None]
-            # ps = nn.Embed(self.config.max_length, features=self.config.n_hidden, name='PE_freeze')(ps)
 
             x = x + pe
 
@@ -437,21 +412,13 @@ class Tr(nn.Module):
                 pe = pos_embedding[:, :x.shape[1], :]
             else:
                 ps = jnp.arange(x.shape[1])[None]
-                # pe = nn.Embed(self.config.max_len, features=self.config.n_hidden, name='PE_freeze')(ps) * np.sqrt(self.config.n_hidden)
                 pe = nn.Embed(self.config.max_len, features=self.config.n_hidden, name='PE_freeze')(ps)
                 if self.config.big_pe:
                     pe = pe * np.sqrt(self.config.n_hidden)
 
-                # div = self.config.n_hidden // 2
-                # pe.at[0,:div].set(pe[1,:div])
-
-                # pe = jnp.ones((2, self.config.n_hidden))
-                # pe.at[0, div:].set(0)
-                # pe.at[1,:div].set(0)
 
 
-                # pe = jax.random.normal(jax.random.key(3), shape=(1, x.shape[1], self.config.n_hidden)) / np.sqrt(self.config.n_hidden)
-                # pe = jax.random.normal(jax.random.key(5), shape=(1, x.shape[1], self.config.n_hidden))
+
 
             x = x + pe
 
@@ -470,96 +437,34 @@ class Tr(nn.Module):
 
 
 ### COORDINATE CHECKING
-# import matplotlib.pyplot as plt
-
-# import sys
-# sys.path.append('../')
-# from task.graph import *
-# from common import *
-# from train import *
 
 
-# base_lr = 1e-2
-# depth = 10
-# n_vocab = 2 * depth + 4
-
-# train_task = StarfishTask(depth=depth, n_arms=2, batch_size=512)
-
-# xs_init, _ = next(train_task)
-
-# state = None
-
-# all_norms = []
-# for n_steps in tqdm([3]):
-#     curr_norms = []
-#     curr_norms_att = []
-
-#     for n_hidden in [64, 128, 256, 512, 1024, 2048]:
-#         gamma = 100
-#         lr = base_lr * gamma
 
 
-#         config = TransformerConfig(n_vocab=n_vocab,
-#                                 n_layers=1,
-#                                 n_hidden=n_hidden,
-#                                 n_heads=2,
-#                                 n_out=1,
-#                                 pos_emb=False,
-#                                 layer_norm=False,
-#                                 residual_connections=False,
-#                                 n_mlp_layers=2,
-#                                 return_format='final_logit',
-#                                 use_bias=False,
-#                                 freeze_emb=True,
-#                                 mup_scale=True,
-#                                 flash_att=False,
-#                                 unif_att=False)
+
+
+
+
+
+
                                 
 
 
-#         state = create_train_state(jax.random.key(new_seed()),
-#                                 model=config.to_model(),
-#                                 dummy_input=xs_init,
-#                                 lr=lr,
-#                                 optim=optax.sign_sgd,
-#                                 gamma=gamma)
 
 #         # logits_init = state.apply_fn({'params': state.params}, xs_init)
-#         logits_init, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
 #         # att_init = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
-#         w_init = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
         
 
-#         state, hist = train(state,
-#                             train_iter=iter(train_task), 
-#                             loss='bce',
-#                             test_every=1000,
-#                             train_iters=n_steps, 
-#                             test_iters=1,
-#                             seed=None,
-#                             gamma=gamma)
 
-#         logits, intm = config.to_model().apply({'params': state.params}, xs_init, mutable='intermediates')
 #         # att = intm['intermediates']['TransformerBlock_1']['SimpleSelfAttention_0']['attention_logits'][0]
-#         w = intm['intermediates']['TransformerBlock_0']['layer_1'][0]
 
-#         norm = np.std(logits - logits_init).item()
 #         # norm_att = np.std(att - att_init).item()
-#         norm_att = 0
-#         norm_w = np.std(w - w_init).item()
 
-#         curr_norms.append((norm, norm_att, norm_w))
 #         # curr_norms_att.append(norm_att)
 #         del state
     
-#     all_norms.append(curr_norms)
 
 
-# for norms in all_norms:
-#     norms = np.array(norms)
-#     plt.plot(norms[:,0], 'o--')
 #     # plt.plot(norms[:,1], 'o--')
-#     plt.plot(norms[:,2], 'o--')
-#     plt.savefig('tmp.png')
 #     # plt.yscale('log')
 

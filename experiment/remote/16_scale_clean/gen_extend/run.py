@@ -16,16 +16,12 @@ from task.graph import *
 run_id = new_seed()
 print('RUN ID', run_id)
 
-# task = StarfishTask(depth=10, n_arms=5, samp_dist=(1, 5), cot=True, trace_to_start=False, batch_size=128, nouveau=True, invert_some=True)
 
-# xs, ys = next(task)
-# print(xs[-3:])
 
 run_split = 60
 
 train_iters = 100_000
 
-# n_arms = np.arange(2, 31, step=6)
 n_arms = [2, 5, 10, 20]
 
 n_depths = [10, 20, 30]
@@ -39,21 +35,6 @@ max_batch_size = 128
 
 seed = None
 
-
-### START TEST CONFIGS
-# run_split = 1
-# train_iters = 50
-
-# n_arms = [2]
-# n_depths = [10]
-# n_widths = [32]
-
-# all_n_layer = [1]
-# n_hop_props = [0.25]
-# lrs = [1e-2]
-
-# max_batch_size = 128
-### END TEST CONFIGS
 
 all_cases = []
 
@@ -233,6 +214,4 @@ df.to_pickle(f'res.{run_id}.pkl')
 print('done!')
 
 # %%
-# xs, ys = next(df.iloc[5]['train_task'])
-# xs[-7:]
 # # xs[:7]

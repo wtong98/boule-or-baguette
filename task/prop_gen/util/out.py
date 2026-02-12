@@ -6,7 +6,6 @@ import xml.etree.ElementTree as et
 
 from .data import *
 
-# lean_repl_path = r'/home/grandpaa/workspace/imply/imply/task/prop_gen/old/propositional_logic/random_gen/lean-repl'
 lean_repl_path = r'util/repl'
 
 
@@ -45,7 +44,6 @@ def format_example(n_atoms: int, prop: Proposition, proof: Proof, proof_to_strin
 
 
 def build_state(tactic_state, state_id):
-    # lines = tactic_state.split('\n')
     premise, conclusion = tactic_state.split('⊢')
     lines = premise.split('\n')
     conclusion = conclusion.strip().replace('\n', ' ').split()
@@ -154,9 +152,6 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int) ->
 
         cur_indent = ctx.current_indent
         for k, c in enumerate(choices):
-            # result.append(f'--- CHOICE: {c} of {choices} ------------------\n')
-            # if len(choices) > 1:
-            #     result.append(f'choice {k+1} of {len(choices)} in state {cur_state_num}\n')  # TODO: devise choice encoding
 
             i = ctx.state_current_choices[cur_state_num]
 
@@ -171,8 +166,6 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int) ->
                 show_current_tactic_state()
                 ctx.state_current_choices[cur_state_num] += 1
 
-        # if len(choices) > 1:
-        #     result.append("all choices exhausted\n")
 
         return False
 
@@ -236,7 +229,7 @@ def traverse_proof(ctx: StateTrackingCtx, proof: Proof, next_tactic_num: int) ->
             case NegAndL_right(name, (right_name, right_proof)):
                 return recurse(right_proof)
             case NegAtomL(name):
-                return True # TODO: check
+                return True
             case _:
                 raise ValueError(f"invalid proof: {proof}")
     else:

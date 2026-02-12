@@ -33,21 +33,6 @@ n_layers = 1
 max_batch_size = 512
 
 
-# n_hop_props = [0.5]
-
-### START TEST CONFIGS
-# run_split = 1
-# train_iters = 100
-
-# n_arms = [10]
-# n_depths = [22]
-# n_widths = [256]
-
-# n_hop_props = [0.25]
-
-# max_batch_size = 32
-### END TEST CONFIGS
-
 all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]

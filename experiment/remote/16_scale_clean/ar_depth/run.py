@@ -33,21 +33,6 @@ max_batch_size = 512
 
 shuffle_seed = 100
 
-### START TEST CONFIGS
-# run_split = 2
-# train_iters = 100
-# batch_size = 10
-
-# n_arms = [10]
-# n_depths = [10]
-# n_widths = [32]
-
-# all_n_layer = [1]
-# n_hop_props = [0.25, 0.5, 0.75, 0.95]
-
-# max_batch_size = 27
-### END TEST CONFIGS
-
 all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
@@ -116,23 +101,7 @@ for n_hop_prop, n_arm, n_hidden, depth, n_layer in itertools.product(n_hop_props
                 info={'n_hop_prop': n_hop_prop}
         ), 
 
-        # Case(f'AR direct',
-        #         TransformerConfig(n_heads=1,
-        #                         n_out=1,
-        #                         n_layers=n_layer,
-        #                         pos_emb=False, 
-        #                         return_format='final_logit_up_to_pad',
-        #                         n_mlp_layers=2,
-        #                         layer_norm=False,
-        #                         residual_connections=False,
-        #                         mup_scale=True,
-        #                         linear_att=False,
-        #                         unif_att=True,
         #                         **model_args),
-        #         train_args=make_train_args('bce'),
-        #         train_task=make_chain(cot=True, ttr=True, force_bin_label=True),
-        #         info={'n_hop_prop': n_hop_prop}
-        # ), 
     ])
     
     

@@ -50,8 +50,6 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
@@ -122,8 +120,6 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
@@ -338,8 +334,6 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
@@ -369,7 +363,6 @@ g.legend(title='Breadth ($B$)', loc='upper right')
 g.set_ylim((0.5, 1))
 
 plt.tight_layout()
-# plt.savefig('fig/final/fig_ti/dp_gen.svg')
 
 # <codecell>
 mdf = plot_df.copy()
@@ -408,7 +401,6 @@ g.plot(np.exp(xs), np.exp(-2 * xs + 4.45), color='red', linestyle='dashed')
 g.text(4, 0.8, r'$\propto B^{-2}$', color='red')
 
 g.legend(title='Distance ($k$)', loc='upper left')
-# g.legend().set_visible(False)
 
 plt.tight_layout()
 plt.savefig('fig/final/app_fig_dp_gen_acc/dp_gen_acc.svg')
@@ -449,8 +441,6 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
@@ -518,6 +508,5 @@ g.plot(np.exp(xs), np.exp(-2 * xs + 4.45), color='red', linestyle='dashed')
 g.text(4, 0.8, r'$\propto B^{-2}$', color='red')
 
 g.legend(title='Distance ($k$)', loc='upper left')
-# g.legend().set_visible(False)
 
 plt.tight_layout()

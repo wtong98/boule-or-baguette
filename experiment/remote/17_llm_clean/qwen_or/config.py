@@ -18,7 +18,6 @@ else:
         print(f"unrecognized mode: {sys.argv[-1]}, defaulting to run")
 
 
-# itr_ids = list(range(5))
 itr_ids = list(range(5, 10))
 base_len = 1024
 

@@ -31,7 +31,6 @@ or_text_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_or_text'
 imply_text_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_implies_text'
 php_text_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_php_text'
 php_enum_text_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf_php_enum_text'
-# debug_ds_path = '~/workspace/imply/imply/task/prop_gen/data/hf'
 debug_ds_path = None
 
 yes_id = 366
@@ -162,15 +161,9 @@ class PropTask:
         batch = self.collate(batch)
         
         xs = batch['input_ids']
-        # if self.grow_fac > 1:
-        #     new_size = int(xs.shape[1] * self.grow_fac)
-        #     new_xs = np.zeros((xs.shape[0], new_size)).astype(int)
-        #     new_xs[:,:xs.shape[1]] = xs
-        #     xs = new_xs
 
         if self.cot:
             if self.cot == 'final':
-                # TODO: technically retains some spare brackets
                 xs[(xs == yes_id) | (xs == no_id)] = 0
                 ys = batch['is_true'].astype(int)
             else:
@@ -191,86 +184,46 @@ class PropTask:
     def __iter__(self):
         return self
 
-# task = PropTask(depth=10, batch_size=5, split='test', cot='final', ds_path=full_ds_path, padding='longest')
-# xs, ys = next(task)
 # xs.shape
 
-# print(task.tokenizer.decode(xs[-1]))
 
 # <codecell>
 
 # xs.dtype
 
 # # <codecell>
-# all_lens = task.false_ds.map(lambda ex: {'len': len(ex['input_ids'])}, num_proc=16)['len']
 # all_lens
 
 # # <codecell>
-# import matplotlib.pyplot as plt
-# plt.hist(all_lens, bins=50)
-# np.quantile(all_lens, [0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
 
 # # quantiles for depth 3:  array([ 428.,  552.,  680.,  813.,  939., 1518.])
 # # quantiles for depth 20: array([ 779., 1073., 1659., 2269., 2599., 4025.])
 
 # # <codecell>
-# tok = get_tokenizer()
-# tok.decode(xs[0])
 
 # # <codecell>
 # # tok.decode(task_test.true_ds[10000]['input_ids'])
-# task.true_ds[0]['ops']
 
 # # <codecell>
-# count_ops(task.false_ds)
 
 # # <codecell>
-# def matches_ops(ex):
-#     return set(ex['ops']).issubset(PropTask.imply_ops)
 
-# filt_ds = task.ds.filter(matches_ops)
 
 # # <codecell>
-# t_vals = []
-# f_vals = []
 
-# for k, v in filt_ds.items():
-#     name, num = k.split('_')
 
-#     if name == 'True':
-#         t_vals.append((int(num), len(v)))
-#     else:
-#         f_vals.append((int(num), len(v)))
         
 # # <codecell>
-# import matplotlib.pyplot as plt
 
-# t_idx, t_lens = np.array(t_vals).T
-# f_idx, f_lens = np.array(f_vals).T
-# plt.scatter(t_idx, t_lens)
-# plt.scatter(f_idx, f_lens)
 
-# plt.xscale('log')
-# plt.yscale('log')
 
 # # <codecell>
-# t_sort_idx = np.argsort(t_idx)
-# t_cum = np.cumsum(t_lens[t_sort_idx]) / np.sum(t_lens)
 
-# f_sort_idx = np.argsort(f_idx)
-# f_cum = np.cumsum(f_lens[f_sort_idx]) / np.sum(f_lens)
 
-# plt.plot(t_cum)
-# plt.plot(f_cum)
 
-# props = [0.25, 0.5, 0.75, 0.95]
 
-# idxs = []
-# for p in props:
 #     # idx = np.sum(t_cum < p) - 1
 #     # idxs.append(t_idx[t_sort_idx][idx].item())
-#     idx = np.sum(f_cum < p) - 1
-#     idxs.append(f_idx[f_sort_idx][idx].item())
 
 # idxs
 
@@ -323,18 +276,9 @@ def fast_gen_acc_cot_prop(state, batch, seed, beta=1, return_preds=False):
     return res
         
 
-# def score(xs, preds):
-#     is_true = jnp.argmax(xs == yes_id, axis=-1) > 0
-#     pred_is_true = jnp.argmax(preds == yes_id, axis=-1) > 0
-#     pred_is_false = jnp.argmax(preds == no_id, axis=-1) > 0
 
-#     true_pos = is_true * pred_is_true
-#     true_neg = (1 - is_true) * pred_is_false
-#     false_pos = (1 - is_true) * pred_is_true
-#     false_neg = is_true * pred_is_false
 
 #     # return is_true * pred_is_true + (1 - is_true) * pred_is_false
-#     return true_pos, true_neg, false_pos, false_neg
 
 
 def score(xs, preds):
@@ -397,60 +341,16 @@ def _gen_pass(key, state, xs, idx, beta):
 
 
 # # <codecell>
-# from train import *
-# from model.transformer import TransformerConfig
 
-# n_vocab = len(task.tokenizer)
 
-# config = TransformerConfig(n_layers=2,
-#                            n_vocab=n_vocab,
-#                            n_out=n_vocab,
-#                            n_hidden=128,
-#                            pos_emb=False,
-#                            n_mlp_layers=2,
-#                            n_heads=1,
-#                            layer_norm=True,
-#                            as_rf_model=False,
-#                            residual_connections=True,
-#                            freeze_emb=True,
-#                            use_bias=False,
-#                            return_format=None,
-#                            mup_scale=True,
-#                            linear_att=False
-#                            )
 
-# state, hist = train(config,
-#                     train_iter=task,
-#                     loss='ce_mask',
-#                     test_every=1000,
-#                     test_iters=1,
-#                     train_iters=0,
-#                     use_tqdm=True,
-#                     eval_fns=[loss_and_acc, gen_acc_cot_prop],
-#                     print_fn=print_gen,
-#                     )
 
 # state
 
 # # <codecell>
-# out = gen_acc_cot_prop(state, next(task), return_preds=True)
 
 # # <codecell>
-# idx = 2
-# print(out['start_idxs'][idx])
-# print(np.argmax((out['xs'][idx][2:50]) == state_id))
-# print((out['xs'][idx][:100]))
-# print((out['preds'][idx][:100]))
 
-# idxs = out['xs'][idx][:50] == out['preds'][idx][:50]
-# out['xs'][idx][:50][idxs]
-# out['xs'][idx][42]
-# np.sum(idxs)
 
 # # <codecell>
-# xs = out['xs']
-# idx = out['start_idxs']
 
-# print(task.tokenizer.decode(out['preds'][0][:100]))
-# out['preds'][0][:100]
-# task.tokenizer.decode([18, 259, 273, 257, 264, 281])

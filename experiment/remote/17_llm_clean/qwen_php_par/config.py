@@ -11,21 +11,15 @@ itr_ids = list(range(3))
 model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-0.5B', '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-1.5B', '32k_bs': 1},
-    # {'name': 'Qwen/Qwen2.5-Coder-3B', '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '32k_bs': 1},
-    # {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 4, '32k_bs': 1},
 ]
 
 prompt_styles = [
     'ar_cot',
     'dp',
-    # 'dp_full'
 ]
 
 tasks = [
-    # 'full',
-    # 'imply',
-    # 'or',
     'php'
 ]
 
@@ -81,7 +75,6 @@ for i in itr_ids:
             'project_name': f'prop_{task}_par',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
             'packing': False
-            # 'packing': True if prompt != 'dp' else False
         }
 
         for split in base_config['splits']:

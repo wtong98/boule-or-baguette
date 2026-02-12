@@ -154,7 +154,7 @@ def loss_and_acc(state, batch, loss='bce'):
         res = jnp.sum((preds == labels) & mask)
         total = jnp.sum(mask)
         acc = res / total
-    elif len(preds.shape) == 2:  # TODO: temp hot-fix for RL finetune case
+    elif len(preds.shape) == 2:
         acc = jnp.mean(preds[:,-1] == labels)
     else:
         acc = jnp.mean(preds == labels)
@@ -192,7 +192,7 @@ def gen_acc_cot2(state, batch, loss=None):
     ans_idx = jnp.sum(ys != 0, axis=-1) - 1
     ans = ys[jnp.arange(len(ys)), ans_idx]
 
-    traj = gen2(state, xs)  # TODO: consider unifying in task / move to state
+    traj = gen2(state, xs)
     preds = extract_pred(traj)
 
     return {'gen_acc': jnp.mean(preds == ans)}
@@ -356,11 +356,6 @@ class Case:
 
         self.state, self.hist = train(self.config, train_iter=self.train_task, test_iter=self.test_task, wdb=wdb, **self.train_args)
     
-    def get_flops(self):
-        train_args = self.train_args
-        loss = train_args.get('loss', None)
-        return get_flops(train_step, self.state, next(self.train_task), loss=loss)
-    
     def eval(self, task, eval_fns, n_iters=1, prefix=None):
         all_res = []
         loss = self.train_args.get('loss', None)
@@ -375,14 +370,3 @@ class Case:
 
         self.info = self.info | all_res
 
-
-# TODO: fix cost_analysis for FLOPs
-def get_flops(fn, *args, **kwargs):
-    """Borrowed from flax.nn.tabulate"""
-    e = fn.lower(*args, **kwargs).compile()
-    cost = e.cost_analysis()
-    if cost is None:
-        print('warn: unable to estimate flops')
-        return 0
-    flops = int(cost['flops']) if 'flops' in cost else -1
-    return flops

@@ -151,8 +151,6 @@ def catalan(nodes):
             for op in ops:
                 yield op(left, right)
 
-# ops = [And, Or, Implies]
-# ops = [Implies]
 ops = [Or]
 
 def gen_batch_or(n_atoms, n_nodes):
@@ -160,7 +158,6 @@ def gen_batch_or(n_atoms, n_nodes):
     
     atoms = [Atom(f'p{i+1}') for i in range(n_atoms)]
     for target_atom in atoms:
-        # rem_atoms = [a for a in atoms if a is not target_atom]
         for node_set in it.product(*it.repeat(atoms, n_nodes)):
             for example in catalan(node_set):
                 formula = Implies(target_atom, example)
@@ -283,88 +280,26 @@ def pigeon(rng, n_pigeons, n_holes, pigeon_occupation_ablation_prop=None, roomma
     return php
 
 
-# def gen_php(seed=5):
-#     n_pigeons = 4
-#     n_holes = 4
 
-#     param_sets = []
-#     for n_p in range(2, n_pigeons + 1):
-#         for n_h in range(1, n_holes + 1):
-#             pigeon_occupation_ablation_prop = None
-#             roommate_ablation_prop = None
-#             repeats = 1
 
-#             if n_p == 2 and n_h == 4:
-#                 pigeon_occupation_ablation_prop = 0.75
-#                 roommate_ablation_prop = 0.75
-#                 repeats = 5
             
-#             elif n_p == 3 and n_h >= 3:
-#                 pigeon_occupation_ablation_prop = 2 / n_h
-#                 roommate_ablation_prop = 2 / n_h
-#                 repeats = 5
 
-#             elif n_p == 4 and n_h >= 2:
-#                 pigeon_occupation_ablation_prop = 1 / n_h
-#                 roommate_ablation_prop = 1 / n_h
-#                 repeats = 5
             
-#             param_sets.append({'n_pigeons': n_p,
-#                             'n_holes': n_h,
-#                             'pigeon_occupation_ablation_prop': pigeon_occupation_ablation_prop,
-#                             'roommate_ablation_prop': roommate_ablation_prop,
-#                             'repeats': repeats,
-#                             'seed': seed})
 
-#     from tqdm import tqdm
-#     all_pigeons = list(it.chain.from_iterable([pigeon_set(**params) for params in tqdm(param_sets)]))
-#     return all_pigeons
 
-# def pigeon_set(repeats=1, *args, **kwargs):
-#     all_pigeons = []
-#     seed = kwargs.pop('seed', None)
-#     rng = np.random.default_rng(seed)
     
-#     all_pigeons = [pigeon(rng, *args, **kwargs) for _ in range(repeats)]
-#     return all_pigeons
 
 
-# def pigeon(rng, n_pigeons, n_holes, pigeon_occupation_ablation_prop=None, roommate_ablation_prop=None):
-#     atoms = [[Atom(f'p{i}{j}') for j in range(n_holes)] for i in range(n_pigeons)]
 
-#     pigeons = []
-#     for i in range(n_pigeons):
-#         curr_p = atoms[i]
-#         if pigeon_occupation_ablation_prop is not None:
-#             keep_idxs = rng.binomial(1, pigeon_occupation_ablation_prop, size=len(curr_p)).astype(bool)
 
-#             if np.sum(keep_idxs) == 0:
-#                 keep_idxs[rng.integers(0, len(keep_idxs))] = True
 
-#             curr_p = [curr_p[j] for j, keep in enumerate(keep_idxs) if keep]
 
-#         pigeons.append(random_group(Or, curr_p, seed=new_seed(rng)))
 
-#     pigeons_in_a_hole = random_group(And, pigeons, seed=new_seed(rng))
 
-#     all_pigeon_roommates = []
-#     for i1 in range(n_pigeons):
-#         for i2 in range(n_pigeons):
-#             if i1 != i2:
-#                 statements = [And(atoms[i1][j], atoms[i2][j]) for j in range(n_holes)]
-#                 all_pigeon_roommates.extend(statements)
 
-#     if roommate_ablation_prop is not None:
-#         keep_idxs = rng.binomial(1, roommate_ablation_prop, size=len(all_pigeon_roommates)).astype(bool)
 
-#         if np.sum(keep_idxs) == 0:
-#             keep_idxs[rng.integers(0, len(keep_idxs))] = True
 
-#         all_pigeon_roommates = [all_pigeon_roommates[i] for i, keep in enumerate(keep_idxs) if keep]
 
-#     all_pigeon_roommates = random_group(Or, all_pigeon_roommates, seed=new_seed(rng))
-#     php = Implies(pigeons_in_a_hole, all_pigeon_roommates)
-#     return php
 
 
 def gen_php(seed=None, do_start=False):
@@ -409,10 +344,6 @@ def gen_php(seed=None, do_start=False):
     all_pigeons = it.chain.from_iterable([pigeon_set(**params) for params in param_sets])
     return all_pigeons
 
-# all_pigeons = gen_php(seed=1130, do_start=True)
-# all_pigeons = list(all_pigeons)
-# print(all_pigeons[-1])
-# len(all_pigeons)
 
 # <codecell>
 
@@ -423,13 +354,6 @@ def gen_or(n_exs_per_set=10_000, seed=None):
 
     max_pid = 100_000
     global_rng = np.random.default_rng(seed)
-
-    ### START TEST CONFIG
-    # max_pid = 10
-    # n_prop_set = np.arange(2, 5)
-    # switch = [False, True]
-    # n_exs_per_set = 3
-    ### END TEST CONFIG
 
     for n_props, is_true in it.product(n_prop_set, switch):
         for _ in range(n_exs_per_set):

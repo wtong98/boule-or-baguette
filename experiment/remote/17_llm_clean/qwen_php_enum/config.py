@@ -26,8 +26,6 @@ model_sets = [
     {'name': 'Qwen/Qwen2.5-Coder-1.5B', '2k_bs': 64, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-3B', '2k_bs': 64, '32k_bs': 1},
     {'name': 'Qwen/Qwen2.5-Coder-7B', '2k_bs': 32, '32k_bs': 1},
-    # {'name': 'Qwen/Qwen2.5-Coder-14B', '2k_bs': 32, '32k_bs': 1},
-    # {'name': 'Qwen/Qwen2.5-Coder-32B', '2k_bs': 32, '32k_bs': 1},
 ]
 
 prompt_styles = [

@@ -16,13 +16,9 @@ model_sets = [
 prompt_styles = [
     'ar_cot',
     'dp',
-    # 'dp_full'
 ]
 
 tasks = [
-    # 'full',
-    # 'imply',
-    # 'or',
     'php'
 ]
 
@@ -74,7 +70,6 @@ for i in itr_ids:
             'project_name': f'gemma_prop_{task}_par',
             'run_name_prefix': f"{model_name.split('/')[-1]}-{prompt}",
             'packing': False
-            # 'packing': True if prompt != 'dp' else False
         }
 
         for split in base_config['splits']:

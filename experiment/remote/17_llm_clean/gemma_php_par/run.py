@@ -84,7 +84,6 @@ def make_ds(depth, split):
     task.load_ds()
 
     ds = datasets.concatenate_datasets([task.true_ds, task.false_ds]).shuffle()
-    # TODO: hot-fix to adjust completion parsing, fix in dataset source
     ds = ds.map(lambda x: {'prompt': x['prompt'] + '|'}, num_proc=16)
 
     if run_config['prompt'] == 'dp':
@@ -99,7 +98,6 @@ def make_ds(depth, split):
         f"warn: unrecognized prompt type {run_config['prompt']}, defaulting to ar_cot"
 
     # temporarily reduce size for debugging
-    # ds = ds.select(range(1000))
     return ds
 
 
@@ -110,7 +108,7 @@ ranges = list(zip(range_hops[:-1], range_hops[1:]))
 train_split = run_config['train_split']
 train_ds = make_ds(train_split, 'train')
 test_ds = make_ds(train_split, 'test')
-test_ds = test_ds.select(range(100))  # TODO: should preferably incorporate logic by subsampling during training
+test_ds = test_ds.select(range(100))
 
 val_ds_set = [make_ds(r, split='range') for r in ranges]
 
@@ -157,15 +155,12 @@ args = SFTConfig(
     per_device_eval_batch_size=run_config['batch_size'],
     gradient_accumulation_steps=run_config['accum_steps'],      
     learning_rate=2e-4,                  # QLoRA LR baseline
-    # lr_scheduler_type="cosine",
     lr_scheduler_type='constant_with_warmup',
     warmup_steps=500,
-    # warmup_ratio=0.05,
     logging_steps=run_config['log_every'],
     save_steps=run_config['save_every'],
     bf16=True,
     gradient_checkpointing=True,
-    # optim="adamw_bnb_8bit",
     optim="paged_adamw_8bit",
     max_grad_norm=0.3,
     weight_decay=0.0,
@@ -187,51 +182,17 @@ trainer = SFTTrainer(
 )
 
 
-# def evaluate(succ_id, fail_id, num_samples=100):
-#     tokenizer = trainer.processing_class
-#     model.eval()
 
-#     with torch.no_grad():
-#         all_res = {}
-#         for r, val_ds in tqdm(zip(ranges, val_ds_set), total=len(val_ds_set)):
-#             ds = val_ds.shuffle().select(range(num_samples))
-#             tokenizer.padding_side = 'left'
-#             coll = DataCollatorWithPadding(tokenizer=tokenizer)
-#             inp_ids = [tokenizer(text) for text in ds['prompt']]
-#             lab_ids = [tokenizer(text) for text in ds['completion']]
 
-#             filtered = [
-#                 (inp, lab)
-#                 for inp, lab in zip(inp_ids, lab_ids)
-#                 if len(inp['input_ids']) + len(lab['input_ids']) <= trainer.args.max_length
-#             ]
 
-#             if not filtered:
-#                 print('warn: filtered everything out for range', r, 'with num_samples', num_samples)
-#                 all_res[f'range_{r}'] = {}
 #                 continue
 
-#             inp_ids, lab_ids = zip(*filtered)
-#             inp_ids = list(inp_ids)
-#             lab_ids = list(lab_ids)
 
-#             inp = coll(inp_ids)
-#             lab = coll(lab_ids)
 
-#             tokenizer.padding_side = 'right'
 
-#             inp['input_ids'] = inp['input_ids'].to(device='cuda')
-#             inp['attention_mask'] = inp['attention_mask'].to(device='cuda')
-#             lab['input_ids'] = lab['input_ids'].to(device='cuda')
 
-#             with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
-#                 preds = trainer.model.generate(**inp, max_length=trainer.args.max_length, max_new_tokens=None)
 
-#             res = score(preds, lab['input_ids'], succ_id, fail_id)
-#             all_res[f'range_{r}'] = res
         
-#     model.train()
-#     return all_res
 
 
 def evaluate(succ_id, fail_id, num_samples=100, batch_size=16):
@@ -333,12 +294,4 @@ trainer.add_callback(eval_callback)
 trainer.train()
 wandb.finish()
 
-# final_res = evaluate(eval_callback.succ_id, eval_callback.fail_id, num_samples=run_config['num_samples'])
-# df = pd.DataFrame([{
-#     'name': run_config['run_name'],
-#     'train_hop': train_split,
-#     'info': final_res,
-#     'hist': eval_callback.hist
-# }])
 # 
-# df.to_pickle(f'res.{new_seed()}.pkl')

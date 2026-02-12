@@ -39,28 +39,6 @@ def split(it, run_split):
 run_id = uuid.uuid4()
 print('RUN_ID', run_id)
 
-# total number of tokens with this configuration is 1559127906 (about 1.6 billion): TODO: update
-# n_atoms = 3
-# max_nodes = 5
-# n_cores = 16 * 16
-# keep = 'until_success'
-
-
-# total number of tokens with this configuration is ?
-# n_atoms = 3
-# max_nodes = 5
-# n_cores = 16 * 16
-# keep = 'simplest'
-
-# total number of tokens with this configuration is ?
-# NOTE: generation ops set to Implies only
-# n_atoms = 3
-# max_nodes = 7
-# n_cores = 16 * 16
-# keep = 'until_success'
-
-# total number of tokens with this configuration is ?
-# NOTE: generation ops set to Or only
 n_atoms = 3
 max_nodes = 8
 n_cores = 16 * 16
@@ -69,35 +47,15 @@ keep = 'until_success'
 run_split = 72
 
 
-### START TEST CONFIG
-# out_dir = Path('test_data')
-# n_cores = 16
-# n_atoms = 2
-# max_nodes = 4
-### END TEST CONFIG
 
-# all_ex = itertools.chain(*[gen_batch(n_atoms, n) for n in range(1, max_nodes + 1)])
-# all_ex = itertools.chain(*[gen_batch_or(n_atoms, n) for n in range(1, max_nodes + 1)])
-
-# all_ex = gen_php(seed=3011)
-# total_ex = len(all_ex)
-
-# total_ex = 2_500
-# all_ex = gen_or(n_exs_per_set=total_ex)
 run_idx = int(sys.argv[1])
 all_ex = gen_php(seed=1130, do_start=True)
-# n_sets = 28 * 2
 
 all_ex = list(split(all_ex, run_split))
-# total_ex = sum(n_combo(n_atoms, n) for n in range(1, max_nodes + 1))
-# total_ex = sum(n_combo_or(n_atoms, n) for n in range(1, max_nodes + 1))
 
-# pbar = tqdm(total=total_ex // run_split)
 pbar = tqdm(total=len(all_ex))
 
-# out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_big')
 out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/php_enum')
-# out_dir = Path('/n/netscratch/pehlevan_lab/Lab/wlt/prop/or_par')
 
 
 if not out_dir.exists():

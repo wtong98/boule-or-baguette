@@ -1,4 +1,3 @@
-# TODO: test against logged metrics from wandb
 import itertools
 from pathlib import Path
 
@@ -55,10 +54,6 @@ def score(preds, labs, succ_id, fail_id):
     
     return {
         'gen_acc': true_pos + true_neg,
-        # 'true_pos': true_pos,
-        # 'true_neg': true_neg,
-        # 'false_pos': false_pos,
-        # 'false_neg': false_neg
     }
 
 

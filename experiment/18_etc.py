@@ -158,37 +158,20 @@ print(xs[:3])
 print(ys[:3])
 
 # # <codecell>
-# train_task.batch_size = 4096
-# xs, ys = next(train_task)
-# emb = np.random.randn(n_vocab, n_hidden) / np.sqrt(n_hidden)
 
-# xs_emb = emb[xs]
-# ys = 2 * ys - 1
 
-# xs_tot = ys[:,None] * (xs_emb[:,0] + xs_emb[:,1])
 
-# xs_mat = xs_tot.T @ xs_tot / train_task.batch_size
 
 # # <codecell>
-# evals, evecs = np.linalg.eig(xs_mat)
 
-# plt.plot(emb @ evecs[:,[1]])
 # # plt.plot(evals)
 
 
 
 # <codecell>
-# config = MlpConfig(n_layers=1,
-#                    n_vocab=n_vocab,
-#                    n_hidden=n_hidden,
-#                    n_out=1,
-#                    mup_scale=False,
-#                    use_bias=False,
-#                    freeze_emb=True)
 
 config = TransformerConfig(n_layers=1,
                            n_vocab=n_vocab,
-                        #    n_out=n_vocab if cot else 1,
                            n_out=1,
                            n_hidden=n_hidden,
                            pos_emb=False,
@@ -196,15 +179,12 @@ config = TransformerConfig(n_layers=1,
                            n_heads=1,
                            layer_norm=False,
                            as_rf_model=False,
-                        #    residual_connections=False if cot else False,
                            residual_connections=False,
                            freeze_emb=True,
                            use_bias=False,
                            return_format='final_logit_up_to_pad' if cot else 'final_logit',
-                        #    return_format=None if cot else 'final_logit',
                            mup_scale=True,
                            unif_att=False,
-                        #    dtype=jnp.bfloat16
                            )
 
 # <codecell>
@@ -212,33 +192,24 @@ def summarize(state):
     readout = state.params['Dense_0']['kernel'] / n_hidden
     W2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
     a = W2 @ readout
-    # a = state.params['Dense_1']['kernel']
     return a
 
 lr = 1e-2
 gamma = 1
 
-# lr = 0.001
-# gamma = 100
 
 
 state, hist = train(config,
                     train_iter=iter(train_task), 
                     test_iter=iter(test_task), 
                     test_iters=1,
-                    # loss='ce_mask' if cot else 'bce',
                     loss='bce',
                     test_every=1000,
                     train_iters=5_000,
-                    # eval_fns=[loss_and_acc, gen_acc_cot1] if cot else None,
                     eval_fns=None,
-                    # print_fn=print_gen if cot else None,
                     print_fn=None,
                     lr=lr * gamma,
-                    # gamma=gamma,
                     optim=optax.adamw,
-                    # optim=optax.sgd
-                    # summary_fn=summarize,
                     )
 
 
@@ -549,8 +520,6 @@ plt.savefig('fig/final/app_fig_att/dp_tvd.svg')
 
 # <codecell>
 ### DP - Max margin solution plot
-# n_arms = 10
-# depth = 8
 n_arms = 50
 depth = 10
 n_hidden = 512
@@ -696,7 +665,6 @@ im = plt.imshow(proj, cmap='BrBG', vmin=-bound, vmax=bound)
 plt.colorbar(im, shrink=0.2)
 plt.tight_layout()
 
-# plt.savefig('fig/zero_mlp_coeffs.svg')
 
 # <codecell>
 plt.plot(a.flatten()[sort_idxs])
@@ -709,7 +677,6 @@ plt.plot(proj[:,15])
 
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 
-# plt.xlim((200, 300))
 
 # <codecell>
 plt.gcf().set_size_inches(9, 3)
@@ -762,7 +729,6 @@ im = plt.imshow(proj, cmap='BrBG', vmin=-bound, vmax=bound)
 plt.colorbar(im, shrink=0.2)
 plt.tight_layout()
 
-# plt.savefig('fig/zero_mlp_coeffs.svg')
 
 # <codecell>
 plt.plot(a.flatten()[sort_idxs])
@@ -775,12 +741,10 @@ plt.plot(proj[:,-1])
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 a[sort_idxs[0]]
 
-# plt.xlim((200, 300))
 
 # <codecell>
 sort_idxs = np.argsort(a.flatten())
 proj = np.sign(emb) @ W
-# proj = emb @ W
 proj = proj[:,sort_idxs]
 
 plt.gcf().set_size_inches(9, 3)
@@ -807,10 +771,8 @@ plt.imshow(log, cmap='BrBG', vmin=0.1, vmax=0.9)
 plt.colorbar()
 
 # <codecell>
-# plt.plot(log[5])
 plt.plot(log[2])
 plt.plot(log[-2])
-# plt.plot(log[-10])
 
 # <codecell>
 diffs = np.abs(log[-1] - 0.5)
@@ -830,7 +792,6 @@ W_sort = W[:,sort_idxs]
 a_sort = a[sort_idxs]
 
 xs = jnp.array([[14, 114]])
-# xs, _ = next(train_task)
 print(xs)
 state.apply_fn({'params': state.params}, xs)
 
@@ -847,15 +808,12 @@ plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 plt.ylim((-20, 20))
 
 jax.nn.relu(xs_emb.sum(axis=0, keepdims=True) @ W_sort) @ a_sort
-# state.apply_fn({'params': state.params}, xs)
 
 # <codecell>
 proj = emb @ W_sort
-# plt.plot(proj[14::20,-5])
 s = proj[:-4,-2]
 s = s.reshape(-1, n_arms)
 plt.imshow(s, cmap='BrBG', vmin=-10, vmax=10)
-# plt.colorbar(shrink=0.1)
 
 # <codecell>
 xs, ys = next(train_task)
@@ -866,7 +824,6 @@ out = xs_emb @ W
 out
 
 emb_sgn = np.sign(emb)
-# emb_sgn = np.random.randn(*emb_sgn.shape)
 
 beta = W @ emb_sgn.T @ np.linalg.pinv(emb_sgn @ emb_sgn.T)
 W_hat = beta @ emb_sgn
@@ -875,12 +832,10 @@ out_hat = xs_emb @ W_hat
 out_hat
 
 print(np.corrcoef(out.flatten(), out_hat.flatten()))
-# np.mean((out - out_hat)**2) / np.mean(out**2)
 plt.scatter(out.flatten(), out_hat.flatten(), alpha=0.1)
 
 
 
-# state.apply_fn({'params': state.params}, xs)
 
 # <codecell>
 proj = emb @ W_sort
@@ -905,7 +860,6 @@ pos_idx = a_sort.flatten() > 0
 print('pos', np.sum(jax.nn.relu(out[0])[pos_idx]))
 print('neg', np.sum(jax.nn.relu(out[0])[~pos_idx]))
 
-# plt.plot(jax.nn.relu(out[0]))
 
 
 
@@ -936,7 +890,6 @@ im = plt.imshow(proj, cmap='BrBG', vmin=-bound, vmax=bound)
 plt.colorbar(im, shrink=0.2)
 plt.tight_layout()
 
-# plt.savefig('fig/zero_mlp_coeffs.svg')
 
 # <codecell>
 plt.plot(a.flatten()[sort_idxs])
@@ -949,7 +902,6 @@ plt.plot(proj[:,-1])
 plt.axhline(y=0, color='gray', linestyle='dashed', alpha=0.7)
 a[sort_idxs[0]]
 
-# plt.xlim((200, 300))
 
 # <codecell>
 sort_idxs = np.argsort(a.flatten())
@@ -991,14 +943,10 @@ all_a = all_a[:,sort_idxs]
 plt.plot(all_a[:,-1])
 
 # <codecell>
-# plt.plot(proj[:,-1])
-# np.mean(proj[3,-100:])
 np.mean(proj[1,-10:])
 
-# next(train_task)
 
 # <codecell>
-# x, labels = next(train_task)
 x = jnp.array([[5, 55]])
 labels = jnp.array([0])
 
@@ -1010,9 +958,6 @@ def loss_fn(params):
 loss_fn(state.params)
 grads = jax.grad(loss_fn)(state.params)
 
-# logits = state.apply_fn({'params': state.params}, x)
-# logits = np.random.randn()
-# jax.grad(loss_fn)(logits)
 
 # <codecell>
 xs_emb = emb[x].squeeze().sum(axis=0)
@@ -1025,7 +970,6 @@ np.mean((np.sign(diff) == np.sign(dW)) | (np.sign(dW) == 0))
 
 # <codecell>
 ### ANALYSIS OF COT MODEL
-# xs = jnp.array([[305, 600, 500, 400, 300, 200, 100, 4]])
 xs = jnp.array([[25, 75]])
 
 logits = state.apply_fn({'params': state.params}, xs)
@@ -1054,26 +998,19 @@ emb = state.params['Embed_freeze']['embedding']
 M1 = state.params['TransformerBlock_0']['Dense_0']['kernel'] / np.sqrt(n_hidden)
 M2 = state.params['TransformerBlock_0']['Dense_1']['kernel'] / np.sqrt(n_hidden)
 
-# K = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['key']['kernel'].squeeze() / np.sqrt(n_hidden)
-# Q = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['query']['kernel'].squeeze() / np.sqrt(n_hidden)
 V = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['value']['kernel'].squeeze() / np.sqrt(n_hidden)
 O = state.params['TransformerBlock_0']['SimpleSelfAttention_0']['out']['kernel'].squeeze() / np.sqrt(n_hidden)
 
 # <codecell>
 xs, _ = next(test_task)
-# print(xs[:3])
 
 xs = jnp.array([[20, 80, 70, 60, 50, 40, 30, 20, 10, 4, 2]])
 xs = jnp.array([xs[0,:-np.sum(xs[0] == 0) - 1]])
 print('XS', xs)
-# m = config.replace(remove_att=True).to_model()
 m = config.to_model()
 
-# logits_orig, intm = state.apply_fn({'params': state.params}, xs, mutable='intermediates')
 logits_orig, intm = m.apply({'params': state.params}, xs, mutable='intermediates')
 print('PS', logits_orig.argmax(-1))
-# intm['intermediates']['TransformerBlock_0']['SimpleSelfAttention_0']['attention_weights']
-# intm['intermediates']
 
 
 # <codecell>
@@ -1123,62 +1060,37 @@ plt.hist(proj[4,:], bins=50)
 # <codecell>
 
 # # <codecell>
-# xs_mlp_comb = jax.nn.gelu((xs_att) @ M1) @ M2 @ W
-# print(logits_orig[0][-1][2])
-# print(xs_mlp_comb[0][-1][2])
-# plt.plot(xs_mlp_comb[0][-1])
-# plt.plot(logits_orig[0][-1])
 
 # # <codecell>
-# z = emb @ M1
 
 # # plt.imshow(z @ z.T, cmap='bwr', vmin=-50, vmax=50)
-# plt.imshow(z, cmap='bwr')
-# plt.colorbar()
 
 # # vs = np.linspace(0, 100)
 # # plt.plot(vs, vs)
 
 # # <codecell>
-# z = emb @ V @ O @ M1
 
 # # plt.imshow(z @ z.T, cmap='bwr', vmin=-40_000, vmax=40_000)
-# plt.imshow(z, cmap='BrBG', vmin=-100, vmax=100)
-# plt.colorbar()
 
 # # <codecell>
-# a = M2 @ W
 # # plt.imshow(a, cmap='bwr', vmin=-1, vmax=1)
 # # plt.colorbar()
 
-# plt.plot(a[:,1], alpha=0.7)
 
 
 # # <codecell>
 
-# preds_mlp = jax.nn.relu(emb @ V @ O @ M1) @ M2 @ W
-# plt.imshow(preds_mlp)
-# plt.colorbar()
 
-# preds_mlp.argmax(-1)
 
-# preds_mlp[4]
 
 
 # # <codecell>
-# preds_w = emb @ W
-# plt.imshow(preds_w)
-# plt.colorbar()
-# preds_w.argmax(-1)
 
 
 
 
 # <codecell>
-# df = collate_dfs('remote/12_scale/zero_arm', show_progress=True)
 df = collate_dfs('remote/13_scale_clean/dp_breadth', show_progress=True)
-# df = collate_dfs('remote/12_scale/ar_arm', show_progress=True)
-# df = collate_dfs('remote/12_scale/arm', show_progress=True)
 df
 
 # %%
@@ -1213,41 +1125,29 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-# for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[(mdf['test_n_hop'] == 5)
           & (mdf['n_layers'] == 1)
-        #   & (mdf['lr'] == 1e-2)
-        #   & (mdf['gamma'] == 1)
-        #   & (mdf['resid'] == False)
           ]
 
-# TODO: track generative historical accuracy, too
 mdf = mdf[['n_arms', 'n_hidden', 'acc']]
 mdf = mdf.groupby(['n_arms', 'n_hidden'], as_index=False).mean()
 mdf = mdf.pivot(index='n_arms', columns='n_hidden', values='acc')
 
 mdf = mdf.iloc[::-1]
 
-# g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
 g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
 g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
 g.plot(xs, 30 - 2 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 50 - 2 * xs, color='cyan', linestyle='dashed')
 
-# g.plot(xs, 39 - xs, color='gray', linestyle='dashed')
 
-# xs = 2**np.linspace(-5, 8)
-# g.plot(xs, 1 - 2 * xs + 13, color='black', linestyle='dashed')
 
 g.set_ylabel('Breadth (B)')
 g.set_xlabel('Hidden (H)')
@@ -1255,10 +1155,6 @@ g.set_xlabel('Hidden (H)')
 plt.title('AR early')
 plt.text(9, 5, r'$\propto H^2$', color='cyan')
 plt.text(22, 5, r'$\propto H$', color='cyan')
-# plt.savefig(f'fig/ar_mlp_BH_early.png', bbox_inches='tight')
-# plt.savefig(f'fig/zero_mlp_arms_v_size_short.png', bbox_inches='tight')
-# plt.savefig(f'fig/ar_mlp_arms_v_size_debug.png', bbox_inches='tight')
-# plt.savefig('fig/debug.png', bbox_inches='tight')
 plt.show()
 
 
@@ -1272,7 +1168,6 @@ for ex in df['hist'].iloc[rand_idxs]:
     vals = [p['loss'] for p in ex['test']]
     plt.plot(vals, color='C0', alpha=0.1)
 
-# df['hist'].iloc[0]['train']
     
 
 # %%
@@ -1305,14 +1200,11 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-# for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
@@ -1329,17 +1221,10 @@ mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc_hist')
 mdf = mdf.iloc[::-1]
 
 g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
-# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
-# g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs + np.log(xs), 40 - 1 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 20 - 0.67 * xs, color='cyan', linestyle='dashed')
 g.plot(xs, 29 - 1 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 30 - 0.5 * xs, color='cyan', linestyle='dashed')
 
-# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('Depth (D)')
 g.set_xlabel('Hidden (H)')
@@ -1359,7 +1244,6 @@ for ex in df['hist'].iloc[rand_idxs]:
     vals = [p['loss'] for p in ex['test']]
     plt.plot(vals, color='C0', alpha=0.1)
 
-# df['hist'].iloc[0]['train']
     
 
 # %%
@@ -1405,7 +1289,6 @@ plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-# for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
@@ -1421,17 +1304,11 @@ mdf = mdf.pivot(index='depth', columns='n_hidden', values='acc')
 mdf = mdf.iloc[::-1]
 
 g = sns.heatmap(mdf, square=False, vmin=0.6, vmax=0.9)
-# g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
-# g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 30 - 1 * xs, color='cyan', linestyle='dashed')
 g.plot(xs, 20 - 2 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 38 - 1 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
 
 g.plot(xs, 18 - 0.5 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 28 - 0.33 * xs, color='cyan', linestyle='dashed')
 
 g.set_ylabel('Depth (D)')
 g.set_xlabel('Hidden (H)')
@@ -1440,7 +1317,6 @@ plt.text(5, 5, r'$\propto H^2$', color='cyan')
 plt.text(16, 9, r'$\propto H^{1/2}$', color='cyan')
 
 plt.title('AR late')
-# plt.savefig(f'fig/ar_mlp_DH_late.png', bbox_inches='tight')
 plt.show()
 
 # <codecell>
@@ -1453,7 +1329,6 @@ for ex in df['hist'].iloc[rand_idxs]:
     vals = [p['loss'] for p in ex['test']]
     plt.plot(vals, color='C0', alpha=0.1)
 
-# df['hist'].iloc[0]['train']
     
 
 # %%
@@ -1490,14 +1365,11 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
 
 # <codecell>
-# for name in np.unique(plot_df['name']):
 mdf = plot_df.copy()
 mdf = mdf[
     (mdf['test_n_hop'] == 0.5)
@@ -1513,11 +1385,6 @@ mdf = mdf.iloc[::-1]
 g = sns.heatmap(mdf, square=False, vmin=0.5, vmax=1)
 
 xs = 2**np.linspace(-5, 8)
-# g.plot(xs, 35 - 0.7 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 50 - 1.5 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 20 - 1 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 45 - 0.67 * xs, color='cyan', linestyle='dashed')
-# g.plot(xs, 45 - 0.5 * xs, color='cyan', linestyle='dashed')
 
 g.plot(xs, 25 + 0.5 * xs, color='cyan', linestyle='dashed')
 
@@ -1525,7 +1392,6 @@ g.set_ylabel('depth')
 g.set_xlabel('n_arms')
 
 plt.title('AR full')
-# plt.savefig(f'fig/zero_mlp_depth_v_size_debug.png', bbox_inches='tight')
 plt.show()
 
 
@@ -1539,7 +1405,6 @@ for ex in df['hist'].iloc[rand_idxs]:
     vals = [p['loss'] for p in ex['test']]
     plt.plot(vals, color='C0', alpha=0.1)
 
-# df['hist'].iloc[0]['train']
     
 
 # %%
@@ -1573,8 +1438,6 @@ plot_df = plot_df.drop('info', axis=1) \
                  .reset_index(names='orig_index')
 
 bdf = pd.DataFrame(plot_df['info'].tolist())
-# bdf.loc[~pd.isna(bdf['gen_acc']),'acc'] = bdf[~pd.isna(bdf['gen_acc'])]['gen_acc']
-# bdf = bdf.drop('gen_acc', axis=1)
 
 plot_df = pd.concat((plot_df.drop('info', axis=1), bdf), axis=1)
 plot_df
@@ -1596,11 +1459,9 @@ g = sns.lineplot(mdf, x='test_n_hop', y='acc', hue='n_arms', style='name')
 g.axvline(x=train_split, color='red', linestyle='dashed', alpha=0.7)
 g.set_title('DP generalization')
 
-# plt.savefig(f'fig/dp_gen_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')
 
 # <codecell>
 adf = mdf[mdf['test_n_hop'] < 15]
-# adf = mdf.copy()
 
 g = sns.lineplot(adf, x='n_arms', y='acc', hue='test_n_hop', alpha=0.5, marker='o')
 g.set_xscale('log')
@@ -1609,6 +1470,4 @@ g.set_yscale('log')
 xs = np.linspace(np.log(8), np.log(27))
 g.plot(np.exp(xs), np.exp(-0.5 * xs + 1), color='red', linestyle='dashed')
 g.text(12, 0.8, r'$\propto B^{-1/2}$', color='red')
-# g.plot(np.exp(xs), np.exp(-1 * xs + 2), color='blue', linestyle='dashed')
 
-# plt.savefig(f'fig/dp_gen_arms_pred_depth_{depth}_hop_{n_hop_prop}.png', bbox_inches='tight')

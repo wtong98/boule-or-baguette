@@ -18,9 +18,7 @@ else:
         print(f"unrecognized mode: {sys.argv[-1]}, defaulting to run")
 
 
-# itr_ids = [0]
 itr_ids = list(range(0, 10))
-# itr_ids = list(range(5, 10))
 base_len = 1024
 
 model_sets = [

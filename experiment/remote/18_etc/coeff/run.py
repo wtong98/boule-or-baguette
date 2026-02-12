@@ -35,22 +35,6 @@ max_batch_size = 128
 seed = 50
 
 
-### START TEST CONFIGS
-# run_split = 1
-# train_iters = 50
-
-# n_arms_dp = [2]
-# n_arms_cot = [2]
-# n_depths = [10]
-# n_widths = [32]
-
-# all_n_layer = [1]
-# n_hop_props = [0.25]
-# lrs = [1e-2]
-
-# max_batch_size = 128
-### END TEST CONFIGS
-
 all_cases = []
 
 eval_fns = [loss_and_acc, gen_acc_cot1]
