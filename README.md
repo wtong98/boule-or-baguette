@@ -1,5 +1,5 @@
 # Equality reasoning
-This repository contains code that reproduces experiments from our paper (TODO: link)
+This repository contains code that reproduces experiments from our paper [Boule or Baguette? A Study on Task Topology, Length Generalization, and the Benefit of Reasoning Traces](https://arxiv.org/abs/2602.14404).
 
 ## Installation
 

@@ -7,7 +7,7 @@ import sys
 sys.path.append('../')
 from run import perform_run
 
-data_dir = '/n/netscratch/pehlevan_lab/Lab/wlt/data/prop_gen/data'
+data_dir = '/path/to/your/data'
 
 perform = perform_run
 if sys.argv[-1] == 'eval':
