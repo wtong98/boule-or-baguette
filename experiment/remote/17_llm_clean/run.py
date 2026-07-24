@@ -22,6 +22,7 @@ import wandb
 
 sys.path.append('../../../../')
 from task.prop import PropTask
+from pita_dataset import make_pita_dataset
 
 import torch._dynamo
 torch._dynamo.config.suppress_errors = True
@@ -79,6 +80,9 @@ def perform_run(configs):
 
 
     def make_ds(depth, split):
+        if 'dataset_split' in run_config:
+            return make_pita_dataset(run_config, depth, split)
+
         task = PropTask(depth=depth, split=split, cot='text', ds_path=ds_path)
         task.load_ds()
 

@@ -1,6 +1,7 @@
 """LLM sweep plotting"""
 
 # <codecell>
+from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -11,6 +12,246 @@ from common import collate_dfs, set_theme
 import numpy as np
 
 set_theme()
+
+
+_BASE_DIR = Path(__file__).resolve().parent
+
+
+def _extract_llm_plot_vals(row):
+    run_prefix = row['run_name'].split(' ')[0]
+    run_name = row['run_name'].split('-')[2]
+    prompt_type = run_prefix.split('-')[-1]
+
+    return pd.DataFrame({
+        'name': [run_name] * len(row['res']),
+        'prompt_type': prompt_type,
+        'ckpt': row['ckpt_num'],
+        'task': row['project_name'],
+        'split': row['train_split'],
+        'range': list(row['res']),
+        'acc': [item['gen_acc'] for item in row['res'].values()],
+    })
+
+
+def _load_llm_plot_df(dirs):
+    dfs = [
+        collate_dfs(_BASE_DIR / d, show_progress=False)
+        for d in dirs
+    ]
+    df = pd.concat(dfs, ignore_index=True)
+    df = df[pd.notna(df['model_name'])]
+
+    plot_df = pd.concat(
+        [_extract_llm_plot_vals(row) for _, row in df.iterrows()],
+        ignore_index=True,
+    )
+    plot_df['in_dist_range'] = plot_df.apply(
+        lambda row: row['range'] == f"range_(1, {int(row['split']) + 1})",
+        axis=1,
+    )
+    return plot_df
+
+
+_IN_DIST_CONFIGS = [
+    {
+        'family': 'qwen25',
+        'collation_path': 'fig_pita_res/fig_pita_res_in_dist.svg',
+        'collation_figsize': (7.4, 4.1),
+        'dirs': [
+            'remote/17_llm_clean/qwen/set',
+            'remote/17_llm_clean/qwen_or/set',
+            'remote/17_llm_clean/qwen_php_enum/set',
+        ],
+        'xlabel': 'Model (Qwen2.5-Coder)',
+        'order': ['0.5B', '1.5B', '3B', '7B', '14B', '32B'],
+        'plots': [
+            ('qwen_full', 'Full', 0.55, 'fig_pita_res/qwen25_full_in_dist.svg', 'RT'),
+            ('qwen_imply', 'Imply', 0.15, 'fig_pita_res/qwen25_imply_in_dist.svg', 'CoT'),
+            ('qwen_or', 'Or', 0.47, 'fig_pita_res/qwen25_or_in_dist.svg', 'CoT'),
+            ('qwen_php_enum', 'PHP', 0.58, 'fig_pita_res/qwen25_php_in_dist.svg', 'CoT'),
+        ],
+    },
+    {
+        'family': 'gemma',
+        'collation_path': 'fig_pita_gemma/fig_pita_gemma_in_dist.svg',
+        'collation_figsize': (7.4, 4.1),
+        'dirs': [
+            'remote/17_llm_clean/gemma/set',
+            'remote/17_llm_clean/gemma_or/set',
+            'remote/17_llm_clean/gemma_php_enum/set',
+        ],
+        'xlabel': 'Model (Gemma 3)',
+        'order': ['1b', '4b', '12b', '27b'],
+        'plots': [
+            ('qwen_full', 'Full', 0.55, 'fig_pita_gemma/gemma_full_in_dist.svg', 'RT'),
+            ('qwen_imply', 'Imply', 0.15, 'fig_pita_gemma/gemma_imply_in_dist.svg', 'CoT'),
+            ('gemma_or', 'Or', 0.47, 'fig_pita_gemma/gemma_or_in_dist.svg', 'CoT'),
+            ('gemma_php_enum', 'PHP', 0.58, 'fig_pita_gemma/gemma_php_enum_in_dist.svg', 'CoT'),
+        ],
+    },
+    {
+        'family': 'llama',
+        'collation_path': 'fig_pita_llama/fig_pita_llama_in_dist.svg',
+        'collation_figsize': (7.4, 4.1),
+        'dirs': [
+            'remote/17_llm_clean/llama_ege',
+            'remote/17_llm_clean/llama_ege_or',
+            'remote/17_llm_clean/llama_php_enum/set',
+        ],
+        'xlabel': 'Model (Llama 3.*)',
+        'order': ['1B', '3B', '8B'],
+        'plots': [
+            ('llama3_prop_full', 'Full', 0.55, 'fig_pita_llama/llama_full_in_dist.svg', 'RT'),
+            ('llama3_prop_imply', 'Imply', 0.15, 'fig_pita_llama/llama_imply_in_dist.svg', 'CoT'),
+            ('llama3_or', 'Or', 0.47, 'fig_pita_llama/llama_or_in_dist.svg', 'CoT'),
+            ('llama_php_enum', 'PHP', 0.58, 'fig_pita_llama/llama_php_enum_in_dist.svg', 'CoT'),
+        ],
+    },
+]
+
+
+def _save_in_dist_plot(plot_df, task, title, chance, rel_out_path, xlabel, order, cot_label):
+    mdf = plot_df[
+        (plot_df['task'] == task)
+        & (plot_df['ckpt'] == 2000)
+        & plot_df['in_dist_range']
+    ].copy()
+
+    mdf = mdf.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': cot_label}})
+
+    fig, ax = plt.subplots(figsize=(3.6, 2.5))
+    sns.boxplot(
+        data=mdf,
+        x='name', y='acc', hue='prompt_type',
+        hue_order=['DP', cot_label], order=order,
+        fliersize=2, fill=False, gap=0.1, ax=ax,
+    )
+    ax.axhline(chance, ls='--', color='gray')
+    ax.legend(title=None)
+    ax.set_ylim((0, 1))
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel('In-dist. accuracy')
+    fig.tight_layout()
+
+    out_path = _BASE_DIR / 'fig/final' / rel_out_path
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path)
+    plt.close(fig)
+
+    return {
+        'path': out_path,
+        'rows': len(mdf),
+        'min': mdf['acc'].min(),
+        'median': mdf['acc'].median(),
+        'max': mdf['acc'].max(),
+    }
+
+
+def _plot_in_dist_panel(ax, plot_df, task, title, chance, xlabel, order, cot_label,
+                        show_xlabel, show_ylabel, show_chance=True):
+    mdf = plot_df[
+        (plot_df['task'] == task)
+        & (plot_df['ckpt'] == 2000)
+        & plot_df['in_dist_range']
+    ].copy()
+
+    mdf = mdf.replace({'prompt_type': {'dp': 'DP', 'cot': 'Chain-of-Thought', 'ar_cot': cot_label}})
+
+    sns.boxplot(
+        data=mdf,
+        x='name', y='acc', hue='prompt_type',
+        hue_order=['DP', cot_label], order=order,
+        fliersize=2, fill=False, gap=0.1, ax=ax,
+    )
+    if show_chance:
+        ax.axhline(chance, ls='--', color='gray')
+    ax.set_ylim((0, 1))
+    ax.set_title(title)
+    ax.set_xlabel(xlabel if show_xlabel else '')
+    ax.set_ylabel('Accuracy' if show_ylabel else '')
+    return ax.get_legend()
+
+
+def _save_in_dist_collation(plot_df, family_config):
+    # Match the existing collated panel order: Full / Or over Imply / PHP.
+    full, imply, or_plot, php = family_config['plots']
+    ordered_plots = [full, or_plot, imply, php]
+
+    fig, axes = plt.subplots(2, 2, figsize=family_config['collation_figsize'])
+    axes = axes.ravel()
+
+    legend = None
+    for idx, (ax, (task, title, chance, _rel_out_path, cot_label)) in enumerate(zip(axes, ordered_plots)):
+        curr_legend = _plot_in_dist_panel(
+            ax=ax,
+            plot_df=plot_df,
+            task=task,
+            title=title,
+            chance=chance,
+            xlabel=family_config['xlabel'],
+            order=family_config['order'],
+            cot_label='RT',
+            show_xlabel=idx >= 2,
+            show_ylabel=idx in (0, 2),
+            show_chance=False,
+        )
+        if idx == 3:
+            legend = curr_legend
+        elif curr_legend is not None:
+            curr_legend.remove()
+
+    if legend is not None:
+        legend.set_title(None)
+        legend.set_bbox_to_anchor((1.02, 0.5))
+        legend._loc = 6  # center left
+
+    fig.subplots_adjust(left=0.11, right=0.84, bottom=0.15, top=0.9, wspace=0.35, hspace=0.55)
+
+    out_path = _BASE_DIR / 'fig/final' / family_config['collation_path']
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, transparent=True, bbox_inches='tight', pad_inches=0.02)
+    plt.close(fig)
+    return out_path
+
+
+def save_all_in_dist_plots():
+    summaries = []
+    for family_config in _IN_DIST_CONFIGS:
+        plot_df = _load_llm_plot_df(family_config['dirs'])
+        for task, title, chance, rel_out_path, cot_label in family_config['plots']:
+            summary = _save_in_dist_plot(
+                plot_df=plot_df,
+                task=task,
+                title=title,
+                chance=chance,
+                rel_out_path=rel_out_path,
+                xlabel=family_config['xlabel'],
+                order=family_config['order'],
+                cot_label=cot_label,
+            )
+            summaries.append({
+                'family': family_config['family'],
+                'task': task,
+                'plot': str(summary['path'].relative_to(_BASE_DIR)),
+                'rows': summary['rows'],
+                'min': summary['min'],
+                'median': summary['median'],
+                'max': summary['max'],
+            })
+
+        collation_path = _save_in_dist_collation(plot_df, family_config)
+        print('Saved', collation_path.relative_to(_BASE_DIR))
+
+    summary_df = pd.DataFrame(summaries)
+    print(summary_df.to_string(index=False))
+    return summary_df
+
+
+if len(sys.argv) > 1 and sys.argv[-1] == 'in_dist':
+    plt.switch_backend('Agg')
+    save_all_in_dist_plots()
+    raise SystemExit
 
 # <codecell>
 dirs = [

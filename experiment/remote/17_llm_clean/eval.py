@@ -15,6 +15,7 @@ import sys
 sys.path.append('../../../')
 from common import new_seed
 from task.prop import PropTask
+from pita_dataset import make_pita_dataset
 
 
 num_eval_samples = 100
@@ -25,7 +26,11 @@ torch.set_grad_enabled(False)
 
 def perform_eval(configs, out_dir='set'):
 
-    def make_ds(ds_path, depth, split):
+    def make_ds(run_config, depth, split):
+        if 'dataset_split' in run_config:
+            return make_pita_dataset(run_config, depth, split)
+
+        ds_path = run_config['ds_path']
         task = PropTask(depth=depth, split=split, cot='text', ds_path=ds_path)
         task.load_ds()
 
@@ -101,15 +106,14 @@ def perform_eval(configs, out_dir='set'):
         if f.is_dir() and f.name.startswith('checkpoint-')])
 
     test_splits = run_config['test_splits']
-    ds_path = run_config['ds_path']
 
     range_hops = [1] + [h + 1 for h in test_splits] + [np.inf]
     ranges = list(zip(range_hops[:-1], range_hops[1:]))
-    val_ds_set = [make_ds(ds_path, r, split='range') for r in ranges]
+    val_ds_set = [make_ds(run_config, r, split='range') for r in ranges]
 
     if len(val_ds_set) > 2:
         interval = (range_hops[1], np.inf)
-        full_val_ds = make_ds(ds_path, interval, split='range')
+        full_val_ds = make_ds(run_config, interval, split='range')
 
         ranges.append(interval)
         val_ds_set.append(full_val_ds)
@@ -163,4 +167,3 @@ def perform_eval(configs, out_dir='set'):
     out_dir.mkdir(parents=True, exist_ok=True)
     df.to_pickle(out_dir / f'res_eval.{new_seed()}.pkl')
         
-
