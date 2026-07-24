@@ -92,6 +92,7 @@ for itr_id, task, prompt in itertools.product(itr_ids, tasks, prompt_styles):
         'task_name': task['name'],
         'dataset_split': task['dataset_split'],
         'dataset_num_proc': 16,
+        'dataset_cache_dir': data_path + '/.datasets_cache',
         'batch_size': batch_size,
         'accum_steps': accum_steps,
         'max_steps': task['max_steps'],

@@ -3,12 +3,28 @@
 from functools import lru_cache
 from pathlib import Path
 
-from datasets import DatasetDict
+from datasets import DatasetDict, load_dataset
 
 
 @lru_cache(maxsize=None)
-def _load_split(ds_path, dataset_split):
-    dataset = DatasetDict.load_from_disk(str(Path(ds_path).expanduser()))
+def _load_split(ds_path, dataset_split, cache_dir=None):
+    ds_path = Path(ds_path).expanduser()
+
+    if (ds_path / 'dataset_dict.json').is_file():
+        dataset = DatasetDict.load_from_disk(str(ds_path))
+    else:
+        parquet_files = sorted((ds_path / 'data').glob(f'{dataset_split}-*.parquet'))
+        if not parquet_files:
+            raise FileNotFoundError(
+                f"No parquet files found for PITA split {dataset_split!r} under "
+                f"{str(ds_path / 'data')!r}"
+            )
+
+        dataset = load_dataset(
+            'parquet',
+            data_files={dataset_split: [str(path) for path in parquet_files]},
+            cache_dir=cache_dir,
+        )
 
     if dataset_split not in dataset:
         available = ', '.join(dataset.keys())
@@ -31,7 +47,11 @@ def _load_split(ds_path, dataset_split):
 
 def make_pita_dataset(run_config, depth, split):
     """Select a train, test, or length-range slice from one PITA split."""
-    dataset = _load_split(run_config['ds_path'], run_config['dataset_split'])
+    dataset = _load_split(
+        run_config['ds_path'],
+        run_config['dataset_split'],
+        run_config.get('dataset_cache_dir'),
+    )
 
     if split == 'train':
         start, stop = 1, depth + 1
