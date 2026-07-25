@@ -1,7 +1,8 @@
 """Lean-backed validation for PITA reasoning traces.
 
-This script evaluates either gold PITA completions, predictions stored in
-JSONL, or generations from a PEFT checkpoint.  It reports:
+This script is phase two of the evaluation: it evaluates either gold PITA
+completions or predictions generated on the cluster and stored in JSONL. It
+reports:
 
 * final-label accuracy;
 * strict (outer-whitespace-trimmed) exact match against the gold completion;
@@ -22,9 +23,11 @@ emit ``<success />`` and whose active tactic path closes the Lean goal.
 emitted tactic/backtrack transition is accepted by Lean and every emitted
 state agrees with the resulting Lean goal.
 
-The completion format can contain explicit ``<backtrack to="..."/>`` events.
-The evaluator honors those events by keeping a tactic-script snapshot for
-each generated state id.  For branching tactics, it also reproduces the
+The completion format can contain explicit ``<backtrack to="..."/>`` events
+and terminal ``<success />`` or ``<failure />`` events. All three are valid
+trace tokens: terminal events are checked structurally rather than sent to
+Lean, while backtracks restore the tactic-script snapshot for the referenced
+generated state. For branching tactics, the evaluator also reproduces the
 indentation convention used by ``task/prop_gen/util/out.py``.
 
 Examples
@@ -39,21 +42,11 @@ Run a fast synthetic regression test of the Lean integration:
 
     python experiment/20_lean_trace_eval.py self-test
 
-Evaluate predictions saved as JSONL.  Each row must have ``prompt``,
-``completion`` (gold), and ``prediction``:
+Evaluate the four JSONL files downloaded from the cluster. Each row must have
+``prompt``, ``completion`` (gold), and ``prediction``:
 
     python experiment/20_lean_trace_eval.py jsonl \
-        --input predictions.jsonl --report trace_report.md
-
-Generate from a fresh LoRA checkpoint with vLLM, save predictions, and
-validate them:
-
-    python experiment/20_lean_trace_eval.py checkpoint \
-        --dataset-path /path/to/pita --task full --split test \
-        --model-name Qwen/Qwen2.5-Coder-7B \
-        --checkpoint /path/to/checkpoint-2000 \
-        --num-samples 100 --balanced \
-        --predictions-out full_predictions.jsonl \
+        --input /path/to/pita_traces \
         --report full_trace_report.md
 
 The REPL location is resolved in this order: ``--repl-dir``,
@@ -955,74 +948,6 @@ def fetch_hub_rows(
     return output
 
 
-def load_local_rows(
-    dataset_path: Path,
-    task: str,
-    partition: str,
-    num_samples: int,
-    seed: int,
-    balanced: bool,
-    num_proc: int | None,
-) -> list[dict[str, Any]]:
-    try:
-        from datasets import DatasetDict
-    except ImportError as exc:
-        raise RuntimeError(
-            "Local PITA loading requires `datasets`."
-        ) from exc
-
-    dataset = DatasetDict.load_from_disk(str(dataset_path.expanduser()))
-    if task not in dataset:
-        raise RuntimeError(
-            f"PITA split {task!r} not found; available: "
-            + ", ".join(dataset.keys())
-        )
-    cutoff = TASK_CUTOFFS[task]
-    split = dataset[task]
-    if partition == "train":
-        predicate = lambda length: 1 <= length <= cutoff
-    elif partition == "test":
-        predicate = lambda length: length > cutoff
-    else:
-        predicate = lambda length: length >= 1
-
-    filter_kwargs: dict[str, Any] = {"input_columns": ["length"]}
-    if num_proc is not None:
-        filter_kwargs["num_proc"] = num_proc
-    split = split.filter(predicate, **filter_kwargs)
-
-    if balanced:
-        label_kwargs: dict[str, Any] = {"input_columns": ["is_true"]}
-        if num_proc is not None:
-            label_kwargs["num_proc"] = num_proc
-        true_rows = split.filter(lambda value: value, **label_kwargs)
-        false_rows = split.filter(lambda value: not value, **label_kwargs)
-        n_true = num_samples // 2
-        n_false = num_samples - n_true
-        if len(true_rows) < n_true or len(false_rows) < n_false:
-            raise RuntimeError(
-                f"Insufficient examples for balanced sample: "
-                f"{len(true_rows)} true, {len(false_rows)} false"
-            )
-        selected = [
-            *true_rows.shuffle(seed=seed).select(range(n_true)),
-            *false_rows.shuffle(seed=seed + 1).select(range(n_false)),
-        ]
-        rng = random.Random(seed)
-        rng.shuffle(selected)
-    else:
-        count = min(num_samples, len(split))
-        selected = list(split.shuffle(seed=seed).select(range(count)))
-
-    rows = []
-    for index, row in enumerate(selected):
-        normalized = dict(row)
-        normalized["task"] = task
-        normalized["dataset_index"] = index
-        rows.append(normalized)
-    return rows
-
-
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     rows = []
     with path.open() as handle:
@@ -1039,56 +964,43 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def read_jsonl_inputs(inputs: Sequence[Path]) -> list[dict[str, Any]]:
+    """Read explicit JSONL files or phase-one trace directories."""
+
+    paths: list[Path] = []
+    for input_path in inputs:
+        input_path = input_path.expanduser()
+        if input_path.is_dir():
+            matches = sorted(input_path.glob("traces.*.jsonl"))
+            if not matches:
+                matches = sorted(input_path.glob("*.jsonl"))
+            if not matches:
+                raise RuntimeError(f"No JSONL files found in {input_path}")
+            paths.extend(matches)
+        elif input_path.is_file():
+            paths.append(input_path)
+        else:
+            raise RuntimeError(f"JSONL input not found: {input_path}")
+
+    unique_paths: list[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        resolved = path.resolve()
+        if resolved not in seen:
+            unique_paths.append(resolved)
+            seen.add(resolved)
+
+    rows: list[dict[str, Any]] = []
+    for path in unique_paths:
+        rows.extend(read_jsonl(path))
+    return rows
+
+
 def write_jsonl(path: Path, rows: Iterable[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
-
-
-def generate_with_vllm(
-    rows: list[dict[str, Any]],
-    model_name: str,
-    checkpoint: Path,
-    max_new_tokens: int,
-    quantization: str | None,
-    tensor_parallel_size: int,
-) -> None:
-    try:
-        from vllm import LLM, SamplingParams
-        from vllm.lora.request import LoRARequest
-    except ImportError as exc:
-        raise RuntimeError(
-            "Checkpoint generation requires vLLM with LoRA support."
-        ) from exc
-
-    model_kwargs: dict[str, Any] = {
-        "model": model_name,
-        "enable_lora": True,
-        "tensor_parallel_size": tensor_parallel_size,
-    }
-    if quantization and quantization != "none":
-        model_kwargs["quantization"] = quantization
-    model = LLM(**model_kwargs)
-    sampling = SamplingParams(
-        max_tokens=max_new_tokens,
-        temperature=0,
-    )
-    checkpoint = checkpoint.expanduser().resolve()
-    lora_request = LoRARequest(
-        "pita_trace_eval",
-        1,
-        str(checkpoint),
-    )
-    outputs = model.generate(
-        [str(row["prompt"]) for row in rows],
-        sampling,
-        lora_request=lora_request,
-    )
-    for row, output in zip(rows, outputs):
-        row["prediction"] = output.outputs[0].text
-        row["model_name"] = model_name
-        row["checkpoint"] = str(checkpoint)
 
 
 def require_row_columns(
@@ -1129,9 +1041,30 @@ def build_self_test_rows() -> list[dict[str, Any]]:
         1,
     )
     truncated = completion.removesuffix("<success />")
+    backtracked = (
+        "<tactic>intro h</tactic>"
+        '<state id="1"><if>p : Prop</if><if>h : p</if>'
+        "<then>⊢ p</then></state>"
+        "<tactic>exact h</tactic>"
+        '<state id="2"><complete /></state>'
+        '<backtrack to="1"/>'
+        '<state id="3"><if>p : Prop</if><if>h : p</if>'
+        "<then>⊢ p</then></state>"
+        "<tactic>exact h</tactic>"
+        '<state id="4"><complete /></state>'
+        "<success />"
+    )
+    executable_failure = (
+        "<tactic>intro h</tactic>"
+        '<state id="1"><if>p : Prop</if><if>h : p</if>'
+        "<then>⊢ p</then></state>"
+        "<failure />"
+    )
 
     variants = [
         ("gold", completion),
+        ("backtracked", backtracked),
+        ("executable_failure", executable_failure),
         ("invalid_tactic", invalid_tactic),
         ("fabricated_state", fabricated_state),
         ("truncated", truncated),
@@ -1150,9 +1083,16 @@ def build_self_test_rows() -> list[dict[str, Any]]:
 
 
 def assert_self_test(results: Sequence[TraceResult]) -> None:
-    if len(results) != 4:
+    if len(results) != 6:
         raise RuntimeError("self-test produced the wrong number of results")
-    gold, invalid_tactic, fabricated_state, truncated = results
+    (
+        gold,
+        backtracked,
+        executable_failure,
+        invalid_tactic,
+        fabricated_state,
+        truncated,
+    ) = results
     checks = [
         (
             gold.exact_match
@@ -1160,6 +1100,20 @@ def assert_self_test(results: Sequence[TraceResult]) -> None:
             and gold.proof_valid
             and math.isclose(gold.prefix_validity, 1.0),
             "gold proof was not fully validated",
+        ),
+        (
+            backtracked.parse_valid
+            and backtracked.trace_executable
+            and backtracked.proof_valid
+            and backtracked.all_backtracks_valid,
+            "valid backtrack token was not honored",
+        ),
+        (
+            executable_failure.parse_valid
+            and executable_failure.trace_executable
+            and executable_failure.predicted_label == "failure"
+            and not executable_failure.proof_valid,
+            "failure token was not accepted as an executable non-proof trace",
         ),
         (
             not invalid_tactic.proof_valid
@@ -1466,39 +1420,17 @@ def parse_args(argv: Sequence[str] | None = None):
         "jsonl",
         help="Evaluate prompts, gold completions, and predictions in JSONL.",
     )
-    jsonl.add_argument("--input", type=Path, required=True)
-    add_common_evaluation_arguments(jsonl)
-
-    checkpoint = subparsers.add_parser(
-        "checkpoint",
-        help="Generate from a vLLM LoRA checkpoint, then evaluate.",
-    )
-    checkpoint.add_argument("--dataset-path", type=Path, required=True)
-    checkpoint.add_argument(
-        "--task",
-        choices=sorted(TASK_CUTOFFS),
+    jsonl.add_argument(
+        "--input",
+        type=Path,
+        nargs="+",
         required=True,
+        help=(
+            "One or more trace JSONL files, or a directory containing "
+            "traces.<task>.jsonl files."
+        ),
     )
-    checkpoint.add_argument(
-        "--split",
-        choices=["train", "test", "all"],
-        default="test",
-    )
-    checkpoint.add_argument("--num-samples", type=int, default=100)
-    checkpoint.add_argument("--seed", type=int, default=0)
-    checkpoint.add_argument("--balanced", action="store_true")
-    checkpoint.add_argument("--dataset-num-proc", type=int)
-    checkpoint.add_argument("--model-name", required=True)
-    checkpoint.add_argument("--checkpoint", type=Path, required=True)
-    checkpoint.add_argument("--max-new-tokens", type=int, default=32768)
-    checkpoint.add_argument(
-        "--quantization",
-        default="bitsandbytes",
-        help="vLLM quantization mode; use 'none' to disable.",
-    )
-    checkpoint.add_argument("--tensor-parallel-size", type=int, default=1)
-    checkpoint.add_argument("--predictions-out", type=Path)
-    add_common_evaluation_arguments(checkpoint)
+    add_common_evaluation_arguments(jsonl)
 
     self_test = subparsers.add_parser(
         "self-test",
@@ -1553,27 +1485,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 seed=args.seed,
             )
         elif args.mode == "jsonl":
-            rows = read_jsonl(args.input)
-        elif args.mode == "checkpoint":
-            rows = load_local_rows(
-                dataset_path=args.dataset_path,
-                task=args.task,
-                partition=args.split,
-                num_samples=args.num_samples,
-                seed=args.seed,
-                balanced=args.balanced,
-                num_proc=args.dataset_num_proc,
-            )
-            generate_with_vllm(
-                rows=rows,
-                model_name=args.model_name,
-                checkpoint=args.checkpoint,
-                max_new_tokens=args.max_new_tokens,
-                quantization=args.quantization,
-                tensor_parallel_size=args.tensor_parallel_size,
-            )
-            if args.predictions_out is not None:
-                write_jsonl(args.predictions_out, rows)
+            rows = read_jsonl_inputs(args.input)
         elif args.mode == "self-test":
             rows = build_self_test_rows()
         else:

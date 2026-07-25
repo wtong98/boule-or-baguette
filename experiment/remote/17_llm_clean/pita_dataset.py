@@ -7,7 +7,9 @@ from datasets import DatasetDict, load_dataset
 
 
 @lru_cache(maxsize=None)
-def _load_split(ds_path, dataset_split, cache_dir=None):
+def load_pita_split(ds_path, dataset_split, cache_dir=None):
+    """Load one named split from either a saved or parquet PITA dataset."""
+
     ds_path = Path(ds_path).expanduser()
 
     if (ds_path / 'dataset_dict.json').is_file():
@@ -47,7 +49,7 @@ def _load_split(ds_path, dataset_split, cache_dir=None):
 
 def make_pita_dataset(run_config, depth, split):
     """Select a train, test, or length-range slice from one PITA split."""
-    dataset = _load_split(
+    dataset = load_pita_split(
         run_config['ds_path'],
         run_config['dataset_split'],
         run_config.get('dataset_cache_dir'),
