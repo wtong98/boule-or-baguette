@@ -23,7 +23,7 @@ base_len = 1024
 total_batch_size = 32
 
 model = {
-    'name': 'Qwen/Qwen2.5-Coder-7B',
+    'name': 'Qwen/Qwen2.5-Coder-0.5B',
     '2k_bs': 32,
 }
 
@@ -36,39 +36,12 @@ prompt_styles = [
 # experiments. The PHP project name is retained for checkpoint compatibility.
 tasks = [
     {
-        'name': 'full',
-        'dataset_split': 'full',
-        'train_split': 4,
-        'train_len': 512,
-        'test_len': 2048,
-        'max_steps': 2_500,
-        'project_name': 'qwen_full',
-    },
-    {
-        'name': 'imply',
-        'dataset_split': 'imply',
-        'train_split': 6,
-        'train_len': 1024,
-        'test_len': 16_384,
-        'max_steps': 2_500,
-        'project_name': 'qwen_imply',
-    },
-    {
-        'name': 'or',
-        'dataset_split': 'or',
-        'train_split': 18,
-        'train_len': 8192,
-        'test_len': 32_768,
-        'max_steps': 2_500,
-        'project_name': 'qwen_or',
-    },
-    {
         'name': 'php',
         'dataset_split': 'php',
         'train_split': 60,
         'train_len': 32_768,
         'test_len': 32_768,
-        'max_steps': 2_000,
+        'max_steps': 500,
         'project_name': 'qwen_php_enum',
     },
 ]
@@ -115,5 +88,6 @@ for itr_id, task, prompt in itertools.product(itr_ids, tasks, prompt_styles):
         'packing': False,
     })
 
-
+print(len(configs))
+# <codecell>
 perform(configs)

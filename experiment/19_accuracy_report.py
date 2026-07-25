@@ -700,6 +700,59 @@ def render_model_metrics(run_frame) -> str:
     )
 
 
+def render_metric_distributions(run_frame) -> str:
+    metrics = [
+        ("Raw accuracy", "gen_acc"),
+        ("True accuracy†", "true_emitted_accuracy"),
+        ("False accuracy†", "false_emitted_accuracy"),
+        ("Balanced accuracy†", "emitted_balanced_accuracy"),
+        ("No label", "prop_none"),
+    ]
+    rows = []
+    for (task_key, family, model, prompt), group in grouped_result_rows(
+        run_frame
+    ):
+        for metric_name, column in metrics:
+            clean = group[column].dropna()
+            if clean.empty:
+                statistics = ["—"] * 5
+            else:
+                statistics = [
+                    format_percentage(clean.min()),
+                    format_percentage(clean.quantile(0.25)),
+                    format_percentage(clean.median()),
+                    format_percentage(clean.quantile(0.75)),
+                    format_percentage(clean.max()),
+                ]
+            rows.append(
+                [
+                    TASKS[task_key].display_name,
+                    family,
+                    model,
+                    prompt,
+                    metric_name,
+                    len(clean),
+                    *statistics,
+                ]
+            )
+    return markdown_table(
+        [
+            "PITA split",
+            "Family",
+            "Model",
+            "Target",
+            "Metric",
+            "Runs",
+            "Min",
+            "Q1",
+            "Median",
+            "Q3",
+            "Max",
+        ],
+        rows,
+    )
+
+
 def render_bound_table(run_frame) -> str:
     rows = []
 
@@ -875,7 +928,7 @@ def render_report(
             "aggregate, without their gold class. Consequently, † metrics "
             "condition on generation of an explicit label. They equal "
             "ordinary per-class/balanced accuracy when the no-label rate is "
-            "zero. Table 3 gives the identifiable abstention-inclusive "
+            "zero. Table 4 gives the identifiable abstention-inclusive "
             "balanced-accuracy bounds; exact values require per-example "
             "predictions or class-specific no-label counts."
         ),
@@ -905,7 +958,18 @@ def render_report(
             "",
             render_model_metrics(run_frame),
             "",
-            "## 3. Abstention-inclusive balanced-accuracy bounds",
+            "## 3. Test-metric distributions across runs",
+            "",
+            (
+                "Quartiles use linear interpolation. As in Table 2, duplicate "
+                "evaluations are averaged within each training run before "
+                "these statistics are computed. Runs with a missing value "
+                "for a metric are excluded from that metric's distribution."
+            ),
+            "",
+            render_metric_distributions(run_frame),
+            "",
+            "## 4. Abstention-inclusive balanced-accuracy bounds",
             "",
             (
                 "‡ Bounds assign the aggregate no-label mass to gold classes "
@@ -915,7 +979,7 @@ def render_report(
             "",
             render_bound_table(run_frame),
             "",
-            "## 4. Does the RT/DP reversal survive class balancing?",
+            "## 5. Does the RT/DP reversal survive class balancing?",
             "",
             (
                 "Positive differences favor RT; negative differences favor "
@@ -925,7 +989,7 @@ def render_report(
             "",
             render_rt_dp_comparison(run_frame),
             "",
-            "## 5. Detailed-artifact coverage",
+            "## 6. Detailed-artifact coverage",
             "",
             render_coverage(run_frame),
         ]

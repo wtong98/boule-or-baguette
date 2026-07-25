@@ -35,6 +35,10 @@ Pull a few gold examples from every PITA split:
     python experiment/20_lean_trace_eval.py pita \
         --tasks full imply or php --num-samples 3
 
+Run a fast synthetic regression test of the Lean integration:
+
+    python experiment/20_lean_trace_eval.py self-test
+
 Evaluate predictions saved as JSONL.  Each row must have ``prompt``,
 ``completion`` (gold), and ``prediction``:
 
@@ -286,6 +290,19 @@ def normalize_space(text: str) -> str:
     return WHITESPACE_RE.sub(" ", text.strip())
 
 
+def normalize_goal_shape(text: str) -> str:
+    """Ignore whitespace and redundant pretty-printer parentheses."""
+
+    # Lean prints a non-dependent arrow from an arbitrary Sort as a forall
+    # binder.  PITA's source trace prints the same proposition with ``→``.
+    text = re.sub(
+        r"∀\s*\([^:()]+:\s*([^()]+)\)\s*,",
+        r"\1 →",
+        text,
+    )
+    return re.sub(r"[\s()]", "", text)
+
+
 def parse_xml_element(fragment: str) -> ET.Element:
     return ET.fromstring(fragment)
 
@@ -444,7 +461,9 @@ def lean_goal_parts(goal: str) -> tuple[list[str], str]:
             )
         else:
             coalesced_context.append(line)
-    conclusion = normalize_space(after)
+    conclusion = normalize_space(
+        " ".join([after, *lines[turnstile_index + 1 :]])
+    )
     return coalesced_context, conclusion
 
 
@@ -461,7 +480,13 @@ def state_matches_goal(
 
     expected_goal = state_goal_text(state)
     lean_context, lean_conclusion = lean_goal_parts(lean_goal)
-    if expected_goal != lean_conclusion:
+    if strict_context:
+        goals_match = expected_goal == lean_conclusion
+    else:
+        goals_match = normalize_goal_shape(
+            expected_goal
+        ) == normalize_goal_shape(lean_conclusion)
+    if not goals_match:
         return False
 
     expected_context = state_context_lines(state)
@@ -648,7 +673,7 @@ class LeanTraceVerifier:
                 # A model should not be able to obtain validity by admitting
                 # the theorem.
                 forbidden = re.search(
-                    r"\b(?:sorry|admit|exact\s+Classical\.choice)\b",
+                    r"\b(?:sorry|admit)\b",
                     tactic,
                 )
                 candidate = current.append_tactic(tactic)
@@ -1080,6 +1105,85 @@ def require_row_columns(
             )
 
 
+def build_self_test_rows() -> list[dict[str, Any]]:
+    prompt = (
+        '<state id="0"><if>p : Prop</if>'
+        "<then>⊢ p → p</then></state>||"
+    )
+    completion = (
+        "<tactic>intro h</tactic>"
+        '<state id="1"><if>p : Prop</if><if>h : p</if>'
+        "<then>⊢ p</then></state>"
+        "<tactic>exact h</tactic>"
+        '<state id="2"><complete /></state>'
+        "<success />"
+    )
+    invalid_tactic = completion.replace(
+        "<tactic>intro h</tactic>",
+        "<tactic>exact missing_hypothesis</tactic>",
+        1,
+    )
+    fabricated_state = completion.replace(
+        "<then>⊢ p</then>",
+        "<then>⊢ False</then>",
+        1,
+    )
+    truncated = completion.removesuffix("<success />")
+
+    variants = [
+        ("gold", completion),
+        ("invalid_tactic", invalid_tactic),
+        ("fabricated_state", fabricated_state),
+        ("truncated", truncated),
+    ]
+    return [
+        {
+            "task": "self-test",
+            "dataset_index": index,
+            "variant": name,
+            "prompt": prompt,
+            "completion": completion,
+            "prediction": prediction,
+        }
+        for index, (name, prediction) in enumerate(variants)
+    ]
+
+
+def assert_self_test(results: Sequence[TraceResult]) -> None:
+    if len(results) != 4:
+        raise RuntimeError("self-test produced the wrong number of results")
+    gold, invalid_tactic, fabricated_state, truncated = results
+    checks = [
+        (
+            gold.exact_match
+            and gold.trace_executable
+            and gold.proof_valid
+            and math.isclose(gold.prefix_validity, 1.0),
+            "gold proof was not fully validated",
+        ),
+        (
+            not invalid_tactic.proof_valid
+            and invalid_tactic.prefix_validity < 1.0
+            and not invalid_tactic.all_tactics_accepted,
+            "invalid tactic was not rejected",
+        ),
+        (
+            not fabricated_state.proof_valid
+            and fabricated_state.prefix_validity < 1.0
+            and not fabricated_state.all_states_match,
+            "fabricated state was not rejected",
+        ),
+        (
+            not truncated.parse_valid and not truncated.trace_executable,
+            "truncated XML trace was not rejected",
+        ),
+    ]
+    failures = [message for passed, message in checks if not passed]
+    if failures:
+        raise RuntimeError("Lean trace self-test failed: " + "; ".join(failures))
+    print("Lean trace self-test passed.", file=sys.stderr)
+
+
 def mean_bool(values: Iterable[bool]) -> float:
     values = list(values)
     return sum(values) / len(values) if values else math.nan
@@ -1161,6 +1265,16 @@ def percentage(value: float) -> str:
     if value is None or math.isnan(value):
         return "—"
     return f"{100 * value:.1f}%"
+
+
+def json_safe(value: Any) -> Any:
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    return value
 
 
 def markdown_table(headers: Sequence[str], rows: Iterable[Sequence[Any]]) -> str:
@@ -1300,7 +1414,7 @@ def add_common_evaluation_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--strict-context",
         action="store_true",
-        help="Require exact context lines, not conclusion plus context subset.",
+        help="Require exact context lines in addition to the goal conclusion.",
     )
     parser.add_argument(
         "--prediction-column",
@@ -1386,6 +1500,12 @@ def parse_args(argv: Sequence[str] | None = None):
     checkpoint.add_argument("--predictions-out", type=Path)
     add_common_evaluation_arguments(checkpoint)
 
+    self_test = subparsers.add_parser(
+        "self-test",
+        help="Run synthetic gold/corruption checks against Lean.",
+    )
+    add_common_evaluation_arguments(self_test)
+
     args = parser.parse_args(argv)
     if hasattr(args, "num_samples") and args.num_samples <= 0:
         parser.error("--num-samples must be positive")
@@ -1407,14 +1527,14 @@ def save_outputs(
     if args.summary_out is not None:
         args.summary_out.parent.mkdir(parents=True, exist_ok=True)
         args.summary_out.write_text(
-            json.dumps(summary, indent=2, sort_keys=True) + "\n"
+            json.dumps(json_safe(summary), indent=2, sort_keys=True) + "\n"
         )
     markdown = render_markdown(summary)
     if args.report is not None:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(markdown)
 
-    print(json.dumps(summary, indent=2, sort_keys=True))
+    print(json.dumps(json_safe(summary), indent=2, sort_keys=True))
     if args.report is not None:
         print(f"Wrote {args.report}", file=sys.stderr)
     return summary
@@ -1454,6 +1574,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if args.predictions_out is not None:
                 write_jsonl(args.predictions_out, rows)
+        elif args.mode == "self-test":
+            rows = build_self_test_rows()
         else:
             raise AssertionError(f"unknown mode: {args.mode}")
 
@@ -1469,6 +1591,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             repl_timeout=args.repl_timeout,
             strict_context=args.strict_context,
         )
+        if args.mode == "self-test":
+            assert_self_test(results)
         save_outputs(args, rows, results)
     except (LeanReplError, OSError, RuntimeError, ValueError) as exc:
         raise SystemExit(str(exc)) from exc

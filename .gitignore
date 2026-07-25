@@ -12,6 +12,9 @@ repl/
 wandb/
 *.ipynb_checkpoints/
 
+*.txt
+accuracy_report.md
+
 # ignore slurm logging outputs
 *.err
 *.out
