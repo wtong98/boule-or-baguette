@@ -19,9 +19,11 @@ traces.  Lean can certify that a successful tactic path closes the theorem,
 but an unfinished search trace is not a certificate that a proposition is
 false.  Accordingly, ``proof_valid`` is reserved for generated traces that
 emit ``<success />`` and whose active tactic path closes the Lean goal.
-``trace_executable`` is the weaker, label-agnostic property that every
-emitted tactic/backtrack transition is accepted by Lean and every emitted
-state agrees with the resulting Lean goal.
+``trace_executable`` is the stricter, label-agnostic property that every
+emitted tactic/backtrack transition—including abandoned search branches—is
+accepted by Lean and every emitted state agrees with the resulting Lean
+goal. A proof may still be valid when an invalid speculative branch is later
+discarded by a valid backtrack.
 
 The completion format can contain explicit ``<backtrack to="..."/>`` events
 and terminal ``<success />`` or ``<failure />`` events. All three are valid
@@ -831,7 +833,8 @@ class LeanTraceVerifier:
                 error_detail = str(exc)
         proof_valid = (
             predicted_label == "success"
-            and trace_executable
+            and parse_valid
+            and all_backtracks_valid
             and proof_complete
         )
 
@@ -1122,10 +1125,11 @@ def assert_self_test(results: Sequence[TraceResult]) -> None:
             "invalid tactic was not rejected",
         ),
         (
-            not fabricated_state.proof_valid
+            fabricated_state.proof_valid
+            and not fabricated_state.trace_executable
             and fabricated_state.prefix_validity < 1.0
             and not fabricated_state.all_states_match,
-            "fabricated state was not rejected",
+            "fabricated state was not separated from active-proof validity",
         ),
         (
             not truncated.parse_valid and not truncated.trace_executable,
@@ -1155,13 +1159,39 @@ def summarize_group(results: Sequence[TraceResult]) -> dict[str, Any]:
     gold_true = [
         result for result in results if result.gold_label == "success"
     ]
+    gold_false = [
+        result for result in results if result.gold_label == "failure"
+    ]
+    no_final_label = [
+        result for result in results if result.predicted_label is None
+    ]
     executable = [result for result in results if result.trace_executable]
     valid_proofs = [result for result in results if result.proof_valid]
     state_total = sum(result.total_states for result in results)
     state_matches = sum(result.matching_states for result in results)
+    success_recall = mean_bool(
+        result.predicted_label == "success" for result in gold_true
+    )
+    failure_recall = mean_bool(
+        result.predicted_label == "failure" for result in gold_false
+    )
 
     return {
         "n": len(results),
+        "gold_success_rate": mean_bool(
+            result.gold_label == "success" for result in results
+        ),
+        "predicted_success_rate": mean_bool(
+            result.predicted_label == "success" for result in results
+        ),
+        "success_recall": success_recall,
+        "failure_recall": failure_recall,
+        "balanced_label_accuracy": mean_float(
+            [success_recall, failure_recall]
+        ),
+        "missing_label_rate": mean_bool(
+            result.predicted_label is None for result in results
+        ),
         "label_accuracy": mean_bool(
             result.label_correct for result in results
         ),
@@ -1175,17 +1205,27 @@ def summarize_group(results: Sequence[TraceResult]) -> dict[str, Any]:
             math.isclose(result.prefix_validity, 1.0)
             for result in results
         ),
+        "parse_valid_rate": mean_bool(
+            result.parse_valid for result in results
+        ),
         "state_match_rate": (
             state_matches / state_total if state_total else math.nan
         ),
         "trace_executable_rate": mean_bool(
             result.trace_executable for result in results
         ),
+        "proof_valid_rate": mean_bool(
+            result.proof_valid for result in results
+        ),
         "proof_validity_given_predicted_success": mean_bool(
             result.proof_valid for result in predicted_success
         ),
         "proof_completion_given_gold_true": mean_bool(
-            result.trace_executable and result.proof_complete
+            (
+                result.parse_valid
+                and result.all_backtracks_valid
+                and result.proof_complete
+            )
             for result in gold_true
         ),
         "label_accuracy_given_executable_trace": mean_bool(
@@ -1196,6 +1236,8 @@ def summarize_group(results: Sequence[TraceResult]) -> dict[str, Any]:
         ),
         "n_predicted_success": len(predicted_success),
         "n_gold_true": len(gold_true),
+        "n_gold_false": len(gold_false),
+        "n_no_final_label": len(no_final_label),
         "n_executable": len(executable),
         "n_valid_proofs": len(valid_proofs),
     }
@@ -1245,14 +1287,15 @@ def markdown_table(headers: Sequence[str], rows: Iterable[Sequence[Any]]) -> str
 
 
 def render_markdown(summary: dict[str, Any]) -> str:
-    rows = []
+    trace_rows = []
+    label_rows = []
     groups = [("Overall", summary["overall"])]
     groups.extend(
         (task.capitalize(), values)
         for task, values in summary["by_task"].items()
     )
     for label, values in groups:
-        rows.append(
+        trace_rows.append(
             [
                 label,
                 values["n"],
@@ -1260,7 +1303,9 @@ def render_markdown(summary: dict[str, Any]) -> str:
                 percentage(values["exact_match_accuracy"]),
                 percentage(values["mean_prefix_validity"]),
                 percentage(values["state_match_rate"]),
+                percentage(values["parse_valid_rate"]),
                 percentage(values["trace_executable_rate"]),
+                percentage(values["proof_valid_rate"]),
                 percentage(
                     values["proof_validity_given_predicted_success"]
                 ),
@@ -1269,6 +1314,17 @@ def render_markdown(summary: dict[str, Any]) -> str:
                     values["label_accuracy_given_executable_trace"]
                 ),
                 percentage(values["label_accuracy_given_valid_proof"]),
+            ]
+        )
+        label_rows.append(
+            [
+                label,
+                percentage(values["gold_success_rate"]),
+                percentage(values["predicted_success_rate"]),
+                percentage(values["success_recall"]),
+                percentage(values["failure_recall"]),
+                percentage(values["balanced_label_accuracy"]),
+                percentage(values["missing_label_rate"]),
             ]
         )
 
@@ -1290,13 +1346,30 @@ def render_markdown(summary: dict[str, Any]) -> str:
                     "Exact match",
                     "Mean valid prefix",
                     "State match",
+                    "Complete syntax",
                     "Executable trace",
+                    "Valid proof",
                     "Valid proof / predicted success",
                     "Complete proof / gold true",
                     "Label acc. / executable",
                     "Label acc. / valid proof",
                 ],
-                rows,
+                trace_rows,
+            ),
+            "",
+            "Label-prior diagnostics:",
+            "",
+            markdown_table(
+                [
+                    "Split",
+                    "Gold success",
+                    "Predicted success",
+                    "Success recall",
+                    "Failure recall",
+                    "Balanced acc.",
+                    "Missing label",
+                ],
+                label_rows,
             ),
             "",
             "Definitions:",
@@ -1312,9 +1385,11 @@ def render_markdown(summary: dict[str, Any]) -> str:
                 "states consistent with Lean."
             ),
             (
-                "- **Valid proof**: an executable predicted-success trace "
-                "whose active tactic script closes the theorem without "
-                "`sorry`/`admit`."
+                "- **Valid proof**: a structurally valid predicted-success "
+                "trace with resolvable backtracks whose final active tactic "
+                "script closes the theorem without `sorry`/`admit`. Invalid "
+                "abandoned branches still reduce prefix/executable-trace "
+                "metrics, but do not invalidate the final proof."
             ),
             "",
         ]
@@ -1327,19 +1402,60 @@ def evaluate_rows(
     repl_dir: Path,
     repl_timeout: float,
     strict_context: bool,
+    repl_restart_every: int = 10,
 ) -> list[TraceResult]:
     require_row_columns(rows, prediction_column)
     results: list[TraceResult] = []
-    with LeanRepl(repl_dir, repl_timeout) as repl:
+    repl: LeanRepl | None = None
+    verifier: LeanTraceVerifier | None = None
+    examples_since_restart = repl_restart_every
+
+    def restart_repl() -> None:
+        nonlocal repl, verifier, examples_since_restart
+        if repl is not None:
+            repl.__exit__(None, None, None)
+        repl = LeanRepl(repl_dir, repl_timeout)
+        repl.__enter__()
         verifier = LeanTraceVerifier(repl, strict_context=strict_context)
+        examples_since_restart = 0
+
+    try:
         for index, row in enumerate(rows):
-            result = verifier.evaluate(
-                prompt=str(row["prompt"]),
-                prediction=str(row[prediction_column]),
-                gold_completion=str(row["completion"]),
-                task=str(row["task"]) if row.get("task") else None,
-                index=int(row.get("dataset_index", index)),
-            )
+            if (
+                verifier is None
+                or (
+                    repl_restart_every > 0
+                    and examples_since_restart >= repl_restart_every
+                )
+            ):
+                restart_repl()
+
+            for attempt in range(2):
+                assert verifier is not None
+                try:
+                    result = verifier.evaluate(
+                        prompt=str(row["prompt"]),
+                        prediction=str(row[prediction_column]),
+                        gold_completion=str(row["completion"]),
+                        task=(
+                            str(row["task"])
+                            if row.get("task")
+                            else None
+                        ),
+                        index=int(row.get("dataset_index", index)),
+                    )
+                    break
+                except LeanReplError:
+                    if attempt:
+                        raise
+                    print(
+                        f"Lean REPL exited while evaluating row {index}; "
+                        "restarting and retrying once.",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    restart_repl()
+            examples_since_restart += 1
             results.append(result)
             print(
                 f"[{index + 1}/{len(rows)}] "
@@ -1350,6 +1466,9 @@ def evaluate_rows(
                 file=sys.stderr,
                 flush=True,
             )
+    finally:
+        if repl is not None:
+            repl.__exit__(None, None, None)
     return results
 
 
@@ -1364,6 +1483,15 @@ def add_common_evaluation_arguments(parser: argparse.ArgumentParser) -> None:
         type=float,
         default=30.0,
         help="Seconds allowed for each REPL request.",
+    )
+    parser.add_argument(
+        "--repl-restart-every",
+        type=int,
+        default=10,
+        help=(
+            "Restart the Lean REPL after this many examples to bound its "
+            "memory use; use 0 to keep one process."
+        ),
     )
     parser.add_argument(
         "--strict-context",
@@ -1443,6 +1571,8 @@ def parse_args(argv: Sequence[str] | None = None):
         parser.error("--num-samples must be positive")
     if args.repl_timeout <= 0:
         parser.error("--repl-timeout must be positive")
+    if args.repl_restart_every < 0:
+        parser.error("--repl-restart-every cannot be negative")
     return args
 
 
@@ -1502,6 +1632,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             repl_dir=repl_dir,
             repl_timeout=args.repl_timeout,
             strict_context=args.strict_context,
+            repl_restart_every=args.repl_restart_every,
         )
         if args.mode == "self-test":
             assert_self_test(results)

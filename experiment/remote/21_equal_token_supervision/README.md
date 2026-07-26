@@ -1,7 +1,12 @@
 # Experiment 21: equal-token supervision
 
-This experiment branches from each Qwen2.5-Coder-7B RT (`ar_cot`) adapter
-produced by `17_llm_clean/qwen_7b_pita` at checkpoint 2000.
+This experiment branches from pretrained RT (`ar_cot`) adapters produced by
+experiment 17:
+
+- Full, Imply, and Or use Qwen2.5-Coder-7B adapters from
+  `17_llm_clean/qwen_7b_pita` at checkpoint 2000.
+- PHP uses the faster Qwen2.5-Coder-0.5B adapters from
+  `17_llm_clean/qwen_0p5b_php` at checkpoint 500.
 
 Each source adapter gets two continuations with a fresh optimizer:
 
@@ -42,7 +47,9 @@ the original QLoRA learning rate, a constant scheduler, and no new warmup. Only
 adapter weights are loaded from experiment 17.
 
 There are 40 configurations: five repetitions, four PITA tasks, and two
-continuation objectives. From `qwen_7b_pita`, launch training with:
+continuation objectives. (The directory retains its historical
+`qwen_7b_pita` name even though the PHP configurations now use Qwen-0.5B.)
+From `qwen_7b_pita`, launch SFT with:
 
 ```bash
 sbatch sb_qwen_7b_pita_run.sh
@@ -54,11 +61,22 @@ which covers only repetition 0 after expanding its config to five repetitions;
 submit the missing experiment-17 indices or reduce `ITR_IDS` here if those
 checkpoints have not already been produced.
 
-After training completes, run the inherited experiment-17 vLLM evaluator:
+Only after every SFT array job has completed successfully, run the inherited
+experiment-17 vLLM evaluator:
 
 ```bash
 sbatch sb_qwen_7b_pita_eval.sh
 ```
 
-The source checkpoint and output roots are controlled by
-`SOURCE_ROOT`, `SOURCE_CHECKPOINT_STEP`, and `OUTPUT_ROOT` in `config.py`.
+The evaluator reads the adapters written under `OUTPUT_ROOT`, evaluates each
+saved `checkpoint-*` directory, and writes pickled result frames to
+`qwen_7b_pita/set`. The plotting script selects the last evaluated checkpoint
+for each continuation:
+
+```bash
+python ../../../21_equal_token_supervision.py
+```
+
+The source and output roots are controlled by `SOURCE_ROOT` and `OUTPUT_ROOT`
+in `config.py`; source model, experiment, project, and checkpoint step are
+specified per task.

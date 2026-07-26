@@ -15,13 +15,16 @@ SOURCE_ROOT = Path("~/scratch/ckpt/final").expanduser()
 OUTPUT_ROOT = Path("~/scratch/ckpt/final/experiment_21_equal_token").expanduser()
 
 ITR_IDS = list(range(5))
-SOURCE_CHECKPOINT_STEP = 2_000
 DP_STEPS = 500
 BASE_LENGTH = 1_024
 TOTAL_BATCH_SIZE = 32
 
-MODEL = {
+QWEN_7B = {
     "name": "Qwen/Qwen2.5-Coder-7B",
+    "2k_bs": 32,
+}
+QWEN_0P5B = {
+    "name": "Qwen/Qwen2.5-Coder-0.5B",
     "2k_bs": 32,
 }
 
@@ -34,7 +37,10 @@ TASKS = [
         "train_split": 4,
         "train_len": 512,
         "test_len": 2_048,
+        "model": QWEN_7B,
+        "source_experiment": "17_llm_clean/qwen_7b_pita",
         "source_project": "qwen_full",
+        "source_checkpoint_step": 2_000,
     },
     {
         "name": "imply",
@@ -42,7 +48,10 @@ TASKS = [
         "train_split": 6,
         "train_len": 1_024,
         "test_len": 16_384,
+        "model": QWEN_7B,
+        "source_experiment": "17_llm_clean/qwen_7b_pita",
         "source_project": "qwen_imply",
+        "source_checkpoint_step": 2_000,
     },
     {
         "name": "or",
@@ -50,7 +59,10 @@ TASKS = [
         "train_split": 18,
         "train_len": 8_192,
         "test_len": 32_768,
+        "model": QWEN_7B,
+        "source_experiment": "17_llm_clean/qwen_7b_pita",
         "source_project": "qwen_or",
+        "source_checkpoint_step": 2_000,
     },
     {
         "name": "php",
@@ -58,14 +70,18 @@ TASKS = [
         "train_split": 60,
         "train_len": 32_768,
         "test_len": 32_768,
+        "model": QWEN_0P5B,
+        "source_experiment": "17_llm_clean/qwen_0p5b_php",
         "source_project": "qwen_php_enum",
+        "source_checkpoint_step": 500,
     },
 ]
 
 
 def source_checkpoint(task, itr_id):
+    model = task["model"]
     source_run_name = (
-        f"{MODEL['name'].split('/')[-1]}-ar_cot "
+        f"{model['name'].split('/')[-1]}-ar_cot "
         f"(split={task['train_split']}, itr={itr_id})"
     )
     source_run_dir = source_run_name.replace(" ", "_")
@@ -73,7 +89,7 @@ def source_checkpoint(task, itr_id):
         SOURCE_ROOT
         / task["source_project"]
         / source_run_dir
-        / f"checkpoint-{SOURCE_CHECKPOINT_STEP}"
+        / f"checkpoint-{task['source_checkpoint_step']}"
     )
 
 
@@ -81,21 +97,22 @@ configs = []
 for itr_id, task, objective in itertools.product(
     ITR_IDS, TASKS, OBJECTIVES
 ):
+    model = task["model"]
     length_scale = BASE_LENGTH / task["train_len"]
     batch_size = max(
         1,
-        min(int(MODEL["2k_bs"] * length_scale), TOTAL_BATCH_SIZE),
+        min(int(model["2k_bs"] * length_scale), TOTAL_BATCH_SIZE),
     )
     accum_steps = max(TOTAL_BATCH_SIZE // batch_size, 1)
     objective_label = "dp" if objective == "dp" else "ar_cot"
     run_name = (
-        f"{MODEL['name'].split('/')[-1]}-exp21_equal_token-{objective_label} "
+        f"{model['name'].split('/')[-1]}-exp21_equal_token-{objective_label} "
         f"(split={task['train_split']}, itr={itr_id})"
     )
 
     configs.append(
         {
-            "model_name": MODEL["name"],
+            "model_name": model["name"],
             "task_name": task["name"],
             "dataset_split": task["dataset_split"],
             "dataset_num_proc": 16,
@@ -119,7 +136,8 @@ for itr_id, task, objective in itertools.product(
             # The legacy evaluator and accuracy-report parser use "prompt".
             "prompt": objective,
             "source_checkpoint": str(source_checkpoint(task, itr_id)),
-            "source_checkpoint_step": SOURCE_CHECKPOINT_STEP,
+            "source_checkpoint_step": task["source_checkpoint_step"],
+            "source_experiment": task["source_experiment"],
             "project_name": f"exp21_qwen_{task['name']}",
             "run_name": run_name,
             "output_dir": str(
