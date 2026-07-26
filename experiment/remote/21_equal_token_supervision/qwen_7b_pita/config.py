@@ -6,8 +6,8 @@ import itertools
 import sys
 from pathlib import Path
 
-sys.path.append("../")
-from run import perform_run
+EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(EXPERIMENT_DIR))
 
 
 DATA_PATH = "/n/netscratch/pehlevan_lab/Lab/wlt/data/pita"
@@ -154,6 +154,8 @@ if mode == "eval":
 
     perform_eval(configs)
 elif mode == "run":
+    from run import perform_run
+
     perform_run(configs)
 else:
     raise SystemExit(f"unrecognized mode: {mode!r}; expected 'run' or 'eval'")

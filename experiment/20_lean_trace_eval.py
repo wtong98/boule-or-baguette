@@ -1135,6 +1135,11 @@ def assert_self_test(results: Sequence[TraceResult]) -> None:
             not truncated.parse_valid and not truncated.trace_executable,
             "truncated XML trace was not rejected",
         ),
+        (
+            sum(is_correct_executable_trace(result) for result in results)
+            == 2,
+            "correct executable traces were classified incorrectly",
+        ),
     ]
     failures = [message for passed, message in checks if not passed]
     if failures:
@@ -1152,6 +1157,22 @@ def mean_float(values: Iterable[float]) -> float:
     return sum(clean) / len(clean) if clean else math.nan
 
 
+def is_correct_executable_trace(result: TraceResult) -> bool:
+    """Whether the fully replayable trace also supports its correct label."""
+
+    return (
+        result.trace_executable
+        and result.label_correct
+        and (
+            result.predicted_label == "failure"
+            or (
+                result.predicted_label == "success"
+                and result.proof_valid
+            )
+        )
+    )
+
+
 def summarize_group(results: Sequence[TraceResult]) -> dict[str, Any]:
     predicted_success = [
         result for result in results if result.predicted_label == "success"
@@ -1165,8 +1186,26 @@ def summarize_group(results: Sequence[TraceResult]) -> dict[str, Any]:
     no_final_label = [
         result for result in results if result.predicted_label is None
     ]
+    predicted_failure = [
+        result for result in results if result.predicted_label == "failure"
+    ]
+    label_correct = [result for result in results if result.label_correct]
+    parse_valid = [result for result in results if result.parse_valid]
     executable = [result for result in results if result.trace_executable]
     valid_proofs = [result for result in results if result.proof_valid]
+    correct_executable = [
+        result for result in results if is_correct_executable_trace(result)
+    ]
+    correct_executable_success = [
+        result
+        for result in correct_executable
+        if result.predicted_label == "success"
+    ]
+    correct_executable_failure = [
+        result
+        for result in correct_executable
+        if result.predicted_label == "failure"
+    ]
     state_total = sum(result.total_states for result in results)
     state_matches = sum(result.matching_states for result in results)
     success_recall = mean_bool(
@@ -1174,6 +1213,16 @@ def summarize_group(results: Sequence[TraceResult]) -> dict[str, Any]:
     )
     failure_recall = mean_bool(
         result.predicted_label == "failure" for result in gold_false
+    )
+    correct_success_recall = (
+        len(correct_executable_success) / len(gold_true)
+        if gold_true
+        else math.nan
+    )
+    correct_failure_recall = (
+        len(correct_executable_failure) / len(gold_false)
+        if gold_false
+        else math.nan
     )
 
     return {
@@ -1191,6 +1240,35 @@ def summarize_group(results: Sequence[TraceResult]) -> dict[str, Any]:
         ),
         "missing_label_rate": mean_bool(
             result.predicted_label is None for result in results
+        ),
+        "correct_executable_trace_rate": mean_bool(
+            is_correct_executable_trace(result) for result in results
+        ),
+        "correctness_given_executable_trace": mean_bool(
+            is_correct_executable_trace(result) for result in executable
+        ),
+        "correct_executable_given_label_correct": mean_bool(
+            is_correct_executable_trace(result) for result in label_correct
+        ),
+        "correct_executable_given_parse_valid": mean_bool(
+            is_correct_executable_trace(result) for result in parse_valid
+        ),
+        "correct_executable_success_given_gold_true": (
+            correct_success_recall
+        ),
+        "correct_executable_failure_given_gold_false": (
+            correct_failure_recall
+        ),
+        "balanced_correct_executable_rate": mean_float(
+            [correct_success_recall, correct_failure_recall]
+        ),
+        "correct_executable_success_given_predicted_success": mean_bool(
+            is_correct_executable_trace(result)
+            for result in predicted_success
+        ),
+        "correct_executable_failure_given_predicted_failure": mean_bool(
+            is_correct_executable_trace(result)
+            for result in predicted_failure
         ),
         "label_accuracy": mean_bool(
             result.label_correct for result in results
@@ -1235,11 +1313,15 @@ def summarize_group(results: Sequence[TraceResult]) -> dict[str, Any]:
             result.label_correct for result in valid_proofs
         ),
         "n_predicted_success": len(predicted_success),
+        "n_predicted_failure": len(predicted_failure),
         "n_gold_true": len(gold_true),
         "n_gold_false": len(gold_false),
         "n_no_final_label": len(no_final_label),
         "n_executable": len(executable),
         "n_valid_proofs": len(valid_proofs),
+        "n_correct_executable": len(correct_executable),
+        "n_correct_executable_success": len(correct_executable_success),
+        "n_correct_executable_failure": len(correct_executable_failure),
     }
 
 
@@ -1289,6 +1371,7 @@ def markdown_table(headers: Sequence[str], rows: Iterable[Sequence[Any]]) -> str
 def render_markdown(summary: dict[str, Any]) -> str:
     trace_rows = []
     label_rows = []
+    correct_trace_rows = []
     groups = [("Overall", summary["overall"])]
     groups.extend(
         (task.capitalize(), values)
@@ -1325,6 +1408,33 @@ def render_markdown(summary: dict[str, Any]) -> str:
                 percentage(values["failure_recall"]),
                 percentage(values["balanced_label_accuracy"]),
                 percentage(values["missing_label_rate"]),
+            ]
+        )
+        correct_trace_rows.append(
+            [
+                label,
+                (
+                    f"{values['n_correct_executable']}/"
+                    f"{values['n']}"
+                ),
+                percentage(values["correct_executable_trace_rate"]),
+                percentage(
+                    values["correctness_given_executable_trace"]
+                ),
+                percentage(
+                    values["correct_executable_given_label_correct"]
+                ),
+                percentage(
+                    values[
+                        "correct_executable_success_given_gold_true"
+                    ]
+                ),
+                percentage(
+                    values[
+                        "correct_executable_failure_given_gold_false"
+                    ]
+                ),
+                percentage(values["balanced_correct_executable_rate"]),
             ]
         )
 
@@ -1372,6 +1482,22 @@ def render_markdown(summary: dict[str, Any]) -> str:
                 label_rows,
             ),
             "",
+            "Correct executable trace diagnostics:",
+            "",
+            markdown_table(
+                [
+                    "Split",
+                    "Count",
+                    "Rate",
+                    "Correct / executable",
+                    "Correct trace / correct label",
+                    "Correct success / gold success",
+                    "Correct failure / gold failure",
+                    "Balanced correct trace",
+                ],
+                correct_trace_rows,
+            ),
+            "",
             "Definitions:",
             "",
             (
@@ -1390,6 +1516,14 @@ def render_markdown(summary: dict[str, Any]) -> str:
                 "script closes the theorem without `sorry`/`admit`. Invalid "
                 "abandoned branches still reduce prefix/executable-trace "
                 "metrics, but do not invalidate the final proof."
+            ),
+            (
+                "- **Correct executable trace**: a fully executable trace "
+                "that either ends in a Lean-valid proof with the correct "
+                "`success` label, or ends in `failure` for a gold-false "
+                "statement. It excludes premature success claims. A correct "
+                "failure outcome is not itself a Lean certificate of "
+                "falsity."
             ),
             "",
         ]
